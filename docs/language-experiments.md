@@ -489,10 +489,13 @@ run; the others have.
   - The articulation is not in the written notes.
     Their lengths fill the gap to the next onset in every bar (reading 0 in all 3,900 bars measured), because the gate is the performer's (T4); it is read from `BandBar.dough`, and then rises with the axis: tau 0.92 over the presets, 0.95 over its sweep and 0.71 over the tour, where the style is moving inside each bar.
     It lies 0.16 from the axis (0.21 in the tour): the reading tops out short of staccato, since a bass or lead note is never gated below a quarter of its length.
-  - The syncopation rises with the axis but weakly: tau 0.37 over the presets, 0.34 over its sweep and 0.22 over the tour, and the reading covers 0.03 to 0.29 of an axis that spans 0 to 1.
-    It is the drums that carry it (their off-beat share rises from 0.02 to 0.28 with the axis), the bass follows (0 to 0.25), and the pad and stab never leave the grid (0 and 0 to 0.08).
-    The lead is not monotone (0.11, 0.45, 0.18, 0.21, 0.59 at 0, 0.25, 0.5, 0.75, 1).
-    So the axis is a finding against the composer more than against the reader: `sync` moves the drums and the bass, and hardly touches the chords.
+  - The syncopation rises with the axis but weakly: tau 0.40 over the presets, 0.36 over its sweep and 0.26 over the tour, and the sweep's mean reading covers 0.07 to 0.22 of an axis that spans 0 to 1.
+    It is read as syncopation proper, cells' reading (yggi/cells#723, taken on the owner's ruling on yggi/cells#681, cells decision 088 in yggi/cells#752): an onset on a weak place whose line leaves the next stronger place silent counts by how much weaker its place is, and a bar's reading is the mean over its lines.
+    The old reading, the share of onsets off the pulses and off the eighths, gives tau 0.37, 0.34 and 0.23 on the same bars, and covers 0.03 to 0.30.
+    From `sync` 0 to 1 the drums read 0.07 to 0.26 and the stab 0.12 to 0.40, the bass follows (0.08 to 0.17), and the pad never leaves the pulses (0).
+    The stab's off-beat eighths are what the old reading missed: it counted every eighth as on the grid, and read the stab 0 to 0.08.
+    The lead is not monotone (0.10, 0.31, 0.15, 0.20, 0.50 at 0, 0.25, 0.5, 0.75, 1).
+    So the axis is a finding against the composer more than against the reader (#673): `sync` moves the drums, the bass and the stab a little, and the fixed grid outnumbers what it moves.
   - The density rises with the energy: tau 0.60 over its sweep, 0.46 over the presets and 0.31 over the tour.
     It has no scale of its own yet (onsets per step over all parts, 0.9 to 1.2 on average), so it has no distance; a fit to the axis is a later step.
   - An axis is read from its own and no other: a sweep of one moves the tau of each other reading by less than 0.05.
@@ -510,16 +513,30 @@ run; the others have.
   the transport plays each preset's point, `readStyle`, `readTiming` and `readHarm` read the bars, and `genreOf` (`packages/engine/src/genre.ts`) turns the reading into probabilities over the presets by a softmax over the distances at a temperature.
   The reading has five axes (`energy` from the density, `sync`, `artic`, `bpm` on its log axis scaled to 0 to 1, and `harm`); the distance is a root mean square over them.
   Swing is not one: it is the meter's (#360), and each preset plays in its meter's swing, which the drums, the bass and the lead still hear.
-  3 seeds of 32 bars per preset, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
-  - Against the presets' points, a single bar lands as its own preset in 0.53 of bars on average (chance 0.125): Ambient 1.00, Techno 0.82, Synth-pop 0.76, Swing jazz 0.71, Deep house 0.53 and Lo-fi hip hop 0.40, but Funk 0.00 and Bossa nova 0.00.
-    The reading is compressed short of the axes (E23, E25), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
-  - Against where the presets read, 0.69: Ambient 0.91, Funk 0.82, Techno 0.77, Lo-fi hip hop 0.77, Swing jazz 0.69, Deep house 0.59, Bossa nova 0.57 and Synth-pop 0.42.
+  5 seeds of 32 bars per preset at entropy 0.3, temperature 0.1, against two sets of landmarks: the presets' own points, and where the presets' bars read (the mean over 5 other seeds).
+  The critic is held to where the presets read, and the placed points are recorded, not bounded: placements are the composer's intent and readings the critic's, two scales (readings are compared with readings, the owner's ruling on yggi/cells#681, cells decision 088 in yggi/cells#752, 2026-11-13).
+  - Against where the presets read, a single bar lands as its own preset in 0.69 of bars on average (chance 0.125): Ambient 0.91, Funk 0.80, Lo-fi hip hop 0.77, Techno 0.76, Swing jazz 0.74, Deep house 0.63, Bossa nova 0.56 and Synth-pop 0.40.
     So the critic's landmarks are measured, not read off the presets.
-  - Each axis added lifted it. On the three axes of the notes alone (`energy`, `sync`, `artic`) it was 0.30 against the points and 0.41 against where the presets read; with `bpm` and `harm` it is 0.53 and 0.69.
+  - Against the presets' points, 0.48: Ambient 1.00, Synth-pop 0.81, Techno 0.81, Swing jazz 0.71, Deep house 0.44 and Lo-fi hip hop 0.09, but Funk 0.00 and Bossa nova 0.00.
+    The reading is compressed short of the axes (E23, E25), so a preset far out on one, Funk's `sync` of 1, has no bar near its point.
+  - `sync` read with cells' reading (syncopation proper, yggi/cells#723), with the old reading (the share of onsets off the pulses and off the eighths), and not read at all, measured on 2026-11-13 (the no-`sync` run drops the axis from the reading and the distance):
+
+    |                                             | no `sync` | old reading | cells' reading |
+    | ------------------------------------------- | --------- | ----------- | -------------- |
+    | per bar, against the presets' points        | **0.655** | 0.528       | 0.483          |
+    | per section, against the presets' points    | **0.631** | 0.550       | 0.512          |
+    | per bar, against where the presets read     | 0.688     | 0.694       | 0.694          |
+    | per section, against where the presets read | 0.694     | 0.700       | **0.706**      |
+
+    Against where the presets read, `sync` adds a little, and cells' reading at least as much as the old one.
+    Against the presets' points, reading `sync` makes the critic worse, with either reading: Funk lands 0.881 without it and 0 with either, Bossa nova 0.319 and 0, and Lo-fi hip hop 0.669, 0.400 and 0.094.
+    These presets are placed high on `sync` and their bars read low, because the composer barely expresses the axis (E23, #673), so no reading of these bars beats leaving `sync` out against the placed points.
+
+  - Each axis added lifted it. On the three axes of the notes alone (`energy`, `sync`, `artic`) it is 0.37 against the points and 0.42 against where the presets read (0.31 and 0.41 with the old `sync`); with `bpm` and `harm` it is 0.48 and 0.69.
     With the swing read as a sixth axis, before it left the style (#360), it was 0.64 and 0.80: Synth-pop, Lo-fi hip hop and Bossa nova sat in the middle of the note axes and were separated by the clock, and Swing jazz landed in 0.91 of bars.
     So four axes and the tempo place a bar less well than they did with swing (#358's open question, measured for the reader, not the composer).
   - A section's mean of 8 bars lands within 0.15 of a bar: averaging adds little, so what is missing is axes, not noise.
-  - Not measured: the temperature's effect on calibration of `p` beyond the two tried (0.05 and 0.1 rank alike; `p` on the right preset is 0.14 to 0.80 at 0.1), `harm`, and real music.
+  - Not measured: the temperature's effect on calibration of `p` beyond the two tried (0.05 and 0.1 rank alike; `p` on the right preset is 0.08 to 0.82 at 0.1 against the points, 0.23 to 0.75 against where the presets read), a mood read over each span of bars (cells' `readPoint`), and real music.
 
 - **E25. The chords, and `harm`, read back from the notes** (#15, the critic's `harm`; F3 at the harmony level, N3), in
   [`packages/engine/experiments/harm-readback.ts`](../packages/engine/experiments/harm-readback.ts),
@@ -537,13 +554,14 @@ run; the others have.
 - **E26. One voice of the band read alone** (#15 step 4, N3), in
   [`packages/engine/experiments/voice-reading.ts`](../packages/engine/experiments/voice-reading.ts),
   held by [`packages/engine/experiments/voice-reading.test.ts`](../packages/engine/experiments/voice-reading.test.ts):
-  `readVoice` (`packages/engine/src/part-reading.ts`) reads the drums, the bass, the comp (pad and stab together) and the lead each from its own notes: its density (its share of the 16 steps), its `sync`, the `artic` of the bass and lead, and the `harm` of the comp.
+  `readVoice` (`packages/engine/src/part-reading.ts`) reads the drums, the bass, the comp (pad and stab together) and the lead each from its own notes: its density (its share of the 16 steps), its `sync`, the `bite` of the bass and lead (the style's `artic`), and the `harm` of the comp.
   The distance of a voice from a landmark is a root mean square over the axes both have.
   The presets held, 5 seeds of 32 bars each, against landmarks that are where each voice reads at each preset (5 other seeds).
-  - Every voice says something of the style by itself: the nearest of the eight landmarks, for that voice alone, is the preset that wrote the bar in 0.61 of the bass's bars, 0.49 of the comp's, 0.40 of the lead's and 0.29 of the drums' (chance 0.125).
+  - Every voice says something of the style by itself: the nearest of the eight landmarks, for that voice alone, is the preset that wrote the bar in 0.73 of the bass's bars, 0.54 of the comp's, 0.46 of the lead's and 0.30 of the drums' (chance 0.125), with `sync` read by cells' reading (yggi/cells#723, on the owner's ruling on yggi/cells#681, cells decision 088 in yggi/cells#752; 0.61, 0.49, 0.40 and 0.29 with the old reading).
     The drums say least although they carry most of the bar's `sync` (E23): their density and `sync` are the two axes they have, and the presets share them.
-  - A voice lies 0.06 (comp), 0.10 (bass), 0.14 (lead) and 0.18 (drums) from its own landmark on average.
-  - A drum fill (a `fill` hit written; 112 of 1,280 bars) reads only a little farther from the drums' landmark than the drums of a bar without: 0.199 against 0.180, and a bar with a fill is the farther of a pair in 0.58 of them (0.5 is chance).
+  - A voice lies 0.080 (bass), 0.083 (comp), 0.12 (lead) and 0.16 (drums) from its own landmark on average.
+    The comp and the bass are nearest, within 0.005 of each other: their order flipped by 0.002 under cells' `sync` (the comp 0.064 and the bass 0.096 with the old reading).
+  - A drum fill (a `fill` hit written; 112 of 1,280 bars) reads only a little farther from the drums' landmark than the drums of a bar without: 0.164 against 0.161, and a bar with a fill is the farther of a pair in 0.55 of them (0.5 is chance; 0.199, 0.180 and 0.58 with the old `sync` reading).
     So a bar of drums read by density and `sync` cannot tell a fill from the drummer's usual variety; a licence that shrinks when a fill reads far would need a finer reading (the half bar the fill covers, or its role), not this one.
   - Not measured: the swing and tempo of a voice (they need the voice's onsets on the clock), a fill of the lead, and entropy (step 5).
 - **E27. The bass bar as a fold of one tree** (#275 step 1), in

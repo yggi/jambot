@@ -6,7 +6,8 @@
  * style. Compose a bar at style s, read s' back, and per axis measure two
  * things: whether s' rises with s (Kendall's tau-b over all the pairs of
  * bars), and how far it lies from s (the mean absolute distance, where the
- * reading is on the axis's own scale: `sync` and `artic`; `density` has none).
+ * reading is on the axis's own scale: `sync`, and `bite` on `artic`; `density`
+ * has none).
  * Exact isn't expected: the licence and the draws blur it, so the error is
  * the measurement, and an axis whose reading does not rise with it is a
  * finding against the composer or the reader (N3).
@@ -62,15 +63,16 @@ const mean = (xs: readonly number[]) =>
 /** The axes a reading has: the ones of the style space that notes can say. */
 export const READ_AXES = [
   ['sync', 'sync'],
-  ['artic', 'artic'],
+  ['artic', 'bite'],
   ['energy', 'density'],
-] as const satisfies readonly (readonly [Axis, 'sync' | 'artic' | 'density'])[];
+] as const satisfies readonly (readonly [Axis, 'sync' | 'bite' | 'density'])[];
 
 /** One composed bar: the style it was composed at, and what `readStyle` read. */
 export interface Sample {
   readonly style: Style;
   readonly sync: number | undefined;
-  readonly artic: number | undefined;
+  /** The reading's `bite`, read against the style's `artic`. */
+  readonly bite: number | undefined;
   readonly density: number;
 }
 
@@ -98,7 +100,7 @@ export function samples(
     );
     carried = out.carried;
     const read = readStyle(out.output.dough);
-    return { style: out.output.style, sync: read.sync, artic: read.artic, density: read.density };
+    return { style: out.output.style, sync: read.sync, bite: read.bite, density: read.density };
   });
 }
 

@@ -48,17 +48,17 @@ export const PROTOTYPE_LANDMARKS = PRESET_LANDMARKS.filter((l) =>
 /** The seeds the landmarks are read from, apart from the measured ones. */
 const LANDMARK_SEEDS = [11, 12, 13, 14, 15];
 
-const axesOf = (s: Pick<TimingSample, 'density' | 'sync' | 'artic' | 'bpm' | 'harm'>) =>
+const axesOf = (s: Pick<TimingSample, 'density' | 'sync' | 'bite' | 'bpm' | 'harm'>) =>
   readingAxes(s);
 
 /** The mean reading of some bars: the mean of each axis over the bars that have it. */
 function meanReading(part: readonly TimingSample[]) {
-  const at = (key: 'sync' | 'artic' | 'bpm' | 'harm') =>
+  const at = (key: 'sync' | 'bite' | 'bpm' | 'harm') =>
     mean(part.flatMap((s) => (s[key] === undefined ? [] : [s[key]])));
   return {
     density: mean(part.map((s) => s.density)),
     sync: at('sync'),
-    artic: at('artic'),
+    bite: at('bite'),
     bpm: at('bpm'),
     harm: at('harm'),
   };
@@ -67,7 +67,7 @@ function meanReading(part: readonly TimingSample[]) {
 const landmarkOf = (read: ReturnType<typeof meanReading>): Landmark['at'] => ({
   energy: energyOf(read.density),
   sync: read.sync,
-  artic: read.artic,
+  artic: read.bite,
   bpm: bpmUnit(read.bpm),
   harm: read.harm,
 });
