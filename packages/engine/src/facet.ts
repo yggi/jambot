@@ -34,6 +34,7 @@
  */
 
 import type { Meter } from '@jambot/theory';
+import { hasFrom } from '@yggi/cells/engine/use';
 import { SECTION_BARS } from './form.ts';
 import type { LearnedLayer } from './layer.ts';
 import { METER_HOLD, MISS_DISTANCE, type StylePoint } from './meter-query.ts';
@@ -231,7 +232,8 @@ const SEEDS = createRecogniser();
  * A): where cells' recogniser finds its text among its facet's seeds alone (`libraryOf` with no layer) with no operator
  * and no note apart, over as many bars, the layer as it was with a use of that seed at the filing's point, beside the
  * bench's meter fragment, as identity takes a text the layer holds. The filing as it was otherwise: held already, of a
- * facet the recogniser has no options for, or no seed's.
+ * facet the recogniser has no options for, a text that takes `from` fragments (it names what it plays already), or no
+ * seed's.
  */
 function asSeed<R extends { readonly bars: number }, C>(
   repository: FacetRepository<R, C>,
@@ -245,7 +247,8 @@ function asSeed<R extends { readonly bars: number }, C>(
     return filed;
   const options = recogniseOptionsOf(facet as LoopFacet, bench);
   const text = filed.layer.filed.find((f) => f.fragment.id === filed.id)?.fragment.text;
-  if (!options || text === undefined) return filed;
+  // (a text that takes from fragments, a lead's form over the seed's motifs, already names what it plays: #580)
+  if (!options || text === undefined || hasFrom(text)) return filed;
   const seed = SEEDS.recognise(text, libraryOf(facet as LoopFacet), {
     ...options,
     tolerance: 0,

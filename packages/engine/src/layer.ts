@@ -40,10 +40,11 @@ export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments
  * learning), since use raises a point where one is, and the meters have one
  * each; with the rhythms, and the grooves the Muse files on a miss
  * (#401) and the composer's variations of them and of the seed rhythms
- * (#411, #414), at most 11,550 bytes, eleven grooves at most (E38, E39);
- * with the bass lines too, at most 15,035 (E41). With the lead lines and a
- * player answering one section in four (E42), it reaches the cap, which drops
- * its oldest in 29 sections of 5,385 over 3 hours (#580).
+ * (#411, #414), each variation kept by reference (`storedLayer`), at most
+ * 10,826 bytes, eleven grooves at most (E38); with the bass lines too, at most
+ * 15,613 (E41). With the lead lines and a player answering one section in four
+ * (E42), it reaches the cap, which drops its oldest in 77 sections of 5,370
+ * over 3 hours (#580, #553).
  */
 export const LAYER_CAP = 16_000;
 

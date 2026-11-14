@@ -113,10 +113,11 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0)
-  it(`keeps a layer of at most 15,114 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0; 15,114 bytes before #553 kept each
+  // groove variation by reference, without its text)
+  it(`keeps a layer of at most 10,826 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(15114);
+    expect(Math.max(...bytes)).toBe(10826);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)
