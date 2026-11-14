@@ -108,9 +108,9 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
   });
 
   // (3,682 bytes before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno
-  // turns to)
-  it(`keeps a layer of at most 3,860 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(3860);
+  // turns to; 3,860 before #553 kept each groove variation by reference, without its text)
+  it(`keeps a layer of at most 2,535 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(2535);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });

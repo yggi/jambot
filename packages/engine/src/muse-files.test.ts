@@ -9,7 +9,7 @@ import { distilledGroove } from './muse-groove.ts';
 import { SECTION_BARS } from './form.ts';
 import { BY, GROOVE_KEEP, VARIES } from './novelty.ts';
 import { COMPOSER, filedHeard } from './facet.ts';
-import { GROOVE_TAG } from './plan.ts';
+import { GROOVE_TAG, seedOf } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { type FragmentHit, type RhythmBench, isOwnLine } from './rhythm-query.ts';
 import { RHYTHM_REPOSITORY, readRhythm, rhythmRepository } from './rhythms.ts';
@@ -458,6 +458,7 @@ describe('a filing that is a seed exactly is a use of that seed (#553 item 2, th
       bench,
       at,
       EMPTY_LAYER,
+      seedOf,
     );
 
   it('records a groove played as a one-bar seed drum bar plays it as a use of that seed, filing nothing', () => {

@@ -39,13 +39,6 @@ import { SECTION_BARS } from './form.ts';
 import type { LearnedLayer } from './layer.ts';
 import { METER_HOLD, MISS_DISTANCE, type StylePoint } from './meter-query.ts';
 import { type Boredom, type Lineage, familyOf, lineageOf, wantsVariation } from './novelty.ts';
-import {
-  LOOP_FACETS,
-  type LoopFacet,
-  createRecogniser,
-  libraryOf,
-  recogniseOptionsOf,
-} from './recognised.ts';
 import { type Stream, draw, nameKey } from './random.ts';
 
 /** What a fragment must fit: the section's meter, and the meter fragment it came from, where it came from one. */
@@ -224,15 +217,18 @@ export const placeIn = (layer: LearnedLayer, facet: string, id: string): number 
     .filter((f) => f.fragment.association.some((p) => p.facet === facet))
     .findIndex((f) => f.fragment.id === id);
 
-/** The recogniser a filing is checked against the seeds with (`asSeed`): it keeps what it reads, for the band's life. */
-const SEEDS = createRecogniser();
+/**
+ * The seeds of a facet whose notes a filed text is, exactly (#553 item 2, the owner's choice A): cells' recogniser over
+ * the facet's seeds alone, no operator and no note apart (`plan.ts`'s `seedOf`, which reads `recognised.ts`; passed
+ * in, so this module, which the repositories read, reads no recogniser). None where the text is no seed's.
+ */
+export type SeedOf = (facet: string, text: string, bench: Bench) => readonly string[];
 
 /**
  * A filing that is a seed exactly, recorded as a use of that seed rather than filed (#553 item 2, the owner's choice
- * A): where cells' recogniser finds its text among its facet's seeds alone (`libraryOf` with no layer) with no operator
- * and no note apart, over as many bars, the layer as it was with a use of that seed at the filing's point, beside the
- * bench's meter fragment, as identity takes a text the layer holds. The filing as it was otherwise: held already, of a
- * facet the recogniser has no options for, a text that takes `from` fragments (it names what it plays already), or no
+ * A): where `seedOf` finds its text a seed's, over as many bars, the layer as it was with a use of that seed at the
+ * filing's point, beside the bench's meter fragment, as identity takes a text the layer holds. The filing as it was
+ * otherwise: held already, with no `seedOf`, a text that takes `from` fragments (it names what it plays already), or no
  * seed's.
  */
 function asSeed<R extends { readonly bars: number }, C>(
@@ -242,25 +238,16 @@ function asSeed<R extends { readonly bars: number }, C>(
   filed: { readonly layer: LearnedLayer; readonly id: string; readonly held: boolean },
   bench: Bench,
   point: StylePoint,
+  seedOf: SeedOf | undefined,
 ): { readonly layer: LearnedLayer; readonly id: string; readonly held: boolean } {
-  if (filed.held || !repository.used || !(LOOP_FACETS as readonly string[]).includes(facet))
-    return filed;
-  const options = recogniseOptionsOf(facet as LoopFacet, bench);
+  if (filed.held || !seedOf || !repository.used) return filed;
   const text = filed.layer.filed.find((f) => f.fragment.id === filed.id)?.fragment.text;
   // (a text that takes from fragments, a lead's form over the seed's motifs, already names what it plays: #580)
-  if (!options || text === undefined || hasFrom(text)) return filed;
-  const seed = SEEDS.recognise(text, libraryOf(facet as LoopFacet), {
-    ...options,
-    tolerance: 0,
-    depth: 0,
-  }).find(
-    (r) =>
-      r.distance === 0 &&
-      r.path.length === 0 &&
-      r.bar === 0 &&
-      repository.read(r.fragment.id, bench.meter)?.bars ===
-        repository.read(filed.id, bench.meter, filed.layer)?.bars,
-  )?.fragment.id;
+  if (text === undefined || hasFrom(text)) return filed;
+  const bars = repository.read(filed.id, bench.meter, filed.layer)?.bars;
+  const seed = seedOf(facet, text, bench).find(
+    (id) => repository.read(id, bench.meter)?.bars === bars,
+  );
   if (seed === undefined) return filed;
   const alongside = bench.meterFragment === undefined ? [] : [bench.meterFragment];
   return { layer: repository.used(before, [seed], point, alongside), id: seed, held: true };
@@ -290,6 +277,7 @@ export function climbedFigure<R extends { readonly bars: number }, C>(
   boredom: Boredom,
   id: string | undefined,
   bench: Bench,
+  seedOf?: SeedOf,
 ): {
   readonly id: string | undefined;
   readonly layer: LearnedLayer;
@@ -319,7 +307,7 @@ export function climbedFigure<R extends { readonly bars: number }, C>(
     varies: id,
     by,
   });
-  const filed = asSeed(repository, facet, layer, filing, bench, at.point);
+  const filed = asSeed(repository, facet, layer, filing, bench, at.point, seedOf);
   const grooves = lineage.grooves.includes(filed.id)
     ? lineage.grooves
     : [...lineage.grooves, filed.id];
@@ -350,6 +338,7 @@ export function filedHeard<R extends { readonly bars: number }, C, B>(
   bench: Bench,
   at: FilingAt,
   layer: LearnedLayer,
+  seedOf?: SeedOf,
 ): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
   if (!repository?.file) return { layer, ids: [] };
   let filedLayer = layer;
@@ -371,6 +360,7 @@ export function filedHeard<R extends { readonly bars: number }, C, B>(
       }),
       bench,
       at.point,
+      seedOf,
     );
     filedLayer = filed.layer;
     if (!ids.includes(filed.id)) ids.push(filed.id);

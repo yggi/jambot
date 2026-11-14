@@ -90,9 +90,7 @@ describe('the share of bars recognised over 8 bars, over the 8 presets at entrop
   it('sits just under the ruled band over all members, held and walked: its mean under 0.4, about half its sections under it (61 of 128 held)', () => {
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
     expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.398, 0.162, 0.523, 0.023]);
-    // (0.376, 0.17, 0.496 and 0.047 walked before #553, which stores a groove variation by reference and files a seed
-    // played exactly as a use of it, so what the walk's layer keeps moves)
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.377, 0.169, 0.494, 0.043]);
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.376, 0.17, 0.496, 0.047]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeLessThan(BAND.low);

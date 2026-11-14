@@ -169,31 +169,30 @@ export function libraryOf(facet: LoopFacet, layer?: LearnedLayer, lately?: Latel
 }
 
 /** Every drum voice the band's kit strikes, as a line reads them, so a workbench brings each one's instrument. */
-const kitVoices = () => [...new Set(VOICE_OF_NOTE.values())].map((v) => `&${v}`).join(' ');
+const KIT_VOICES = [...new Set(VOICE_OF_NOTE.values())].map((v) => `&${v}`).join(' ');
 
-/**
- * The instruments a member's voices sound through: its seeds', and those its own texts read. Built on first use: the
- * composer's filing reads this module (`facet.ts`'s `asSeed`), so its tables wait until the band's modules have loaded.
- */
-let instruments: Readonly<Record<LoopFacet, readonly string[]>> | null = null;
-const instrumentsOf = (): Readonly<Record<LoopFacet, readonly string[]>> =>
-  (instruments ??= {
-    rhythm: instrumentsFor(
-      [
-        `&kit ${kitVoices()}`,
-        ...SEED_FRAGMENTS.filter(isOf('rhythm')).map((f) => grooveLines(f.text)),
-      ].join('\n'),
-    ),
-    bass: instrumentsFor(
-      [...BASS_VOICE, ...SEED_FRAGMENTS.filter(isOf('bass')).map((f) => f.text)].join('\n'),
-    ),
-    lead: [],
-    harmony: [],
-  });
+/** The instruments a member's voices sound through: its seeds', and those its own texts read. */
+const INSTRUMENTS: Readonly<Record<LoopFacet, readonly string[]>> = {
+  rhythm: instrumentsFor(
+    [
+      `&kit ${KIT_VOICES}`,
+      ...SEED_FRAGMENTS.filter(isOf('rhythm')).map((f) => grooveLines(f.text)),
+    ].join('\n'),
+  ),
+  bass: instrumentsFor(
+    [...BASS_VOICE, ...SEED_FRAGMENTS.filter(isOf('bass')).map((f) => f.text)].join('\n'),
+  ),
+  lead: [],
+  harmony: [],
+};
 
-/** The operators each member is recognised by: those the composer varies it by (built on first use, as `instrumentsOf`). */
-const operatorsOf = (facet: LoopFacet): readonly Operator[] =>
-  ({ rhythm: RHYTHM_OPERATORS, bass: PITCHED_OPERATORS, lead: LEAD_OPERATORS, harmony: [] })[facet];
+/** The operators each member is recognised by: those the composer varies it by. */
+const OPERATORS: Readonly<Record<LoopFacet, readonly Operator[]>> = {
+  rhythm: RHYTHM_OPERATORS,
+  bass: PITCHED_OPERATORS,
+  lead: LEAD_OPERATORS,
+  harmony: [],
+};
 
 /**
  * What a member's bar is recognised under on a bench: the workbench its
@@ -213,8 +212,8 @@ export function recogniseOptionsOf(facet: LoopFacet, bench: Bench): RecogniseOpt
           ? leadBench(name)
           : harmonyBench(name);
   if (bench_ === null) return null;
-  const workbench = [bench_, ...instrumentsOf()[facet]].join('\n');
-  const operators = operatorsOf(facet);
+  const workbench = [bench_, ...INSTRUMENTS[facet]].join('\n');
+  const operators = OPERATORS[facet];
   if (facet === 'rhythm') return { workbench, operators, keep: GROOVE_KEEP, fewest: GROOVE_FEWEST };
   if (facet === 'lead') return { workbench, operators, degrees: [LIFT] };
   return { workbench, operators };

@@ -85,7 +85,15 @@ import {
   climbedFigure,
   figureLearned,
   filedHeard,
+  type SeedOf,
 } from './facet.ts';
+import {
+  LOOP_FACETS,
+  type LoopFacet,
+  createRecogniser,
+  libraryOf,
+  recogniseOptionsOf,
+} from './recognised.ts';
 import { type HeardGroove, distilledGroove } from './muse-groove.ts';
 import { distilledLine } from './muse-line.ts';
 import {
@@ -446,6 +454,7 @@ function climbed(
     boredom,
     rhythm.rhythmFragment,
     bench,
+    seedOf,
   );
   return {
     rhythm: climb.id === rhythm.rhythmFragment ? rhythm : { ...rhythm, rhythmFragment: climb.id! },
@@ -453,6 +462,27 @@ function climbed(
     playing: climb.playing,
   };
 }
+
+/** The recogniser a filing is checked against the seeds with (`seedOf`): it keeps what it reads, for the band's life. */
+const SEEDS = createRecogniser();
+
+/**
+ * The seeds of a facet whose notes a filed text is exactly (#553 item 2, the owner's choice A): cells' recogniser over
+ * the facet's seeds alone (`libraryOf` with no layer), on the bench as the sensor reads it, with no operator and no note
+ * apart, matched from the seed's first bar. None for a facet the recogniser has no options for.
+ */
+export const seedOf: SeedOf = (facet, text, bench) => {
+  if (!(LOOP_FACETS as readonly string[]).includes(facet)) return [];
+  const options = recogniseOptionsOf(facet as LoopFacet, bench);
+  if (!options) return [];
+  return SEEDS.recognise(text, libraryOf(facet as LoopFacet), {
+    ...options,
+    tolerance: 0,
+    depth: 0,
+  })
+    .filter((r) => r.distance === 0 && r.path.length === 0 && r.bar === 0)
+    .map((r) => r.fragment.id);
+};
 
 /**
  * What the Muse files at a section's end (#401): each source's groove heard
@@ -479,6 +509,7 @@ export function museFiled(
     { meter: before.meter, meterFragment: before.meterFragment },
     filingAt({ ...given, index: given.index - 1 }, point),
     layer,
+    seedOf,
   );
 }
 
@@ -500,6 +531,7 @@ export function museFiledLines(
     { meter: before.meter, meterFragment: before.meterFragment },
     filingAt({ ...given, index: given.index - 1 }, point, LINE_TAG),
     layer,
+    seedOf,
   );
 }
 
@@ -559,6 +591,7 @@ export function museFiledLeads(
     { meter: before.meter, meterFragment: before.meterFragment },
     filingAt({ ...given, index: given.index - 1 }, point, LEAD_TAG),
     layer,
+    seedOf,
   );
 }
 
@@ -616,6 +649,7 @@ export function museFiledHarmonies(
     earlier.bench,
     filingAt({ ...given, index: given.index - 2 }, earlier.point, HARMONY_TAG),
     layer,
+    seedOf,
   );
 }
 
@@ -791,6 +825,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
           boredom,
           built.fragment ?? undefined,
           bench,
+          seedOf,
         )
       : { playing: null };
     const found = sectionRhythm(
@@ -823,6 +858,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
           boredom,
           line,
           { meter: composed.meter.meter, meterFragment },
+          seedOf,
         )
       : { id: line, layer: ladder.layer, playing: null };
     const bassKept = lineLadder.id;
@@ -844,6 +880,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
           boredom,
           motif,
           { meter: composed.meter.meter, meterFragment },
+          seedOf,
         )
       : { id: motif, layer: lineLadder.layer, playing: null };
     const leadKept = leadLadder.id;
