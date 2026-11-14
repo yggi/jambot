@@ -115,11 +115,12 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
-  // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0; 15,114 bytes before #651 held Salsa
-  // drums)
-  it(`keeps a layer of at most 15,147 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0)
+  it(`keeps a layer of at most 11,048 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
-    expect(Math.max(...bytes)).toBe(15147);
+    // (15,114 before the layer kept the composer's groove variations by reference, #553: their texts are most of them;
+    // 11,015 before the ostinato on top of cells v0.25.1, #651)
+    expect(Math.max(...bytes)).toBe(11048);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)

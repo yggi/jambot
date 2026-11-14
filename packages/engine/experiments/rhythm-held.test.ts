@@ -112,10 +112,12 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     });
   });
 
-  // (3,860 bytes before #651, where Funk's drummer filed its own once tired of Funk's, which now plays Salsa drums; 3,682
-  // before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno turns to)
-  it(`keeps a layer of at most 2,936 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(2936);
+  // (3,682 bytes before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno
+  // turns to)
+  it(`keeps a layer of at most 1,954 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+    // (3,860 before the layer kept the composer's groove variations by reference, as a host keeps it, #553; 2,577
+    // before the ostinato on top of cells v0.25.1, #651, where Funk's drummer no longer files its own once tired of Funk's, which now plays Salsa drums)
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(1954);
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(3);
   });
 });

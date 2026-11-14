@@ -368,3 +368,39 @@ describe('a lead line in cells’ call and answer (#520, rung 2)', () => {
     expect(keyedLine(MOTIF_LEADS, 'nowhere', heardVaried.layer)).toBe(false);
   });
 });
+
+describe('a line heard that is a seed’s exactly (#553)', () => {
+  // (cells' `rising`, 0 2 4 a beat apart, read in 4/4)
+  const RISING: LeadNote[] = [
+    { step: 0, degree: 0, alter: 0 },
+    { step: 4, degree: 2, alter: 0 },
+    { step: 8, degree: 4, alter: 0 },
+  ];
+
+  it('is a use of that seed: nothing filed, the seed learned at the point it was heard at', () => {
+    expect(LEAD_REPOSITORY.read('rising', METERS['4/4'])!.notes).toEqual(RISING);
+    const heard = LEAD_REPOSITORY.file!(EMPTY_LAYER, { ...FILING, notes: RISING });
+    expect([heard.id, heard.held, heard.layer.filed]).toEqual(['rising', true, []]);
+    expect(heard.layer.points.map((p) => p.id)).toContain('rising');
+    // (one note otherwise is the player's own, filed)
+    const own = LEAD_REPOSITORY.file!(EMPTY_LAYER, {
+      ...FILING,
+      notes: RISING.map((n, i) => (i === 2 ? { ...n, degree: 5 } : n)),
+    });
+    expect([own.held, own.layer.filed.length]).toEqual([false, 1]);
+  });
+
+  it('is filed where the composer varied a line into it, so the variation stays of its line’s family', () => {
+    const varied = LEAD_REPOSITORY.file!(EMPTY_LAYER, {
+      ...FILING,
+      notes: RISING,
+      source: 'composer',
+      varies: 'question',
+      by: 'invert &lead',
+    });
+    expect([varied.held, varied.layer.filed.map((f) => f.meta['varies'])]).toEqual([
+      false,
+      ['question'],
+    ]);
+  });
+});
