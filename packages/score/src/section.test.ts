@@ -11,6 +11,7 @@ import {
   PRESETS,
   SECTION_BARS,
   LEAD_LEVEL,
+  MISS_DISTANCE,
   type MeterSwing,
   STYLE_AXIS_NAMES,
   SWING_LEVELS,
@@ -39,6 +40,7 @@ import {
   soundOf,
 } from './section-play.ts';
 import {
+  INSTRUMENT_REACH,
   PERFORMER_VOICES,
   bandAt,
   instrumentsAt,
@@ -652,9 +654,15 @@ describe('the instruments the band plays a score on, found at its style (#497, #
   /**
    * The instruments cells wrote for presets' points: Electro swing's and Spooky's (yggi/cells#366), and since cells
    * v0.23.0 those of the styles cut from its examples, Kinderlied's and the four new (yggi/cells#572), and since v0.24.0
-   * the eight it placed by hand and cut from its examples (yggi/cells#675, #679). Elsewhere each performer plays its own.
+   * the eight it placed by hand and cut from its examples (yggi/cells#675, #679). Since v0.25.1 nothing stands at the
+   * centre and each style has a second choice within each facet (yggi/cells#540): the defaults and the shared
+   * instruments are placed by idiom, so Ambient, Funk and Swing jazz find instruments of their own, and Baroque, Blues
+   * shuffle, Chiptune and Salsa more. Past `INSTRUMENT_REACH` each performer plays its own.
    */
   const FOUND: Record<string, Partial<Record<keyof typeof PERFORMER_VOICES, string>>> = {
+    Ambient: { bass: 'sine_bass' },
+    Funk: { stab: 'brass_stab' },
+    'Swing jazz': { bass: 'upright_bass', lead: 'muted_trumpet' },
     'Electro swing': { bass: 'upright_bass', lead: 'clarinet', stab: 'brass_stab' },
     Spooky: { bass: 'round_bass', lead: 'theremin', pad: 'organ', stab: 'celesta' },
     Kinderlied: { bass: 'sine_bass', lead: 'recorder' },
@@ -662,11 +670,11 @@ describe('the instruments the band plays a score on, found at its style (#497, #
     'Happy hardcore': { lead: 'rave_lead' },
     Elektro: { bass: 'square_bass' },
     'Dark ambient': { pad: 'drone_pad', lead: 'prepared_piano' },
-    Baroque: { lead: 'moog' },
-    'Blues shuffle': { lead: 'blues_horn' },
+    Baroque: { stab: 'celesta', lead: 'moog' },
+    'Blues shuffle': { bass: 'upright_bass', pad: 'organ', lead: 'blues_horn' },
     'Sea shanty': { lead: 'fiddle' },
-    Chiptune: { lead: 'pulse_lead' },
-    Salsa: { lead: 'montuno_piano' },
+    Chiptune: { bass: 'square_bass', lead: 'pulse_lead' },
+    Salsa: { stab: 'brass_stab', lead: 'montuno_piano' },
     Waltz: { lead: 'accordion' },
     March: { lead: 'brass_band' },
     'Trip-hop': { lead: 'electric_piano' },
@@ -695,6 +703,28 @@ describe('the instruments the band plays a score on, found at its style (#497, #
       if (Object.keys(found).length === 0) expect(band).toBe(own);
     },
   );
+
+  it('plays an instrument within `INSTRUMENT_REACH` of the style, the composer’s miss distance, and none farther (cells v0.25.1)', () => {
+    expect(INSTRUMENT_REACH).toBe(MISS_DISTANCE);
+    // (a lead of its own at a point, at weight 1: each axis moved by `d` lies `d` from it, the root of the mean squared
+    // difference, which the ranking divides by the point's weight)
+    const point = { sync: 0.9, harm: 0.1, bite: 0.9, mood: 0.1 };
+    const whistle = {
+      id: 'test whistle',
+      text: '&leadV s=sine loop=C4 env=&(map=adsr .05 .1 .8 .2)',
+      association: [{ point, weight: 1, facet: 'instrument' }],
+    };
+    const off = (d: number) => ({
+      sync: point.sync - d,
+      harm: point.harm + d,
+      bite: point.bite - d,
+      mood: point.mood + d,
+    });
+    expect(instrumentsAt(off(0.29), [whistle])).toEqual({
+      lead: { id: 'test whistle', line: whistle.text },
+    });
+    expect(instrumentsAt(off(0.31), [whistle])).toEqual({});
+  });
 });
 
 describe('a voice’s own sound, read off the text for the built-in synth (#497)', () => {
@@ -704,8 +734,12 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
   const BASS = '&bassV s=saw loop=C2 lpf=300..1200 * &bassMove';
 
   // (the instruments found at presets' points, yggi/cells#366 and, since cells v0.23.0, #572, by the waveform each
-  // plays: elsewhere a voice is the performer's own instrument, and the synth colours it by the style)
+  // plays, and since cells v0.25.1 those placed by idiom within `INSTRUMENT_REACH`, yggi/cells#540: elsewhere a voice is
+  // the performer's own instrument, and the synth colours it by the style)
   const WAVES: Record<string, Record<string, string>> = {
+    Ambient: { bass: 'sine' },
+    Funk: { stab: 'sawtooth' },
+    'Swing jazz': { bass: 'sawtooth', lead: 'sawtooth' },
     'Electro swing': { bass: 'sawtooth', lead: 'square', stab: 'sawtooth' },
     Spooky: { bass: 'triangle', lead: 'sine', pad: 'square', stab: 'sine' },
     Kinderlied: { bass: 'sine', lead: 'triangle' },
@@ -713,6 +747,9 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     'Happy hardcore': { lead: 'sawtooth' },
     Elektro: { bass: 'square' },
     'Dark ambient': { pad: 'sawtooth', lead: 'triangle' },
+    'Blues shuffle': { bass: 'sawtooth', pad: 'square', lead: 'sawtooth' },
+    Chiptune: { bass: 'square' },
+    Salsa: { stab: 'sawtooth', lead: 'square' },
   };
 
   it.each(PRESETS.map((p) => p.name))(
