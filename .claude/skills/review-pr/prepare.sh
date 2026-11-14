@@ -9,10 +9,11 @@
 # probing; the summary says how to probe it and how to remove it.
 #
 # CI's run is the witness when it has one: when the CI workflow's `check`
-# (`pnpm verify`) and, where the change needs it, `e2e` jobs passed on the
-# head commit, neither runs again here, only the install, for the probes. A
-# pull request that changes markdown alone needs no end-to-end run (the
-# pre-push hook's docs rule). --verify runs them anyway.
+# (`pnpm verify`) and, where the change needs them, `slow` (`pnpm test:slow`,
+# the experiments left out of the gate) and `e2e` jobs passed on the head
+# commit, none runs again here, only the install, for the probes. A pull
+# request that changes markdown alone needs no slow tier and no end-to-end
+# run (the pre-push hook's docs rule). --verify runs them anyway.
 #
 # Usage:
 #   prepare.sh <pull request number | branch> [--from <commit>] [--against <pull request number | branch>] [--verify] [worktree directory]
@@ -126,8 +127,15 @@ if [ -n "$e2e" ] && ! git diff --name-only "$(git merge-base origin/main HEAD)..
   e2e_skipped=1
 fi
 
+# The slow tier, on the same terms: the experiments `pnpm verify` leaves out.
+slow=${JAMBOT_SLOW:-}
+[ -z "$slow" ] && grep -q '"test:slow":' package.json 2>/dev/null && slow='pnpm test:slow'
+if [ -n "$slow" ] && ! git diff --name-only "$(git merge-base origin/main HEAD)...HEAD" | grep -qv '\.md$'; then
+  slow=''
+fi
+
 # CI's witness: the address of the `check` run when the latest run of each
-# job needed (`check`, and `e2e` where it runs) passed on this commit; nothing
+# job needed (`check`, and `slow` and `e2e` where they run) passed on this commit; nothing
 # when one is missing, running or red, or GitHub can't be asked.
 witness() {
   sh -c "${JAMBOT_CI:-curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' \"https://api.github.com/repos/yggi/jambot/commits/\$1/check-runs?per_page=100\"}" - "$1" 2>/dev/null |
@@ -139,15 +147,16 @@ witness() {
         const last = (name) => runs.filter((r) => r.name === name).sort((a, b) => b.id - a.id)[0];
         const jobs = process.argv.slice(1).map(last);
         if (jobs.every((r) => r && r.status === "completed" && r.conclusion === "success")) console.log(jobs[0].html_url);
-      });' check ${e2e:+e2e} 2>/dev/null
+      });' check ${slow:+slow} ${e2e:+e2e} 2>/dev/null
 }
 witnessed=''
 [ -n "$force" ] || witnessed=$(witness "$(git rev-parse HEAD)")
-needed="pnpm verify${e2e:+ and pnpm e2e}"
+needed="pnpm verify${slow:+, pnpm test:slow}${e2e:+ and pnpm e2e}"
 
 if [ -n "$witnessed" ]; then
-  # Installed for the probes; CI's verify and end-to-end run stand for this one's.
+  # Installed for the probes; CI's verify, slow tier and end-to-end run stand for this one's.
   e2e=''
+  slow=''
   if sh -c "${JAMBOT_INSTALL:-pnpm install --frozen-lockfile --prefer-offline}" >"$log" 2>&1; then
     verdict='witnessed'
   else
@@ -159,6 +168,11 @@ else
   verdict='FAILS'
 fi
 unit=$(grep -E '^ +Tests ' "$log" | tail -1 | sed 's/^ *//; s/  */ /g')
+if [ -n "$slow" ] && [ "$verdict" = passes ]; then
+  # Before `verify_lines` is counted, so a failure's block of failed tests is found below as verify's is.
+  if sh -c "$slow" >>"$log" 2>&1; then slow_verdict='passes'; else slow_verdict='FAILS'; fi
+  slow_tests=$(grep -E '^ +Tests ' "$log" | tail -1 | sed 's/^ *//; s/  */ /g')
+fi
 verify_lines=$(wc -l <"$log")
 if [ -n "$e2e" ]; then
   if sh -c "$e2e" >>"$log" 2>&1; then e2e_verdict='passes'; else e2e_verdict='FAILS'; fi
@@ -222,9 +236,10 @@ if [ "$verdict" = witnessed ]; then
 else
   echo "pnpm verify $verdict${unit:+ ($unit)}; full log: $log"
 fi
+[ -n "${slow_verdict:-}" ] && echo "pnpm test:slow $slow_verdict${slow_tests:+ ($slow_tests)}"
 [ -n "$e2e" ] && echo "pnpm e2e $e2e_verdict${e2e_tests:+ ($e2e_tests)}"
 [ -n "${e2e_skipped:-}" ] && echo "pnpm e2e not run: the pull request changes markdown alone"
-if [ "$verdict" = FAILS ]; then
+if [ "$verdict" = FAILS ] || [ "${slow_verdict:-passes}" = FAILS ]; then
   # Vitest's block of failed tests, up to its summary; else the output's end.
   failed=$(head -n "$verify_lines" "$log" | sed -n '/Failed Tests/,/^ *Test Files /p' | head -80)
   if [ -n "$failed" ]; then echo "$failed"; else head -n "$verify_lines" "$log" | tail -30; fi

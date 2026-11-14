@@ -17,12 +17,12 @@
  * text and how each of its lines reads; Jambot's reader is `lineOf`
  * (`section-play.ts`), given the text compiled.
  *
- * Every reading runs. One Jambot doesn't meet is recorded below with its
- * reason, and its run then shows it still differs, so a record that has gone
- * stale fails as surely as a reading newly missed.
+ * Every reading runs, and Jambot meets each: a line whose text declares
+ * none of the feel's parts or roles reads as none (#506).
  */
 import { type BarEnv, type DrumRole, PRESETS, type SwingLevel } from '@jambot/engine';
 import { planOf } from '@yggi/cells';
+import { readerOf } from '@yggi/cells/engine/perform/feel';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { describe, expect, it } from 'vitest';
 import feelHub from '../../engine/fixtures/contracts/feel.json';
@@ -120,9 +120,13 @@ describe('the feel contract (yggi/music-commons contracts/feel, version 3: versi
   });
 });
 
-/** What `lineOf` reads an output as, in the contract's words: a part, and a drum's role. */
-const read = (line: NoteLine) =>
-  line.line === 'drums' ? { part: line.line, role: line.role } : { part: line.line };
+/** What `lineOf` reads an output as, in the contract's words: a part, and a drum's role; `null` where it is none of the feel's. */
+const read = (line: NoteLine | null) =>
+  line === null
+    ? null
+    : line.line === 'drums'
+      ? { part: line.line, role: line.role }
+      : { part: line.line };
 
 /**
  * The line an output plays, as its id says: a kit's member its third field, else its second, the name before any
@@ -139,10 +143,10 @@ const lineName = (id: string) => {
  * Each line of each case as `lineOf` reads it, given the case's text compiled (`planOf`, as the host compiles a
  * section's), one reading per output the line plays, keyed `<says>: &<line>`.
  */
-const readings = () =>
+const readings = (reader: typeof lineReader = lineReader) =>
   feel.reading.flatMap(({ says, text, reads }) => {
     const plan = planOf(text.join('\n'), undefined, { resolve: resolveSeed });
-    const lineAt = lineReader(plan.result);
+    const lineAt = reader(plan.result);
     return Object.entries(reads).map(([line, expected]) => ({
       name: `${says}: &${line}`,
       diagnostics: plan.result.diagnostics.map((d) => d.message),
@@ -154,23 +158,18 @@ const readings = () =>
   });
 
 /**
- * The readings Jambot doesn't meet, each with why. `lineOf` reads by cells' `readerOf`, the `part=` and `role=` a
- * text declares, and falls back to version 2's reading by names where nothing is declared, so a text written before
- * #615 plays as it did; and it reads every output as some line, never as not the feel's (#506). Where the contract
- * reads a line as not the feel's (`null`), `lineOf` reads it by its name. The band's own sections declare every note
- * they play (`section.test.ts`), so no event Jambot writes meets one.
+ * `lineOf` as it read until #615's ruling (2026-11-13): what the text declares (`readerOf`), else the output by its
+ * name, a kit's member the drums, its role the line's name, else the part the line's name.
  */
-const RECORDED: Readonly<Record<string, string>> = {
-  'a line named as a part declares none: no part: &bass':
-    'lineOf falls back to the name where nothing is declared: part bass',
-  'a role cell named as a part declares none: no part: &line':
-    'lineOf falls back to the line’s name where nothing is declared: part line',
-  'a drum line named as a role declares none: no role: &kick':
-    'lineOf falls back to a kit member’s name where nothing is declared: drums, role kick',
-  "a role not the feel's: &s":
-    'lineOf reads a kit member undeclared among the eight by its name: drums, role s',
-  "a pitched line's part=drums: the drums are read by a role: &low":
-    'lineOf falls back to the line’s name where no part of the four is declared: part low',
+const byName: typeof lineReader = (result) => {
+  const read = readerOf(result);
+  return (output) => {
+    const reading = read(output);
+    if (reading) return { line: reading.part, ...(reading.role ? { role: reading.role } : {}) };
+    const [first, second, third] = (output ?? '').split(':');
+    if (first === 'kit') return { line: 'drums', role: third as DrumRole };
+    return { line: second as PitchedName };
+  };
 };
 
 describe('the feel contract’s reading (yggi/music-commons contracts/feel, version 3: by part= and role=, never a name, yggi/cells decision 075)', () => {
@@ -182,31 +181,36 @@ describe('the feel contract’s reading (yggi/music-commons contracts/feel, vers
     expect(all.filter((r) => r === null)).toHaveLength(5);
   });
 
-  it('lineOf reads every line of every case as the contract does, but those recorded, which still differ: 6 of 11', () => {
+  it('lineOf reads every line of every case as the contract does: 11 of 11', () => {
     const all = readings();
     for (const { name, diagnostics, read, expected } of all) {
       expect(diagnostics, name).toEqual([]);
       expect(read.length, name).toBeGreaterThan(0);
-      if (name in RECORDED) for (const r of read) expect(r, name).not.toEqual(expected);
-      else for (const r of read) expect(r, name).toEqual(expected);
+      for (const r of read) expect(r, name).toEqual(expected);
     }
-    expect(all.filter((r) => !(r.name in RECORDED))).toHaveLength(6);
-    expect(Object.keys(RECORDED).filter((n) => !all.some((r) => r.name === n))).toEqual([]);
+    expect(all).toHaveLength(11);
   });
 
-  it('is shown firing: a reading turned over, or a record gone stale, is caught', () => {
+  it('is shown firing: a reading turned over, or a line read by its name, is caught', () => {
     const all = readings();
     const named = (name: string) => all.find((r) => r.name === name)!;
     // (a met line read as another part would fail its expectation)
     const declared = named('a line declares its part: &low');
     expect(declared.read).toEqual([{ part: 'bass' }]);
     expect(declared.read).not.toContainEqual({ part: 'lead' });
-    // (a recorded line still differs, as its record says: the name read where the contract reads none)
-    expect(named('a line named as a part declares none: no part: &bass').read).toEqual([
-      { part: 'bass' },
-    ]);
-    expect(named('a drum line named as a role declares none: no role: &kick').read).toEqual([
-      { part: 'drums', role: 'kick' },
+    // (a line that declares nothing reads as none of the feel's: read by its name, as before #615's ruling, it would be a part)
+    expect(named('a line named as a part declares none: no part: &bass').read).toEqual([null]);
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    const misread = readings(byName).filter((r) => r.read.some((x) => !same(x, r.expected)));
+    expect(misread.map((r) => [r.name, r.read])).toEqual([
+      ['a line named as a part declares none: no part: &bass', [{ part: 'bass' }]],
+      ['a role cell named as a part declares none: no part: &line', [{ part: 'line' }]],
+      [
+        'a drum line named as a role declares none: no role: &kick',
+        [{ part: 'drums', role: 'kick' }],
+      ],
+      ["a role not the feel's: &s", [{ part: 'drums', role: 's' }]],
+      ["a pitched line's part=drums: the drums are read by a role: &low", [{ part: 'low' }]],
     ]);
   });
 });

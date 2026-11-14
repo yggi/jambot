@@ -1,3 +1,4 @@
+import { readPoint } from '@yggi/cells/engine/reading/point';
 import { describe, expect, it } from 'vitest';
 import {
   PRESET_LANDMARKS,
@@ -22,15 +23,33 @@ describe('genre probabilities: nearness to the presets', () => {
 
   it('carries the axes a reading has, and none it lacks', () => {
     expect(readingAxes({ density: 0 })).toEqual({ energy: 0 });
-    expect(Object.keys(readingAxes({ density: 1, sync: 0.2, artic: 0.3 })).sort()).toEqual([
-      'artic',
-      'energy',
-      'sync',
-    ]);
+    // (a reading's bite is the style's artic: cells' name for the axis, Jambot's, `CELLS_AXIS`)
+    expect(readingAxes({ density: 1, sync: 0.2, bite: 0.3 })).toEqual({
+      energy: energyOf(1),
+      sync: 0.2,
+      artic: 0.3,
+    });
     expect(readingAxes({ density: 1, bpm: 120, harm: 0.4 })).toMatchObject({
       harm: 0.4,
       bpm: bpmUnit(120),
     });
+  });
+
+  it('carries the mood cells reads from a span of bars’ notes, the mode they fit at the default tension (yggi/cells#541)', () => {
+    const ionian = [0, 2, 4, 5, 7, 9, 11].map((x, i) => ({
+      part: 'lead' as const,
+      step: 2 * i,
+      length: 2,
+      note: 60 + x,
+    }));
+    const { point } = readPoint([ionian, [{ part: 'bass', step: 0, length: 16, note: 36 }]]);
+    expect(point.mood).toBeDefined();
+    expect(readingAxes({ density: 0, mood: point.mood! })).toEqual({
+      energy: 0,
+      mood: point.mood,
+    });
+    const at = presetPoint('Techno');
+    expect(styleDistance({ mood: at.mood! + 0.2 }, at)).toBeCloseTo(0.2, 12);
   });
 
   it('measures a distance over the axes read alone, as a root mean square', () => {

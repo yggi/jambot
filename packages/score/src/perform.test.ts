@@ -12,7 +12,7 @@ import {
 } from '@jambot/engine';
 import { stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { type CellsNote, performCells } from './perform.ts';
+import { type CellsNote, asCellsGives, performCells } from './perform.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -106,5 +106,31 @@ describe('cells’ events as the performer plays them (#552)', () => {
         expect(plain).not.toHaveProperty('sound');
         expect(performCells(b, { ...s, sound })).toEqual({ ...plain, sound });
       }
+  });
+
+  it('plays a note none of the feel’s as cells gives it: its velocity and length unmoved, no role, sounded as its channel’s part, where the feel moves most (feel v3, #506)', () => {
+    let notes = 0;
+    let moved = 0;
+    for (const b of bars.slice(0, 48))
+      for (const w of b.written) {
+        const s = stated(b, w);
+        // (a role it is given is dropped: the note is none of the feel's)
+        const { part, ...given } = s;
+        const sent = part === 'pad' || part === 'stab' ? 'comp' : part;
+        const asGiven = asCellsGives(b, sent, given);
+        expect(asGiven).toMatchObject({
+          velocity: s.velocity,
+          length: s.length,
+          gain: s.velocity / 127,
+          part: part === 'stab' ? 'pad' : part,
+        });
+        expect(asGiven).not.toHaveProperty('role');
+        const felt = performCells(b, s);
+        if (felt.velocity !== s.velocity || felt.length !== s.length) moved++;
+        notes++;
+      }
+    expect(notes).toBeGreaterThan(1_000);
+    // (shown firing: the feel would have moved most of them)
+    expect(moved / notes).toBeGreaterThan(0.5);
   });
 });

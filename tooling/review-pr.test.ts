@@ -52,10 +52,17 @@ function commit(file: string, text: string, message: string) {
 
 /**
  * Runs prepare.sh in the clone, with `verify` standing in for install and
- * `pnpm verify`, `e2e`, when given, for `pnpm e2e`, and `ci` for the lookup
- * of CI's check runs.
+ * `pnpm verify`, `e2e`, when given, for `pnpm e2e`, `ci` for the lookup
+ * of CI's check runs, and `slow`, when given, for `pnpm test:slow`.
  */
-function prepare(args: string[], verify = passing, input?: string, e2e?: string, ci = noCi) {
+function prepare(
+  args: string[],
+  verify = passing,
+  input?: string,
+  e2e?: string,
+  ci = noCi,
+  slow?: string,
+) {
   const run = spawnSync('sh', input === undefined ? [script, ...args] : ['-s', '--', ...args], {
     cwd: clone,
     input,
@@ -66,6 +73,7 @@ function prepare(args: string[], verify = passing, input?: string, e2e?: string,
       JAMBOT_INSTALL: 'echo installed',
       JAMBOT_CI: ci,
       ...(e2e && { JAMBOT_E2E: e2e }),
+      ...(slow && { JAMBOT_SLOW: slow }),
     },
     encoding: 'utf8',
     // A run left waiting on the lock fails, rather than hang the suite.
@@ -200,6 +208,47 @@ describe('review-pr prepare.sh', () => {
       checkRuns(['check', 'success']),
     );
     expect(witnessed.stdout).toContain('CI passed pnpm verify on this commit');
+  });
+
+  it("takes CI's run only where the slow tier passed there too, and runs it here where it didn't (#666)", () => {
+    const local = 'echo ran locally; exit 1';
+    const ran = 'echo "      Tests  40 passed (40)"';
+    const all = checkRuns(['check', 'success'], ['slow', 'success']);
+    const witnessed = prepare(['7', join(root, 'wt')], local, undefined, undefined, all, local);
+    expect(witnessed.stdout).toContain(
+      "CI passed pnpm verify, pnpm test:slow on this commit, so they didn't run here (--verify runs them): https://ci/check",
+    );
+    expect(witnessed.stdout).not.toContain('pnpm test:slow passes');
+    // A red or missing `slow` is no witness: verify and the slow tier both run here.
+    for (const ci of [
+      checkRuns(['check', 'success'], ['slow', 'failure']),
+      checkRuns(['check', 'success']),
+    ]) {
+      const { stdout } = prepare(['7', join(root, 'wt')], passing, undefined, undefined, ci, ran);
+      expect(stdout).toContain('pnpm verify passes');
+      expect(stdout).toContain('pnpm test:slow passes (Tests 40 passed (40))');
+    }
+    const red = prepare(
+      ['7', join(root, 'wt')],
+      passing,
+      undefined,
+      undefined,
+      noCi,
+      'echo broke; exit 1',
+    );
+    expect(red.stdout).toContain('pnpm test:slow FAILS');
+    expect(red.stdout).toContain('pnpm verify passes');
+    expect(red.stdout).toContain('broke');
+    // Markdown alone needs no slow tier, as it needs no end-to-end run.
+    const docs = prepare(
+      ['docs', join(root, 'wt2')],
+      passing,
+      undefined,
+      undefined,
+      noCi,
+      'exit 1',
+    );
+    expect(docs.stdout).not.toContain('pnpm test:slow');
   });
 
   it('leaves end-to-end tests out where the repository has none', () => {

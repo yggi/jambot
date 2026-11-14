@@ -26,8 +26,8 @@ git show origin/main:.claude/skills/review-pr/prepare.sh | sh -s -- <number | br
 It fetches the pull request and `main`, checks the head out in its own worktree
 (put it in your scratchpad if you have one), runs
 `pnpm install --frozen-lockfile` there, and asks GitHub for CI's check runs on the head commit.
-When CI's `check` and `e2e` jobs passed on it (a pull request out of draft runs them on its merge with `main`), that run is the witness: neither runs again here, and the summary links it.
-Otherwise (a draft, a run not finished, a red job, GitHub out of reach, or `--verify`) it runs `pnpm verify`, and `pnpm e2e` unless the pull request changes markdown alone.
+When CI's `check`, `slow` and `e2e` jobs passed on it (a pull request out of draft runs them on its merge with `main`), that run is the witness: none runs again here, and the summary links it.
+Otherwise (a draft, a run not finished, a red job, GitHub out of reach, or `--verify`) it runs `pnpm verify`, and `pnpm test:slow` (the experiments left out of the gate, about 6 minutes) and `pnpm e2e` unless the pull request changes markdown alone.
 It prints:
 
 - the commits and every changed file;

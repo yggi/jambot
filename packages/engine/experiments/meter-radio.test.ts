@@ -40,10 +40,11 @@ describe('the composer asks the repository for its meter while the radio walks (
   // speaking to no mood, so the walk crosses its borders about twice as often, and goes back once: decision 076)
   // (416 times before cells v0.24.0, whose plain and swung 4/4 sit at its eight new styles' points too; 414 at cells
   // v0.24.0, and 461 with 2/4 and 2/2 among the band's meters, #652, the walk playing 2/4 for 80 of its 7,200 minutes
-  // and 2/2 for 6, near their points: 26,689 sections before, 27,068 now)
-  it('changes the meter only where a section starts, 461 times in 120 hours, and back at the next section once (E34)', () => {
+  // and 2/2 for 6, near their points: 26,689 sections before, 27,068 now; 463 since cells v0.25.1, whose swung
+  // sixteenths are a second choice 0.1 off Acid's point, yggi/cells#540)
+  it('changes the meter only where a section starts, 463 times in 120 hours, and back at the next section once (E34)', () => {
     expect(RUNS).toHaveLength(40);
-    expect(changes).toHaveLength(461);
+    expect(changes).toHaveLength(463);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     expect(RUNS.flatMap(wentBack)).toEqual([
       { bar: 656, section: 82, from: 'meter', to: 'meter(grouping=meter("10/8"))' },
@@ -51,9 +52,10 @@ describe('the composer asks the repository for its meter while the radio walks (
     expect(sections).toBe(27068);
   });
 
-  // (381 and 18 before cells v0.24.0; 361 and 25 at cells v0.24.0, before 2/4 and 2/2 were among the band's meters, #652)
-  it('goes back 379 times with no margin for the meter playing, and 26 times with half of it (E34)', () => {
-    expect(backs).toEqual([379, 26]);
+  // (381 and 18 before cells v0.24.0; 361 and 25 at cells v0.24.0, before 2/4 and 2/2 were among the band's meters, #652;
+  // 379 and 26 before cells v0.25.1, whose swung sixteenths are a second choice near Acid's point, yggi/cells#540)
+  it('goes back 387 times with no margin for the meter playing, and 27 times with half of it (E34)', () => {
+    expect(backs).toEqual([387, 27]);
   });
 
   // (since cells v0.24.0, whose plain 4/4 sits at Trip-hop's and Salsa's points too, far toward the axes' corners: 70
@@ -98,9 +100,9 @@ describe('the band learns the meters it keeps while the radio walks (E34, #398)'
   });
 
   // (248 before cells v0.24.0, where the walk unlearned missed 70 sections; 261 before 2/4 and 2/2 were among the band's
-  // meters, #652)
-  it('changes the meter 296 times in 120 hours, never back at the next section, and misses never: learning reaches farther', () => {
-    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(296);
+  // meters, #652; 296 before cells v0.25.1's swung sixteenths near Acid's point, yggi/cells#540)
+  it('changes the meter 298 times in 120 hours, never back at the next section, and misses never: learning reaches farther', () => {
+    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(298);
     expect(LEARNED.flatMap(wentBack)).toEqual([]);
     expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(0);
   });

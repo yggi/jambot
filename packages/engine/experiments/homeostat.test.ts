@@ -1,3 +1,4 @@
+import type { Recogniser } from '@yggi/cells/repository/recognise';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LEAN_AHEAD } from '../src/index.ts';
 import { warmedRecogniser } from '../src/recognised.ts';
@@ -46,11 +47,19 @@ const walked: Record<'open' | 'closed' | 'page', RegulatedRun[]> = {
   page: [],
 };
 
+/**
+ * One recogniser for every run, warmed once, as E44 keeps one: warming takes about 4.4 s and a run of 96 bars under 1 s
+ * (2026-11-14), so a recogniser to a run was nine tenths of this file's time. What it keeps changes no answer (cells'
+ * `createRecogniser`: a text forgotten is read again) and never passes its capacity, so the runs read the same numbers.
+ */
+let recogniser: Recogniser | undefined;
+const shared = () => (recogniser ??= warmedRecogniser());
+
 const runsOf = (
   entropy: number,
   { seeds, bars }: { readonly seeds: number; readonly bars: number },
   options: RunOptions,
-) => regulatedRuns(entropy, seeds, bars, warmedRecogniser, options);
+) => regulatedRuns(entropy, seeds, bars, shared, options);
 
 /**
  * A run's options by mode: open at no lean, open leaned all the way down, up to entropy 1, or to the top of the
@@ -128,7 +137,7 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
     expect(
       [held.down, held.open, held.up, held.top].map((r) => fixed(against(r, 'all').mean)),
       // (0.788, 0.743, 0.656 and 0.584 before cells v0.24.0; 0.808, 0.763, 0.668 and 0.596 before v0.25.0; 0.68 and
-      // 0.607 at the top two before the walk rule retired on top of cells v0.25.0, #650)
+      // 0.607 at the top two before the walk rule retired on top of cells v0.25.1, #650)
     ).toEqual([0.814, 0.768, 0.685, 0.613]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
@@ -152,7 +161,7 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
 describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean at its top', () => {
     // (0.833 at the top before cells v0.24.0; 0.229, 0.698 and 0.802 held, 0.219 and 0.711 walked, before v0.25.0;
-    // 0.646 and 0.792 held, and 0.664 walked, before the walk rule retired on top of cells v0.25.0, #650)
+    // 0.646 and 0.792 held, and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650)
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
       0.198, 0.635, 0.781,
     ]);
@@ -175,7 +184,7 @@ describe('the controller closed (E45, #237)', () => {
   it('reverses within one per four sections held, and one per two walked (#660)', () => {
     expect(
       [held.closed, held.fromDown, walked.closed].map((r) => fixed(reversalsOf(r).most)),
-      // (0.5 walked before the walk rule retired on top of cells v0.25.0, #650)
+      // (0.5 walked before the walk rule retired on top of cells v0.25.1, #650)
     ).toEqual([0, 0, 0]);
   });
 
@@ -196,7 +205,7 @@ describe('the controller closed (E45, #237)', () => {
 describe('the controller on the page’s schedule (#495: read at a section’s last bar, leaned two sections on)', () => {
   it('brings sections inside the band, held and walked, behind the schedule read a bar before the section it leans', () => {
     // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0; 0.604 and 0.646 held, and
-    // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.0, #650)
+    // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
       0.198, 0.594, 0.635,
     ]);

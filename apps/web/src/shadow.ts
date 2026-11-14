@@ -29,7 +29,9 @@
  * plays the feel on top of each of its events (`performCells`, cells decision
  * 037: the text holds what is composed, the playing is the player's), the
  * feel contract's rule, from the same feel and draws as the band's own
- * notes. Cells' events are laid by their place in the bar: an event `x`
+ * notes.
+ * An event whose text declares none of the feel's parts or drum roles is none
+ * of the feel's, and plays as cells gives it (`asCellsGives`, feel v3, #506). Cells' events are laid by their place in the bar: an event `x`
  * steps into a bar as cells plays it (through the swing) is laid where the
  * transport laid that step, `x` less the step's start of a step's length
  * after it, so a tempo the transport glides carries cells' events with it,
@@ -80,7 +82,7 @@ import {
   valueIn,
   withMeter,
 } from '@jambot/engine';
-import { type PlayedBar, levelSwings, performCells } from '@jambot/score';
+import { type PlayedBar, asCellsGives, levelSwings, performCells } from '@jambot/score';
 import type { SectionText } from '@jambot/session';
 import { type SectionStated, type SectionTexts, foreseenOf, inlineTexts } from './section-texts.ts';
 
@@ -736,20 +738,25 @@ export class Shadow {
     );
   }
 
-  /** Cells' `j`th note in a bar, as the performer plays it: its velocity and length with the feel, cells' own rule. */
+  /**
+   * Cells' `j`th note in a bar, as the performer plays it: its velocity and length with the feel, cells' own rule; as
+   * cells gives it where its text declares none of the feel's parts or roles (feel v3, #506).
+   */
   #performed(p: NonNullable<StatedBar['played']>, bar: BandBar, j: number): DoughNote {
     const note = p.notes[j]!;
+    const line = p.lines[j];
     const role = p.roles[j];
     const sound = p.sounds[j];
-    return performCells(bar, {
-      part: p.lines[j]!,
+    const given = {
       step: Math.round(note.step),
       note: note.note,
-      ...(role !== undefined && { role }),
       ...(sound !== undefined && { sound }),
       velocity: note.velocity,
       length: note.length,
-    });
+    };
+    return line === undefined
+      ? asCellsGives(bar, note.part, given)
+      : performCells(bar, { ...given, part: line, ...(role !== undefined && { role }) });
   }
 
   /**

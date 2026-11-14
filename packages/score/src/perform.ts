@@ -22,7 +22,7 @@ import {
   timbreOf,
 } from '@jambot/engine';
 import { type FeelFrame, type SectionType, played } from '@yggi/cells';
-import type { PitchedName } from './section-text.ts';
+import type { NotePart, PitchedName } from './section-text.ts';
 
 /** What the feel reads of a bar: its seed and number, its meter in eighths, its section, style, swing and energy. */
 export function frameOf(bar: BarEnv): FeelFrame {
@@ -59,7 +59,7 @@ export interface CellsNote {
  * colour where its voice has no sound of its own.
  */
 export function performCells(bar: BarEnv, cells: CellsNote): DoughNote {
-  const { part, role, step, note, sound } = cells;
+  const { part, role, step, note } = cells;
   const { velocity, length } = played(frameOf(bar), {
     part,
     step,
@@ -68,6 +68,41 @@ export function performCells(bar: BarEnv, cells: CellsNote): DoughNote {
     length: cells.length,
     ...(role !== undefined && { role }),
   });
+  return doughOf(bar, { ...cells, velocity, length });
+}
+
+/** The part the built-in synth sounds a note as, by the channel it is sent on: its own, the pad's on the one the pad and the stab share. */
+const SOUNDED: Readonly<Record<NotePart, PitchedName | 'drums'>> = {
+  lead: 'lead',
+  bass: 'bass',
+  comp: 'pad',
+  drums: 'drums',
+};
+
+/**
+ * One of cells' events that is none of the feel's, its text declaring no part or drum role the feel reads (`lineOf`):
+ * as cells gives it, the feel contract's rule (version 3), its velocity and length unmoved and no role, sounded by the
+ * built-in synth as the part its channel sends (`sent`; the pad on the channel the pad and the stab share).
+ */
+export function asCellsGives(
+  bar: BarEnv,
+  sent: NotePart,
+  cells: Omit<CellsNote, 'part' | 'role'>,
+): DoughNote {
+  const { step, note, velocity, length, sound } = cells;
+  return doughOf(bar, {
+    part: SOUNDED[sent],
+    step,
+    note,
+    velocity,
+    length,
+    ...(sound && { sound }),
+  });
+}
+
+/** A note as a dough note: its velocity and length as given, its gain from its velocity, and the style's colour. */
+function doughOf(bar: BarEnv, cells: CellsNote): DoughNote {
+  const { part, role, step, note, length, velocity, sound } = cells;
   return {
     part,
     step,

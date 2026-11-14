@@ -3,8 +3,11 @@
  * then the tests. The static stages share nothing and are mostly
  * single-threaded, so together they take as long as the slowest. The tests
  * come after them, not beside them: they take every core, and a suite with
- * timing in it fails when starved. Nothing is skipped: the tests run unless
- * a static stage has failed, which is enough to fix first.
+ * timing in it fails when starved. For the same reason they run under the
+ * machine's lock for heavy runs (`tooling/heavy.ts`), so two verifies on one
+ * machine, from two worktrees, never test at once: the second waits (#666).
+ * Nothing is skipped: the tests run unless a static stage has failed, which is
+ * enough to fix first.
  *
  * The output holds each stage's until it ends, and ends with the stages that
  * failed, whole, so a reader of the tail (`review-pr`, the pre-push hook)
@@ -12,7 +15,8 @@
  * counts `review-pr` reports, and the summary line names how many passed.
  *
  * A checkout with no `node_modules`, as a git worktree an agent opens, is
- * installed first (`plan`). A tree that passed is remembered where the
+ * installed first (`plan`), and so is one whose install is not what the
+ * lockfile says (`installOf`). A tree that passed is remembered where the
  * pre-push hook (`.githooks/pre-push`) keeps its own, so a push right after a
  * verify by hand doesn't run it again (`workingTree`, `remember`). The tree is
  * that of every file verify saw, untracked ones too, so a commit that leaves
@@ -30,10 +34,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { holding, lockPath, type Waiting } from './heavy.ts';
 
 export interface Stage {
   name: string;
   command: string;
+  /** Whether it takes every core, and so runs under the machine's lock for heavy runs. */
+  heavy?: true;
 }
 
 export interface Outcome extends Stage {
@@ -50,7 +57,7 @@ export const GROUPS: Stage[][] = [
     { name: 'format', command: 'pnpm format:check' },
     { name: 'build', command: 'pnpm build' },
   ],
-  [{ name: 'test', command: 'pnpm test' }],
+  [{ name: 'test', command: 'pnpm test', heavy: true }],
 ];
 
 /**
@@ -61,24 +68,46 @@ export const GROUPS: Stage[][] = [
  */
 export const DOCS_GROUPS: Stage[][] = [
   [{ name: 'format', command: 'pnpm format:check' }],
-  [{ name: 'test', command: 'pnpm exec vitest run tooling' }],
+  [{ name: 'test', command: 'pnpm exec vitest run tooling', heavy: true }],
 ];
 
 /** What a checkout without `node_modules` runs before anything else. */
 export const INSTALL: Stage = { name: 'install', command: 'pnpm install --frozen-lockfile' };
 
-/** The groups to run: `groups`, after an install when nothing is installed. */
+/**
+ * What a checkout has installed: `none` without `node_modules`, `stale` where the lockfile pnpm installed from
+ * (its copy, `node_modules/.pnpm/lock.yaml`) is not the checkout's `pnpm-lock.yaml`, as after `main` moved a pin
+ * under a checkout that stayed open, and `current` otherwise. A stale install fails tests with nothing wrong in the
+ * code: an experiment's numbers read off the older cells.
+ */
+export function installOf(root: string): 'none' | 'stale' | 'current' {
+  if (!existsSync(join(root, 'node_modules'))) return 'none';
+  const read = (path: string) => (existsSync(path) ? readFileSync(path, 'utf8') : undefined);
+  const wanted = read(join(root, 'pnpm-lock.yaml'));
+  return wanted !== undefined && wanted === read(join(root, 'node_modules/.pnpm/lock.yaml'))
+    ? 'current'
+    : 'stale';
+}
+
+/** The groups to run: `groups`, after an install when nothing is installed, or not what the lockfile says. */
 export function plan(installed: boolean, groups: Stage[][] = GROUPS): Stage[][] {
   return installed ? groups : [[INSTALL], ...groups];
 }
 
-function runStage(stage: Stage): Promise<Outcome> {
+function runStage(stage: Stage, waiting: Waiting): Promise<Outcome> {
+  const env = { ...process.env };
+  if (stage.heavy) env.MUSIC_HEAVY_HELD = waiting.path ?? lockPath();
+  const run = () => runAlone(stage, env);
+  return stage.heavy ? holding(`pnpm verify (${stage.command})`, run, waiting) : run();
+}
+
+function runAlone(stage: Stage, env: NodeJS.ProcessEnv): Promise<Outcome> {
   return new Promise((done) => {
     const started = Date.now();
     let output = '';
     const end = (ok: boolean) =>
       done({ ...stage, ok, seconds: (Date.now() - started) / 1000, output });
-    const child = spawn('sh', ['-c', stage.command], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('sh', ['-c', stage.command], { stdio: ['ignore', 'pipe', 'pipe'], env });
     child.stdout.on('data', (chunk: Buffer) => (output += chunk));
     child.stderr.on('data', (chunk: Buffer) => (output += chunk));
     child.on('error', (error) => {
@@ -89,11 +118,17 @@ function runStage(stage: Stage): Promise<Outcome> {
   });
 }
 
-/** Runs the groups in turn, each group's stages at once, and stops after a group with a failure. */
-export async function verify(groups: readonly (readonly Stage[])[]): Promise<Outcome[]> {
+/**
+ * Runs the groups in turn, each group's stages at once, and stops after a group with a failure. A heavy stage waits
+ * for the machine's lock (`waiting` says where it is), and its time is its own, without the wait.
+ */
+export async function verify(
+  groups: readonly (readonly Stage[])[],
+  waiting: Waiting = {},
+): Promise<Outcome[]> {
   const outcomes: Outcome[] = [];
   for (const group of groups) {
-    outcomes.push(...(await Promise.all(group.map(runStage))));
+    outcomes.push(...(await Promise.all(group.map((stage) => runStage(stage, waiting)))));
     if (outcomes.some((o) => !o.ok)) break;
   }
   return outcomes;
@@ -194,10 +229,13 @@ export function remember(dir: string, tree: string, tests?: number): void {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL('..', import.meta.url));
-  const installed = existsSync(join(root, 'node_modules'));
+  const install = installOf(root);
+  const installed = install === 'current';
   if (!installed)
     console.log(
-      'verify: no node_modules in this checkout (a git worktree starts with none), so pnpm install --frozen-lockfile runs first',
+      install === 'none'
+        ? 'verify: no node_modules in this checkout (a git worktree starts with none), so pnpm install --frozen-lockfile runs first'
+        : 'verify: node_modules is not what pnpm-lock.yaml says (the lockfile moved since the install), so pnpm install --frozen-lockfile runs first',
     );
   const docs = process.argv.includes('--docs');
   const groups = plan(installed, docs ? DOCS_GROUPS : GROUPS);
