@@ -739,3 +739,96 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     expect(MOTIF_LEADS.map((f) => f.id)).toEqual(expect.arrayContaining(Object.values(MOTIFS)));
   });
 });
+
+/**
+ * A song at Synth-pop, entropy 0.3, in which a player plays `bars` (each a list of [step, note]) once each from bar 12,
+ * the second half of the second section, with cells' motifs in the lead's repository: each section's lead line, and the
+ * layer after `sections` sections.
+ */
+function heardSong(
+  seed: number,
+  bars: readonly (readonly (readonly [step: number, note: number])[])[],
+  sections = 4,
+): {
+  readonly leads: readonly string[];
+  readonly layer: LearnedLayer;
+  readonly run: readonly TransportCarried[];
+} {
+  const played: HeardNote[] = bars.flatMap((notes, k) =>
+    notes.map(([step, note], i) => ({
+      note,
+      velocity: 96,
+      source: 'Bo',
+      position: (12 + k) * 16 + step,
+      end: (12 + k) * 16 + (notes[i + 1]?.[0] ?? 16),
+    })),
+  );
+  const env: TransportEnv = {
+    seed,
+    start: 1,
+    track: holding({ ...SYNTH_POP.style, entropy: 0.3 }),
+    swing: holdingSwing(presetSwing(SYNTH_POP)!),
+    wish: { tonic: null, mode: presetMode(SYNTH_POP)!, melodic: null },
+    repository: METER_REPOSITORY,
+    rhythms: RHYTHM_REPOSITORY,
+    leads: LEAD_REPOSITORY,
+    layer: EMPTY_LAYER,
+  };
+  let carried: TransportCarried | null = transport.initial;
+  let waiting = [...played];
+  const leads: string[] = [];
+  const run: TransportCarried[] = [];
+  for (let now = env.start - 0.1; ; now += 0.1) {
+    const head = carried?.head.step ?? 0;
+    const heard = waiting.filter((n) => n.position < head);
+    waiting = waiting.filter((n) => n.position >= head);
+    carried = transport.advance(env, carried, { now, until: now + LOOKAHEAD, heard }).carried!;
+    run.push(carried);
+    const section = Math.floor(carried.head.step / 16 / SECTION_BARS);
+    if (leads.length === section) leads.push(carried.source.plans.leadFragment ?? '-');
+    if (carried.head.step > clockOfTransport(carried).barStart(sections * SECTION_BARS))
+      return { leads, layer: carried.source.plans.layer!, run };
+  }
+}
+
+/** Twinkle's opening bar in A minor, as a player plays it: A A E E F F E, eighths, the last held. */
+const TWINKLE_OPENING = TWINKLE[0]!;
+
+describe('the Muse finds a motif a player plays again, and the band plays it back (#547 rung 6)', () => {
+  it('knows Twinkle’s opening bar, played twice at Synth-pop, as kinderlied/twinkle, and files no line of her own for it, seeds 1 and 2', () => {
+    for (const seed of [1, 2]) {
+      const { layer } = heardSong(seed, [TWINKLE_OPENING, TWINKLE_OPENING]);
+      expect(
+        leadLines(layer).filter((f) => f.meta.source === 'Bo'),
+        `seed ${seed}`,
+      ).toEqual([]);
+      // (heard as the motif it is: its use learned at the point it was heard at)
+      expect(
+        layer.points.filter((p) => p.id === 'kinderlied/twinkle').map((p) => p.facet),
+        `seed ${seed}`,
+      ).toEqual(['lead']);
+      expect(JSON.stringify(layer).length, `seed ${seed}`).toBeLessThan(16_000);
+    }
+  });
+
+  it('plays it back in the next section, seeds 1 and 2: a motif whose own form is the ternary, wonder its answer, as rung 4 plays it', () => {
+    for (const seed of [1, 2]) {
+      const { leads } = heardSong(seed, [TWINKLE_OPENING, TWINKLE_OPENING]);
+      // (heard in the second section, filed at the third's start, which plays it)
+      expect(leads.slice(0, 3), `seed ${seed}`).toEqual(['hook', 'hook', 'kinderlied/twinkle']);
+    }
+    expect(usesOf('kinderlied/twinkle')).toEqual([
+      { id: 'ternary', args: { answer: 'kinderlied/wonder' } },
+    ]);
+  });
+
+  it('files a line it doesn’t know as before: Ada’s motif, under her name, and the band’s line held', () => {
+    const { leads, layer } = heardSong(1, [ADA.map((n, i) => [ADA_STEPS[i]!, n] as const)]);
+    expect(
+      leadLines(layer)
+        .filter((f) => f.meta.source === 'Bo')
+        .map((f) => f.fragment.text),
+    ).toEqual([leadText(ADA_LINE, 16)]);
+    expect(leads.slice(0, 3)).toEqual(['hook', 'hook', 'hook']);
+  });
+});
