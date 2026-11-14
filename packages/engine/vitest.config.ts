@@ -4,10 +4,10 @@ import { configDefaults, defineProject } from 'vitest/config';
  * The slow tier: the experiments whose `beforeAll` plays hours of music, each past 90 s alone, so they are no part of
  * `pnpm verify` (#666). `pnpm test:slow` runs them (`vitest.slow.config.ts`), under the machine's lock for heavy runs,
  * and so does CI's `slow` job on a ready pull request and nightly. Each file's whole run, four of them at once on four
- * cores, 2026-11-13: E45 392 s, E42 191 s, E41 157 s, E43 140 s, E44 133 s, E38 117 s.
+ * cores, 2026-11-13: E42 191 s, E41 157 s, E43 140 s, E44 133 s, E38 117 s. E45 (`homeostat.test.ts`) left the tier on
+ * 2026-11-14: with one recogniser for its runs it takes 50 s alone, where it took 392 s.
  */
 export const slowTests = [
-  'experiments/homeostat.test.ts',
   'experiments/lead-loop.test.ts',
   'experiments/bass-loop.test.ts',
   'experiments/harmony-loop.test.ts',
@@ -26,9 +26,10 @@ export default defineProject({
     // (`humanise.test.ts`) 7.8 s, each beside three other workers, so four times the slowest under that load.
     testTimeout: 60_000,
     // An experiment plays its hours of music in a `beforeAll`, not as its file is imported: Vitest runs the files it
-    // has timed longest first, and an import's time is not timed. The slowest hook left here is E34's
-    // (`meter-radio.test.ts`): its file takes 73 s, hook and tests, beside three others (2026-11-13). 15 minutes is
-    // about twelve times that, the timeout of a hook that hangs. A hook past 90 s alone moves its file to `slowTests`.
+    // has timed longest first, and an import's time is not timed. The slowest hooks here are E34's
+    // (`meter-radio.test.ts`: its file takes 73 s, hook and tests, beside three others, 2026-11-13) and E45's
+    // (`homeostat.test.ts`: 50 s alone, 2026-11-14). 15 minutes is about twelve times that, the timeout of a hook that
+    // hangs. A hook past 90 s alone moves its file to `slowTests`.
     hookTimeout: 900_000,
     environment: 'node',
     // Its code keeps no state between files and stubs nothing, so the files of a worker share their modules,

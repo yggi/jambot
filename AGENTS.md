@@ -94,7 +94,7 @@ Nothing checks these; you and the reviewer hold them.
   finds goes to the other, and a test on `main` holds it. See
   [`docs/ratchet.md`](docs/ratchet.md).
 - **`pnpm test:slow` when what the band plays changes.**
-  Six experiments play hours of music each, so they are no part of `pnpm verify` (`slowTests` in `packages/engine/vitest.config.ts`, #666): about 6 minutes on four cores alone (2026-11-13), under the machine's lock.
+  Five experiments play hours of music each, so they are no part of `pnpm verify` (`slowTests` in `packages/engine/vitest.config.ts`, #666): about 4 minutes on four cores alone (2026-11-14), under the machine's lock.
   Run them in the background before pushing a change to the engine, the theory or the cells pin, or leave them to CI's `slow` job on the ready pull request and quote its run.
 - **`pnpm e2e` when what the app plays, or when, changes.**
   The end-to-end checks run the built app in Chromium and measure its audio: the exact time of every onset, and whether the band sounds and stops.

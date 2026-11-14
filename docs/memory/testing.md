@@ -24,7 +24,8 @@ How a gate is shown to fire, and the checks that back the house rules.
 - Vitest runs first the files it timed longest last time (`node_modules/.vite/vitest/`), and it times a file's tests and hooks, not its import.
   So an experiment that plays its hours of music does it in a `beforeAll`, never at its file's top level: at the top level, `bass-loop.test.ts`'s 115 s was timed as 0.3 s and started last, beside nothing (#471).
   The engine's `hookTimeout` is 15 min, about twelve times the slowest hook left in the gate (E34's file, 73 s beside three others, 2026-11-13).
-- An experiment whose hook takes past 90 s alone is in the slow tier, `slowTests` in `packages/engine/vitest.config.ts`: E45, E42, E41, E43, E44 and E38 (#666).
+- An experiment whose hook takes past 90 s alone is in the slow tier, `slowTests` in `packages/engine/vitest.config.ts`: E42, E41, E43, E44 and E38 (#666).
+  E45 is back in the gate: its runs share one warmed recogniser, as E44's do, since warming one takes about 4.4 s and a run of 96 bars under 1 s; a recogniser to a run made it 392 s, and one for all makes it 50 s, with every number it records the same.
   `pnpm verify` leaves it out (`pnpm test` is every project but `engine-slow`), `pnpm test:slow` runs it under the machine's lock, `pnpm test:all` runs both, and CI's `slow` job runs it on a ready pull request and nightly.
   The config's comments state the slowest hook and test measured and their date, so a margin that erodes shows in review.
 - The pure packages run with `isolate: false`: they keep no state between files and stub nothing, so a worker evaluates each module once, not once a file.

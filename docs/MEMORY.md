@@ -12,7 +12,7 @@ pnpm install
 pnpm dev          # web app with hot reload; the prototype is at /prototype.html
 pnpm test:watch   # tests, re-run on change
 pnpm verify       # lint, format check, typecheck, tests, build: run before pushing
-pnpm test:slow    # the six experiments left out of verify: when what the band plays changes (same lock)
+pnpm test:slow    # the five experiments left out of verify: when what the band plays changes (same lock)
 pnpm e2e          # the app in Chromium: when what it plays, or when, changes (waits for the heavy runs' lock)
 pnpm soak         # a soak of a served build (apps/web/e2e/soak.ts), under the same lock; pnpm heavy --status says who holds it
 pnpm lobby        # the lobby server for sessions across machines, on 8787

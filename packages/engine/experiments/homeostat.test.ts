@@ -1,3 +1,4 @@
+import type { Recogniser } from '@yggi/cells/repository/recognise';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LEAN_AHEAD } from '../src/index.ts';
 import { warmedRecogniser } from '../src/recognised.ts';
@@ -46,11 +47,19 @@ const walked: Record<'open' | 'closed' | 'page', RegulatedRun[]> = {
   page: [],
 };
 
+/**
+ * One recogniser for every run, warmed once, as E44 keeps one: warming takes about 4.4 s and a run of 96 bars under 1 s
+ * (2026-11-14), so a recogniser to a run was nine tenths of this file's time. What it keeps changes no answer (cells'
+ * `createRecogniser`: a text forgotten is read again) and never passes its capacity, so the runs read the same numbers.
+ */
+let recogniser: Recogniser | undefined;
+const shared = () => (recogniser ??= warmedRecogniser());
+
 const runsOf = (
   entropy: number,
   { seeds, bars }: { readonly seeds: number; readonly bars: number },
   options: RunOptions,
-) => regulatedRuns(entropy, seeds, bars, warmedRecogniser, options);
+) => regulatedRuns(entropy, seeds, bars, shared, options);
 
 /**
  * A run's options by mode: open at no lean, open leaned all the way down, up to entropy 1, or to the top of the

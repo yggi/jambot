@@ -198,8 +198,9 @@ export function regulatedRun(
 }
 
 /**
- * Every preset, `seeds` seeds of `bars` bars at the players' `entropy`, played as `options` say, each run with a
- * recogniser of its own (`recogniser`), since one keeps every text it reads and a run reads new ones every bar.
+ * Every preset, `seeds` seeds of `bars` bars at the players' `entropy`, played as `options` say, each run on the
+ * recogniser `recogniser` gives it: one for all of them reads the same numbers, since what a recogniser keeps changes
+ * no answer, and saves warming one a run.
  */
 export const regulatedRuns = (
   entropy: number,
