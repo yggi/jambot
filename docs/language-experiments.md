@@ -963,7 +963,7 @@ run; the others have.
 
 - **E45. The homeostat's controller, measured** (#237, step 6; the owner's limits of 2026-10-22), in
   [`packages/engine/src/homeostat.ts`](../packages/engine/src/homeostat.ts) and [`packages/engine/experiments/homeostat.ts`](../packages/engine/experiments/homeostat.ts),
-  held by [`packages/engine/experiments/homeostat.test.ts`](../packages/engine/experiments/homeostat.test.ts) (about 2 minutes under vitest; `E45_REPORT=1 E45_FULL=1` prints a larger set, about 10 minutes):
+  held by [`packages/engine/experiments/homeostat.test.ts`](../packages/engine/experiments/homeostat.test.ts) (about 50 s under vitest, its runs on one warmed recogniser; `E45_REPORT=1 E45_FULL=1` prints a larger set, about 10 minutes):
   - **What it reads.** E44's sensor, every member against its library, reads the band left alone at 0.398 (0.309 before cells v0.25.0's harmonies, 0.307 in call and answer, 0.238 before cells v0.23.0, 0.134 before #520 gave the lead cells' motifs) and entropy barely moves it, so no lever moves it either.
     E45 hears each bar against what the member played lately as well (`recognised.ts`: its last 8 texts, the harmony's last 2 themes, heard once a section), the workbench a listener has just heard.
     Over all members it then reads 0.73 at entropy 0.3 (0.68 before #520), and falls as the band's entropy rises; with what was played lately alone, without the library, it read 0.67 before #520, so it is what was played lately that is recognised.
