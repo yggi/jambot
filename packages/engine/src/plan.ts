@@ -470,6 +470,7 @@ export function museFiled(
 ): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
   return filedHeard(
     given.rhythms,
+    'rhythm',
     given.heard ?? [],
     (bars) => {
       const hits = distilledGroove(bars);
@@ -490,6 +491,7 @@ export function museFiledLines(
 ): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
   return filedHeard(
     given.bassLines,
+    'bass',
     given.bassHeard ?? [],
     (bars) => {
       const notes = distilledLine(bars);
@@ -543,6 +545,7 @@ export function museFiledLeads(
 ): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
   return filedHeard(
     given.leads,
+    'lead',
     given.leadHeard ?? [],
     (bars) => {
       const steps = stepsOf(before.meter);
@@ -604,6 +607,7 @@ export function museFiledHarmonies(
 ): { readonly layer: LearnedLayer; readonly ids: readonly string[] } {
   return filedHeard(
     given.harmonies,
+    'harmony',
     given.harmonyHeard ?? [],
     (bars) => {
       const notes = distilledProgression(bars);

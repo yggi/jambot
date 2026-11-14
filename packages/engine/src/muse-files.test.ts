@@ -8,10 +8,10 @@ import type { HeardNote } from './muse.ts';
 import { distilledGroove } from './muse-groove.ts';
 import { SECTION_BARS } from './form.ts';
 import { BY, GROOVE_KEEP, VARIES } from './novelty.ts';
-import { COMPOSER } from './facet.ts';
+import { COMPOSER, filedHeard } from './facet.ts';
 import { GROOVE_TAG } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
-import type { FragmentHit, RhythmBench } from './rhythm-query.ts';
+import { type FragmentHit, type RhythmBench, isOwnLine } from './rhythm-query.ts';
 import { RHYTHM_REPOSITORY, readRhythm, rhythmRepository } from './rhythms.ts';
 import { RHYTHM_FRAGMENTS } from './library.ts';
 import { SHORT_TERM_FLOOR } from './short-term.ts';
@@ -442,5 +442,71 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
       { ...STYLE, entropy: 1 },
     );
     expect(sectionsOf(kept)).toEqual(times(16, `${FUNK_DRUMS} + ${RUMBA}`));
+  });
+});
+
+describe('a filing that is a seed exactly is a use of that seed (#553 item 2, the owner’s choice A)', () => {
+  const bench: RhythmBench = { meter: METERS['4/4'] };
+  const at = { seed: 1, index: 1, point: { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 }, tags: [] };
+  /** A groove the drummer played, filed by the Muse as she files one: its hits as given, a bar. */
+  const filedGroove = (hits: readonly FragmentHit[]) =>
+    filedHeard(
+      RHYTHM_REPOSITORY,
+      'rhythm',
+      [{ source: DRUMMER, bars: [hits] }],
+      (bars) => ({ hits: bars[0]! }),
+      bench,
+      at,
+      EMPTY_LAYER,
+    );
+
+  it('records a groove played as a one-bar seed drum bar plays it as a use of that seed, filing nothing', () => {
+    let seeds = 0;
+    const missed: string[] = [];
+    for (const { id } of RHYTHM_FRAGMENTS) {
+      const read = RHYTHM_REPOSITORY.read(id, bench.meter);
+      if (!read || read.bars !== 1 || isOwnLine(read)) continue;
+      seeds++;
+      const filed = filedGroove(read.hits);
+      if (filed.ids[0] !== id) {
+        missed.push(id);
+        continue;
+      }
+      expect(filed.layer.filed, id).toEqual([]);
+      expect(
+        filed.layer.points.map((p) => p.id),
+        id,
+      ).toContain(id);
+    }
+    // (cells' recogniser reads a groove's lines by their names, so a seed that names a line other than by its role,
+    // `&clap` for the backbeat, or plays one by chance, `&hh?`, is not known as itself from what the drummer plays:
+    // yggi/cells#793. Those are filed, as they were.)
+    expect(missed).toEqual([
+      'electro_swing_drums',
+      'spooky_drums',
+      'ghost_drums',
+      'kinderlied_drums',
+      'acid_drums',
+      'happy_hardcore_drums',
+      'elektro_drums',
+      'industrial_drums',
+      'ride_shuffle',
+      'shanty_drums',
+      'chip_drums',
+      'quiet_pulse',
+      'waltz_drums',
+      'march_drums',
+      'trip_hop_drums',
+      'aksak_drums',
+      'twelve_eight_drums',
+    ]);
+    expect(seeds - missed.length).toBeGreaterThan(5);
+  });
+
+  it('is shown firing: a groove one hit off a seed is filed as the drummer’s', () => {
+    const read = RHYTHM_REPOSITORY.read('funk_drums', bench.meter)!;
+    const filed = filedGroove(read.hits.slice(1));
+    expect(filed.ids).not.toEqual(['funk_drums']);
+    expect(filed.layer.filed.map((f) => f.meta.source)).toEqual([DRUMMER]);
   });
 });

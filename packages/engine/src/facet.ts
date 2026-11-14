@@ -38,6 +38,13 @@ import { SECTION_BARS } from './form.ts';
 import type { LearnedLayer } from './layer.ts';
 import { METER_HOLD, MISS_DISTANCE, type StylePoint } from './meter-query.ts';
 import { type Boredom, type Lineage, familyOf, lineageOf, wantsVariation } from './novelty.ts';
+import {
+  LOOP_FACETS,
+  type LoopFacet,
+  createRecogniser,
+  libraryOf,
+  recogniseOptionsOf,
+} from './recognised.ts';
 import { type Stream, draw, nameKey } from './random.ts';
 
 /** What a fragment must fit: the section's meter, and the meter fragment it came from, where it came from one. */
@@ -216,6 +223,46 @@ export const placeIn = (layer: LearnedLayer, facet: string, id: string): number 
     .filter((f) => f.fragment.association.some((p) => p.facet === facet))
     .findIndex((f) => f.fragment.id === id);
 
+/** The recogniser a filing is checked against the seeds with (`asSeed`): it keeps what it reads, for the band's life. */
+const SEEDS = createRecogniser();
+
+/**
+ * A filing that is a seed exactly, recorded as a use of that seed rather than filed (#553 item 2, the owner's choice
+ * A): where cells' recogniser finds its text among its facet's seeds alone (`libraryOf` with no layer) with no operator
+ * and no note apart, over as many bars, the layer as it was with a use of that seed at the filing's point, beside the
+ * bench's meter fragment, as identity takes a text the layer holds. The filing as it was otherwise: held already, of a
+ * facet the recogniser has no options for, or no seed's.
+ */
+function asSeed<R extends { readonly bars: number }, C>(
+  repository: FacetRepository<R, C>,
+  facet: string,
+  before: LearnedLayer,
+  filed: { readonly layer: LearnedLayer; readonly id: string; readonly held: boolean },
+  bench: Bench,
+  point: StylePoint,
+): { readonly layer: LearnedLayer; readonly id: string; readonly held: boolean } {
+  if (filed.held || !repository.used || !(LOOP_FACETS as readonly string[]).includes(facet))
+    return filed;
+  const options = recogniseOptionsOf(facet as LoopFacet, bench);
+  const text = filed.layer.filed.find((f) => f.fragment.id === filed.id)?.fragment.text;
+  if (!options || text === undefined) return filed;
+  const seed = SEEDS.recognise(text, libraryOf(facet as LoopFacet), {
+    ...options,
+    tolerance: 0,
+    depth: 0,
+  }).find(
+    (r) =>
+      r.distance === 0 &&
+      r.path.length === 0 &&
+      r.bar === 0 &&
+      repository.read(r.fragment.id, bench.meter)?.bars ===
+        repository.read(filed.id, bench.meter, filed.layer)?.bars,
+  )?.fragment.id;
+  if (seed === undefined) return filed;
+  const alongside = bench.meterFragment === undefined ? [] : [bench.meterFragment];
+  return { layer: repository.used(before, [seed], point, alongside), id: seed, held: true };
+}
+
 /**
  * The novelty ladder where a member's fragment is found (#411, #414,
  * `novelty.ts`): the lineage its family belongs to (`familyOf`), a seed's or
@@ -259,7 +306,7 @@ export function climbedFigure<R extends { readonly bars: number }, C>(
   const variation = repository.vary!(id, bench, draw(at.seed, stream, drawKey), layer);
   if (!variation) return { id, layer, playing: lineage };
   const { by, ...content } = variation;
-  const filed = repository.file!(layer, {
+  const filing = repository.file!(layer, {
     ...(content as unknown as C),
     bench,
     point: at.point,
@@ -269,6 +316,7 @@ export function climbedFigure<R extends { readonly bars: number }, C>(
     varies: id,
     by,
   });
+  const filed = asSeed(repository, facet, layer, filing, bench, at.point);
   const grooves = lineage.grooves.includes(filed.id)
     ? lineage.grooves
     : [...lineage.grooves, filed.id];
@@ -293,6 +341,7 @@ export interface HeardBars<B> {
  */
 export function filedHeard<R extends { readonly bars: number }, C, B>(
   repository: FacetRepository<R, C> | undefined,
+  facet: string,
   heard: readonly HeardBars<B>[],
   distil: (bars: readonly B[]) => C | null,
   bench: Bench,
@@ -305,14 +354,21 @@ export function filedHeard<R extends { readonly bars: number }, C, B>(
   for (const { source, bars } of heard) {
     const content = distil(bars);
     if (!content) continue;
-    const filed = repository.file(filedLayer, {
-      ...content,
+    const filed = asSeed(
+      repository,
+      facet,
+      filedLayer,
+      repository.file(filedLayer, {
+        ...content,
+        bench,
+        point: at.point,
+        source,
+        created: `song ${at.seed}, bar ${at.index * SECTION_BARS}`,
+        tags: at.tags,
+      }),
       bench,
-      point: at.point,
-      source,
-      created: `song ${at.seed}, bar ${at.index * SECTION_BARS}`,
-      tags: at.tags,
-    });
+      at.point,
+    );
     filedLayer = filed.layer;
     if (!ids.includes(filed.id)) ids.push(filed.id);
   }
