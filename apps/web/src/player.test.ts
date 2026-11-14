@@ -1893,9 +1893,7 @@ describe('the band through cells (#399, #469)', () => {
     const sections = hosting.told.sections;
     expect(sections).toHaveLength(readout.texts.told);
     expect(sections.map((t) => t.bar)).toEqual([0, 8, 16, 24]);
-    expect(sections.every((t) => t.text.split('\n')[1]!.startsWith('&bar meter("4/4")'))).toBe(
-      true,
-    );
+    expect(sections.every((t) => t.text.split('\n')[1]!.startsWith('&bar from meter'))).toBe(true);
     // A client joining now is given the texts that state a bar not yet played.
     const hosted = hosting.player.hosted!;
     const first = hosted.bars[0]!.bar.bar;

@@ -5,6 +5,12 @@
  */
 
 import {
+  COMPOSER_MODES,
+  BASS_REPOSITORY,
+  HARMONY_REPOSITORY,
+  LEAD_REPOSITORY,
+  METER_REPOSITORY,
+  RHYTHM_REPOSITORY,
   presetMode,
   type BandBar,
   type BandCarried,
@@ -27,6 +33,7 @@ import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import type { Resolve } from '@yggi/cells/engine/program';
 import { bodyOf } from '@yggi/cells/engine/use';
+import { references } from '@yggi/cells';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
@@ -53,7 +60,10 @@ import {
   type SectionNote,
   barred,
   hostOf,
+  keyLine,
+  keyText,
   levelOf,
+  meterLine,
   scoreLevel,
   sectionAsCells,
   sectionTextOf,
@@ -84,8 +94,20 @@ function section(name: string, meter?: MeterName, seed = 1, bars = SECTION_BARS)
   });
 }
 
-/** A preset's first `count` bars as the band composes them at entropy 0.3, by seed, cut into its sections. */
-function sections(name: string, seed: number, count: number): BandBar[][] {
+/** What the app gives the band to find its parts in: the meters, rhythms, bass lines, leads and harmonies of the repository. */
+const FOUND = {
+  repository: METER_REPOSITORY,
+  rhythms: RHYTHM_REPOSITORY,
+  bassLines: BASS_REPOSITORY,
+  leads: LEAD_REPOSITORY,
+  harmonies: HARMONY_REPOSITORY,
+};
+
+/**
+ * A preset's first `count` bars as the band composes them at entropy 0.3, by seed, cut into its sections; with `found`,
+ * as the app's band composes them, finding its parts in the repository (`FOUND`).
+ */
+function sections(name: string, seed: number, count: number, found = false): BandBar[][] {
   const preset = PRESETS.find((p) => p.name === name)!;
   let carried: BandCarried = band.initial;
   const bars = Array.from({ length: count }, (_, bar) => {
@@ -97,6 +119,7 @@ function sections(name: string, seed: number, count: number): BandBar[][] {
         wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         swing: presetSwing(preset)!,
         offer: null,
+        ...(found && FOUND),
       },
       carried,
       null,
@@ -119,7 +142,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(() => hostOf(bars)).toThrow(/bpm changes at its bar 1/);
     expect(hostOf(bars, { tempo: 'first' }).bpm).toBe(bars[0]!.style.bpm);
     const text = sectionTextOf(sectionAsCells(bars, { tempo: 'first' }));
-    expect(text.split('\n')[1]).toBe(`&bar meter("4/4") step=${bars[0]!.style.bpm}bpm`);
+    expect(text.split('\n')[1]).toBe(`&bar from meter ${bars[0]!.style.bpm}bpm`);
     // The rest of the text is the held tempo's.
     const held = sectionTextOf(sectionAsCells(section('Synth-pop')));
     expect(text.split('\n').slice(1)).toEqual(held.split('\n').slice(1));
@@ -500,9 +523,116 @@ describe('a section as one cells text, for the app (#399)', () => {
           expect(cells).toHaveLength(steps);
           const off = cells.filter((at, s) => Math.abs(at - band[s]!) >= 1e-9);
           expect([level, share, off]).toEqual([level, share, []]);
+          // (and the score's `from` line, cells' meter template, plays them where the line it stands for does: #531)
+          const taken = planOf(
+            [meterLine(name, 60, swingText(meter, swing)), ...text.split('\n').slice(1)].join('\n'),
+            undefined,
+            { resolve: resolveSeed },
+          );
+          expect(taken.result.diagnostics).toEqual([]);
+          const takenCells = [
+            ...new Set(windowAt(taken, 0, steps * step - 1e-6).events.map((e) => e.at)),
+          ];
+          expect(takenCells.map((at, s) => Math.abs(at - cells[s]!) < 1e-9)).toEqual(
+            cells.map(() => true),
+          );
         }
     },
   );
+});
+
+describe('what the composer took, written as its `from` line (#531, yggi/cells#714)', () => {
+  /** The notes a text sends in its first two seconds, each its note and onset. */
+  const notesOf = (text: string) => {
+    const plan = planOf(text, undefined, { resolve: resolveSeed });
+    expect(plan.result.diagnostics).toEqual([]);
+    return windowAt(plan, 0, 2).events.map((e) => `${e.freq.toFixed(4)}@${e.at.toFixed(6)}`);
+  };
+
+  it('takes the key from cells’ mode fragment, playing every mode on every tonic as the scale it stands for', () => {
+    const line = '&x over=&key step=16n 0 1 2 3 4 5 6 7 -1 -2 -3';
+    const tail = ['&bar meter("4/4") step=120bpm', line, '&v loop=C4', '&out [&x * &v]'];
+    for (const mode of COMPOSER_MODES)
+      for (let tonic = 0; tonic < 12; tonic++) {
+        const key = { tonic, mode };
+        expect(keyLine(key)).toMatch(
+          new RegExp(`^&key from diatonic\\(mode=${mode}\\) [A-G][#b]*$`),
+        );
+        expect(notesOf([keyLine(key), ...tail].join('\n')), `${mode} ${tonic}`).toEqual(
+          notesOf([`&key ${keyText(key)}`, ...tail].join('\n')),
+        );
+      }
+  });
+
+  it('writes the meter, the key and a clave played whole as `from` lines, which cells’ references read back', () => {
+    const [bars] = sections('Funk', 1, 8, true);
+    const text = sectionTextOf(sectionAsCells(bars!));
+    expect(text.split('\n').slice(1, 3)).toEqual([
+      '&bar from meter(swing=16n:.6) 104bpm',
+      '&key from diatonic(mode=dorian) D',
+    ]);
+    expect(references(text).map((r) => r.id)).toEqual([
+      'meter',
+      'diatonic',
+      'styles',
+      bars![0]!.plan.claveFragment,
+      'band',
+    ]);
+    expect(text).toMatch(/^&drumlines \[.*, &clave \* \.\d+\]$/m);
+    expect(text).not.toMatch(/^&clave role=/m);
+  });
+
+  it('plays every preset’s 32 bars, seeds 1 and 2, as the band writes them where it finds its parts in the repository, the clave taken wherever it plays whole', () => {
+    let claves = 0;
+    let taken = 0;
+    let stated = 0;
+    for (const preset of PRESETS)
+      for (const seed of [1, 2])
+        for (const bars of sections(preset.name, seed, 32, true)) {
+          // (a section the score can't state, a chord it has no quality for, the app plays from the band's own
+          // events, unstated: `stateSection`)
+          let text: string;
+          try {
+            text = sectionTextOf(sectionAsCells(bars, { tempo: 'first' }));
+          } catch {
+            continue;
+          }
+          stated++;
+          const played = playSection(text, bars);
+          const at = `${preset.name} ${seed} ${bars[0]!.bar}`;
+          expect(played.diagnostics, at).toEqual([]);
+          for (const [i, bar] of bars.entries())
+            expect(mismatches(writtenNotes(bar), played.bars[i]!.notes, true), at).toEqual([]);
+          expect(text, at).toMatch(/^&bar from meter\b/m);
+          expect(text, at).toMatch(/^&key from diatonic\(/m);
+          if (bars[0]!.plan.claveFragment === undefined) continue;
+          claves++;
+          if (/^&clave from /m.test(text)) taken++;
+          else expect(text, at).toMatch(/^&clave role=clave /m);
+        }
+    // (18 of 24 at cells v0.25.1: a section whose rim wins a step of the clave writes it out, shown below)
+    expect(stated).toBeGreaterThan(170);
+    expect(claves).toBeGreaterThan(0);
+    expect(taken).toBeGreaterThan(claves / 2);
+    expect(taken).toBeLessThan(claves);
+  });
+
+  it('is shown firing: a clave missing a hit the fragment holds is written out, not taken', () => {
+    const [bars] = sections('Funk', 1, 8, true);
+    const dropped = bars!.map((bar, i) =>
+      i === 0
+        ? {
+            ...bar,
+            written: bar.written.filter(
+              (w, k) =>
+                !(w.role === 'clave' && k === bar.written.findIndex((x) => x.role === 'clave')),
+            ),
+          }
+        : bar,
+    );
+    expect(sectionTextOf(sectionAsCells(bars!))).toMatch(/^&clave from /m);
+    expect(sectionTextOf(sectionAsCells(dropped))).toMatch(/^&clave role=clave /m);
+  });
 });
 
 /** The drums cells sends on channel 10 in a text's first `seconds`: each hit's note and velocity, by onset. */
