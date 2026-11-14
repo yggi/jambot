@@ -662,12 +662,14 @@ describe('the player', () => {
       player.forgetMotif();
       run(9);
       expect(player.museLog.at(-1)).toMatchObject({ offer: null, forgot: 'asked' });
-      // The offer is forgotten; the motif heard was filed as a lead line (#424), and the lead plays the line its
-      // section holds, cells' motif at Synth-pop's point (`hook`, #520), the motif filed waiting in the layer.
+      // The offer is forgotten; the motif heard, A C E a beat apart in A minor, is cells' `rising` note for note, so the
+      // Muse learns a use of that seed rather than filing it (#553), and the lead plays the line its section holds,
+      // cells' motif at Synth-pop's point (`hook`, #520).
       const filed = player.layer.filed.filter((f) =>
         f.fragment.association.some((p) => p.facet === 'lead'),
       );
-      expect(filed.map((f) => f.meta.source)).toEqual(['the computer keys']);
+      expect(filed).toEqual([]);
+      expect(player.layer.points.map((p) => p.id)).toContain('rising');
       const after = Math.floor(world.steps.at(-1)!.step / 16) - 1;
       expect(leadSteps(world, after)).toEqual([0, 2, 4, 6, 12, 14]);
     });

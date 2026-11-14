@@ -33,6 +33,8 @@ How the repository is built, gated, deployed and licensed.
   A pull request that changes `*.md` files alone, as the pre-push hook reads it, runs `pnpm verify --docs` in `check` and skips `e2e`'s steps, both jobs still named and green, so the review's reuse holds for it.
   `git fetch origin pull/<n>/head` works through the session proxy.
   No check is required to merge.
+- Several approved pull requests land on one verify (`pnpm batch`, `tooling/batch.ts`; the `land` skill's "Several at once"; yggi/music-commons#68): `pnpm batch prepare <pr>…` merges up to 8 heads in order into a worktree at `origin/main`, leaving out and naming any that conflicts, and prints the tree; `pnpm verify` there stands for each, they are squashed in that order with no verify between, and `pnpm batch check <tree>` says whether `origin/main` ended with that tree.
+  A pull request that re-records an experiment's literals conflicts with every other that does (`lead-loop.test.ts` and `docs/language-experiments.md`: all three pull requests open on 2026-11-14 conflicted with `main` there), so it takes `main` first and a batch does not help it.
 - While Actions is blocked, a run fails within seconds, with no runner and no step: a red or missing `check` then says nothing about the code.
   `node tools/measure/actions.mjs --status yggi/jambot`, in music-commons, tells a blocked repository from one where Actions runs.
   The evidence is the verified commit the pull request names; when minutes are back, one run of a blocked check on a pull request still open is enough.

@@ -45,7 +45,7 @@ import { setTiming } from '@yggi/cells/engine/edit';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { cachedFit } from '@yggi/cells/repository/fit';
 import { resolveSeed } from '@yggi/cells/repository/library';
-import { hasFrom } from '@yggi/cells/engine/use';
+import { fragmentHash, hasFrom } from '@yggi/cells/engine/use';
 import { collides, unionOn } from './taken.ts';
 import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
 import { holesOf } from '@yggi/cells/repository/holes';
@@ -54,7 +54,7 @@ import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
 import { DRUM_ROLES, sameMeter } from './events.ts';
-import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
+import { BENCH, BENCH_FRAGMENT, HASH, type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
 import { GROOVE_FEWEST, grooveText, roleOfSound } from './muse-groove.ts';
@@ -263,6 +263,111 @@ export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): 
   return [...held];
 }
 
+/** What cells' variations of a rhythm are asked with on a workbench, by the composer's policy (`novelty.ts`). */
+const variationOptions = (text: string, workbench: string) => ({
+  // (the workbench brings the instruments the rhythm strikes, so the text varied is the rhythm's own)
+  workbench: [workbench, ...instrumentsFor(text)].join('\n'),
+  keep: GROOVE_KEEP,
+  fewest: GROOVE_FEWEST,
+  resolve: resolveSeed,
+});
+
+/**
+ * A rhythm varied as the composer plays it: the line the variation rewrites read back over the rhythm's lap and put in
+ * place of that line's hits in the whole (`whole`, the rhythm's read), as the band plays them (`played`). A variation
+ * rewrites one line, so only that line is read back from its text: one compile. Null where the line doesn't read.
+ */
+function variedGroove(
+  text: string,
+  variation: Variation,
+  meter: Meter,
+  whole: FragmentRead,
+): FragmentRead | null {
+  const name = variation.line.slice(1);
+  const line = readLines(variation.apply(text), meter, whole.bars, name);
+  if (line === null) return null;
+  return played({
+    bars: whole.bars,
+    hits: inOrder([...whole.hits.filter((h) => (h.line ?? h.role) !== name), ...line.hits]),
+  });
+}
+
+/** A groove variation's bench as its meta keeps it (`BENCH`, `BENCH_FRAGMENT`): its meter's name and its meter fragment. */
+const benchMeta = (bench: RhythmBench): Record<string, string> => {
+  const name = nameOf(bench.meter);
+  if (name === null) return {};
+  return {
+    [BENCH]: name,
+    ...(bench.meterFragment === undefined ? {} : { [BENCH_FRAGMENT]: bench.meterFragment }),
+  };
+};
+
+/**
+ * A groove variation's text rebuilt from its source (#553): the variation of `source` that cells names `by`, made on
+ * the bench its meta keeps, played as the composer played it (`variedGroove`) and stated as the repository files it
+ * (`grooveText`). Null where the bench, the source's read or the variation is gone.
+ */
+export function rebuiltGroove(
+  source: string,
+  by: string,
+  meter: string,
+  meterFragment?: string,
+): string | null {
+  const at = METERS[meter as MeterName];
+  if (at === undefined) return null;
+  const workbench = benchText({ meter: at, ...(meterFragment ? { meterFragment } : {}) });
+  const whole = readRhythm(source, at);
+  if (workbench === null || whole === null) return null;
+  const variation = variations(source, variationOptions(source, workbench)).find(
+    (v) => v.by === by,
+  );
+  const read = variation && variedGroove(source, variation, at, whole);
+  return read ? grooveText(read.hits, stepsOf(at)) : null;
+}
+
+/** What a stored layer gave back (`rebuiltLayer`): the layer, and the ids of the references it could not rebuild. */
+export interface RebuiltLayer {
+  readonly layer: LearnedLayer;
+  readonly dropped: readonly string[];
+}
+
+/**
+ * A layer as it was stored (`storedLayer`), its groove variations given their texts back (#553): each rebuilt from its
+ * source, a seed rhythm by its lines (`heldRhythms`) or a groove filed before it, and kept where the text rebuilt has
+ * the hash stored (cells' `fragmentHash`). One that doesn't (its source gone, or cells' variation of that name moved
+ * at another pin) is dropped and named, never played otherwise than it was filed.
+ */
+export function rebuiltLayer(stored: LearnedLayer): RebuiltLayer {
+  const texts = new Map(heldRhythms().map((f) => [f.id, f.text]));
+  const dropped: string[] = [];
+  const filed = stored.filed.flatMap((file) => {
+    const hash = file.meta[HASH];
+    if (file.fragment.text !== '' || typeof hash !== 'string') {
+      texts.set(file.fragment.id, file.fragment.text);
+      return [file];
+    }
+    const source = texts.get(String(file.meta['varies']));
+    const fragment = file.meta[BENCH_FRAGMENT];
+    const text =
+      source === undefined
+        ? null
+        : rebuiltGroove(
+            source,
+            String(file.meta[BY]),
+            String(file.meta[BENCH]),
+            typeof fragment === 'string' ? fragment : undefined,
+          );
+    if (text === null || fragmentHash(text) !== hash) {
+      dropped.push(file.fragment.id);
+      return [];
+    }
+    texts.set(file.fragment.id, text);
+    const meta = Object.fromEntries(Object.entries(file.meta).filter(([key]) => key !== HASH));
+    return [{ ...file, fragment: { ...file.fragment, text }, meta }];
+  });
+  return { layer: dropped.length || filed.length ? { ...stored, filed } : stored, dropped };
+}
+
 /** A repository of these rhythms, ranked by cells' query on the facet `rhythm`, filtered by the fit and read by `read` (cells', unless a test counts them). */
 export function rhythmRepository(
   fragments: readonly Fragment[] = RHYTHM_FRAGMENTS,
@@ -353,17 +458,7 @@ export function rhythmRepository(
   // every line but its anchors and those kept, none of fewer hits than a groove holds.
   const variationsOn = (text: string, workbench: string) => {
     const key = `${workbench.length}:${workbench}${text}`;
-    if (!varied.has(key))
-      varied.set(
-        key,
-        variations(text, {
-          // (the workbench brings the instruments the rhythm strikes, so the text varied is the rhythm's own)
-          workbench: [workbench, ...instrumentsFor(text)].join('\n'),
-          keep: GROOVE_KEEP,
-          fewest: GROOVE_FEWEST,
-          resolve: resolveSeed,
-        }),
-      );
+    if (!varied.has(key)) varied.set(key, variations(text, variationOptions(text, workbench)));
     return varied.get(key)!;
   };
   return {
@@ -397,6 +492,24 @@ export function rhythmRepository(
         ]),
       ),
     file(layer, { hits, bench, point, source, created, tags, varies, by }) {
+      // (a groove heard that is a seed's exactly, hit for hit, is a use of that seed, not a fragment of its own, #553; never
+      // the composer's variation, which stays of its groove's family, so the ladder rejects what it varied)
+      // (asked of the seeds that fit the bench alone, whose reads the repository warms: no compile on the clock)
+      const heard = JSON.stringify(inOrder(hits));
+      const bench_ = benchOf(bench);
+      const seed = fragments.find((f) => {
+        if (varies !== undefined || bench_ === null || !fits(f.text, bench_)) return false;
+        const read = readText(f.text, bench.meter);
+        return read !== null && read.bars === 1 && JSON.stringify(played(read).hits) === heard;
+      });
+      if (seed !== undefined) {
+        const { meterFragment } = bench;
+        const used = useFragments(cells, layer, [
+          { id: seed.id, point, facet: 'rhythm' },
+          ...(meterFragment === undefined ? [] : [{ id: meterFragment }]),
+        ]);
+        return { layer: cappedLayer(used), id: seed.id, held: true };
+      }
       const text = grooveText(hits, stepsOf(bench.meter));
       const filed = fileFragment(cells, layer, {
         text,
@@ -408,6 +521,8 @@ export function rhythmRepository(
           tags: [...tags],
           ...(varies === undefined ? {} : { varies }),
           ...(by === undefined ? {} : { [BY]: by }),
+          // (a variation keeps the bench it was made on, so a stored layer rebuilds its text from its source: #553)
+          ...(varies === undefined || by === undefined ? {} : benchMeta(bench)),
         },
       });
       // (filing is its use at the point; beside the meter fragment it was played in, a use together)
@@ -436,18 +551,9 @@ export function rhythmRepository(
       if (text === undefined || workbench === null || whole === null) return null;
       const all = variationsOn(text, workbench);
       if (!all.length) return null;
-      // (a variation rewrites one line, so only that line is read back from its text, over the rhythm's lap: one compile)
       const variation = all[drawn(draw, all.length)]!;
-      const name = variation.line.slice(1);
-      const line = readLines(variation.apply(text), bench.meter, whole.bars, name);
-      if (line === null) return null;
-      return {
-        hits: played({
-          bars: whole.bars,
-          hits: inOrder([...whole.hits.filter((h) => (h.line ?? h.role) !== name), ...line.hits]),
-        }).hits,
-        by: variation.by,
-      };
+      const varied = variedGroove(text, variation, bench.meter, whole);
+      return varied && { hits: varied.hits, by: variation.by };
     },
     *warm(benches, layer) {
       // (cells' rhythms, and the grooves the layer filed, newest first; a rhythm warmed on a workbench takes no step again)

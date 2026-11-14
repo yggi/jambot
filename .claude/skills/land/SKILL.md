@@ -35,4 +35,24 @@ Do the steps in order and stop at the first that fails.
 6. **Say so.**
    A comment on the pull request with the deploy's run and its last lines, and what step 4 closed, ticked and filed.
 
+## Several at once
+
+Landing one at a time, every merge moves `main` and each pull request still open is verified again.
+A batch of up to 8 approved pull requests is verified once, as the tree `main` will have when all of it has landed (yggi/music-commons#68, `tooling/batch.ts`).
+
+1. **Prepare it.**
+   `pnpm batch prepare <pr> <pr> …`, in the order they will land: a worktree beside the checkout, at `origin/main`, with each head merged in.
+   A head that conflicts with `main` and the heads before it is left out and named: it lands after the batch, alone, by the steps above.
+2. **Verify it, once.**
+   In that worktree: `pnpm verify`, `pnpm test:slow` if any of them touches the engine, the theory or the cells pin, and `pnpm e2e` if any touches what the app plays or when.
+   That run stands for step 1 of every pull request merged in; a failure is placed by leaving out the likeliest and preparing again.
+3. **Squash each, in that order**, by step 2 above, with no verify between.
+   GitHub refuses one it finds in conflict (a file git merges by union locally can be one): it drops out of the batch and lands after it, alone.
+4. **Check the tree.**
+   `pnpm batch check <tree>`, with the tree step 1 printed: `origin/main` has it when exactly the batch landed.
+   If it differs, something else landed between or one dropped out: run `pnpm verify` on `main`.
+5. **The rest, once for each:** steps 3, 4 and 6 above.
+   Each merge starts a deploy, one at a time, which verifies before it publishes; watch the last (step 5 above), which holds the batch.
+   Then remove the worktree: `git worktree remove <worktree>`.
+
 If the deploy fails, the merge stands: fix forward on a new branch (or run _Deploy_ again by hand for a failure that wasn't the code's), and say that `main` and the site differ.

@@ -6,10 +6,18 @@ import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
 import { CLAVES_NOTE, DRUM_NOTES } from './drums.ts';
 import { DRUM_ROLES } from './events.ts';
-import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
+import {
+  BENCH,
+  BENCH_FRAGMENT,
+  EMPTY_LAYER,
+  HASH,
+  type LearnedLayer,
+  layerBytes,
+  storedLayer,
+} from './layer.ts';
 import { stylePoint } from './meter-query.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
-import { composedRhythm, isOwnLine } from './rhythm-query.ts';
+import { type GrooveFiling, composedRhythm, isOwnLine } from './rhythm-query.ts';
 import {
   RHYTHM_BENCHES,
   RHYTHM_REPOSITORY,
@@ -18,6 +26,7 @@ import {
   grooveLines,
   heldRhythms,
   readRhythm,
+  rebuiltLayer,
   rhythmRepository,
 } from './rhythms.ts';
 import { pullOf } from './novelty.ts';
@@ -577,5 +586,100 @@ describe('a groove the layer’s cap dropped (#424)', () => {
     );
     // (and one it holds is learned as used)
     expect(repository.used!(filed.layer, [filed.id], point)).not.toEqual(filed.layer);
+  });
+});
+
+describe('a groove variation kept by reference (#553)', () => {
+  const FOUR = { meter: METERS['4/4'], meterFragment: 'meter' };
+  const AT = { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 };
+  const filing = (hits: GrooveFiling['hits'], varies?: string, by?: string): GrooveFiling => ({
+    hits,
+    bench: FOUR,
+    point: AT,
+    source: varies === undefined ? 'Ada' : 'composer',
+    created: 'song 1, bar 0',
+    tags: ['groove'],
+    ...(varies === undefined ? {} : { varies }),
+    ...(by === undefined ? {} : { by }),
+  });
+  /** Each distinct variation of a seed rhythm on 4/4 that 64 draws reach, filed as the composer files it. */
+  const variedFiled = (id: string) => {
+    const seen = new Map<string, LearnedLayer>();
+    for (let i = 0; i < 64; i++) {
+      const v = RHYTHM_REPOSITORY.vary!(id, FOUR, (i + 0.5) / 64);
+      if (v === null || seen.has(v.by)) continue;
+      seen.set(v.by, RHYTHM_REPOSITORY.file!(EMPTY_LAYER, filing(v.hits, id, v.by)).layer);
+    }
+    return seen;
+  };
+
+  it('keeps the bench it was made on, leaves its text out where its source is held, and rebuilds every variation of every seed rhythm the composer varies in 4/4 to the text it filed, hash and all', () => {
+    let count = 0;
+    for (const seed of heldRhythms()) {
+      for (const [by, layer] of variedFiled(seed.id)) {
+        const [file] = layer.filed;
+        expect(file!.meta).toMatchObject({
+          varies: seed.id,
+          by,
+          [BENCH]: '4/4',
+          [BENCH_FRAGMENT]: 'meter',
+        });
+        const stored = storedLayer(layer);
+        expect(stored.filed[0]!.fragment.text, `${seed.id} ${by}`).toBe('');
+        expect(stored.filed[0]!.meta[HASH]).toMatch(/^e1:[0-9a-f]{16}$/);
+        expect(rebuiltLayer(stored), `${seed.id} ${by}`).toEqual({ layer, dropped: [] });
+        count++;
+      }
+    }
+    expect(count).toBeGreaterThan(100);
+  });
+
+  it('weighs a layer as it is kept: a variation by reference, its source held, some 440 bytes lighter than written out', () => {
+    const layer = [...variedFiled('techno_drums').values()][0]!;
+    // (the layer's JSON is ASCII, a byte a character)
+    const written = JSON.stringify(layer).length;
+    expect(layerBytes(layer)).toBe(JSON.stringify(storedLayer(layer)).length);
+    expect(written - layerBytes(layer)).toBeGreaterThan(200);
+  });
+
+  it('keeps the text of a variation whose source the layer no longer holds, so no reference dangles', () => {
+    const groove = RHYTHM_REPOSITORY.file!(
+      EMPTY_LAYER,
+      filing(
+        readRhythm(heldRhythms()[0]!.text, METERS['4/4'])!.hits.map((h) => ({
+          ...h,
+          velocity: h.velocity - 1,
+        })),
+      ),
+    ).layer;
+    const own = groove.filed[0]!.fragment.id;
+    const v = RHYTHM_REPOSITORY.vary!(own, FOUR, 0.5, groove)!;
+    const both = RHYTHM_REPOSITORY.file!(groove, filing(v.hits, own, v.by)).layer;
+    expect(storedLayer(both).filed.map((f) => f.fragment.text === '')).toEqual([false, true]);
+    const alone = { ...both, filed: both.filed.slice(1) };
+    expect(storedLayer(alone)).toBe(alone);
+    // (and a variation of a variation rebuilds in order, each from the one before it)
+    expect(rebuiltLayer(storedLayer(both))).toEqual({ layer: both, dropped: [] });
+  });
+
+  it('is shown firing: a reference whose rebuild hashes otherwise, or whose source is gone, is dropped and named, never played otherwise', () => {
+    const layer = [...variedFiled('techno_drums').values()][0]!;
+    const stored = storedLayer(layer);
+    const file = stored.filed[0]!;
+    const moved = { ...stored, filed: [{ ...file, meta: { ...file.meta, by: 'drop &hat 99' } }] };
+    expect(rebuiltLayer(moved)).toEqual({
+      layer: { ...stored, filed: [] },
+      dropped: [file.fragment.id],
+    });
+    const lost = {
+      ...stored,
+      filed: [{ ...file, meta: { ...file.meta, varies: 'no_such_drums' } }],
+    };
+    expect(rebuiltLayer(lost).dropped).toEqual([file.fragment.id]);
+    const wrong = {
+      ...stored,
+      filed: [{ ...file, meta: { ...file.meta, [HASH]: 'e1:0000000000000000' } }],
+    };
+    expect(rebuiltLayer(wrong).dropped).toEqual([file.fragment.id]);
   });
 });

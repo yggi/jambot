@@ -147,6 +147,30 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
         ]),
       ),
     file(layer, { notes, text: given, bench, point, source, created, tags, varies, by }) {
+      // (a line heard that is a seed's exactly, note for note on the bench, is a use of that seed, not a fragment of its
+      // own, #553: its notes as the line reads them, or the read of the text given; never the composer's variation, which
+      // stays of its line's family, so the ladder rejects what it varied)
+      const heard =
+        varies !== undefined
+          ? undefined
+          : given === undefined
+            ? [...notes].sort((a, b) => a.step - b.step)
+            : readText(given, bench.meter)?.notes;
+      const seed =
+        heard === undefined
+          ? undefined
+          : fragments.find((f) => {
+              const read = readText(f.text, bench.meter);
+              return read !== null && JSON.stringify(read.notes) === JSON.stringify(heard);
+            });
+      if (seed !== undefined) {
+        const { meterFragment } = bench;
+        const used = useFragments(cells, layer, [
+          { id: seed.id, point, facet },
+          ...(meterFragment === undefined ? [] : [{ id: meterFragment }]),
+        ]);
+        return { layer: cappedLayer(used), id: seed.id, held: true };
+      }
       // (a line given as its text, a form over the seed's motifs, is filed as it; any other is stated from its notes)
       const text = given ?? kind.text(notes, stepsOf(bench.meter));
       const filed = fileFragment(cells, layer, {
