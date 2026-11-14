@@ -28,13 +28,13 @@ import { planOf, windowAt } from '@yggi/cells';
 import type { Resolve } from '@yggi/cells/engine/program';
 import { bodyOf } from '@yggi/cells/engine/use';
 import { resolveSeed } from '@yggi/cells/repository/library';
-import { readerOf } from '@yggi/cells/engine/perform/feel';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
 import { describe, expect, it } from 'vitest';
 import {
   bandChords,
   compileSection,
   lineOf,
+  lineReader,
   mismatches,
   playSection,
   soundOf,
@@ -61,14 +61,14 @@ import {
   writtenNotes,
 } from './section-text.ts';
 
-/** A preset's first section, as the band composes it at entropy 0.3, seed 1, in its meter or the one asked for. */
-function section(name: string, meter?: MeterName): BandBar[] {
+/** A preset's first section, or as many bars as asked, as the band composes it at entropy 0.3, seed 1 or the one asked for, in its meter or the one asked for. */
+function section(name: string, meter?: MeterName, seed = 1, bars = SECTION_BARS): BandBar[] {
   const preset = PRESETS.find((p) => p.name === name)!;
   let carried: BandCarried = band.initial;
-  return Array.from({ length: SECTION_BARS }, (_, bar) => {
+  return Array.from({ length: bars }, (_, bar) => {
     const made = band.advance(
       {
-        seed: 1,
+        seed,
         bar,
         style: { ...preset.style, entropy: 0.3 },
         wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
@@ -266,14 +266,22 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(read('padV:tune:')).toEqual({ line: 'pad' });
     expect(read('kit:voices:hats:')).toEqual({ line: 'drums', role: 'hat' });
     expect(read('leadV:melody:')).toEqual({ line: 'lead' });
-    // Undeclared, an output reads by its id, as the feel's version 2 read it.
-    const bare = compileSection(text.replace(' part=pad', '').replace(' role=hat', '')).result;
+    // Undeclared, an output is none of the feel's, whatever its name: not the `tune` its line is named, nor a hat its
+    // kit member is named, nor the lead its line was.
+    const bare = compileSection(
+      text
+        .replace(' part=pad', '')
+        .replace(' role=hat', '')
+        .replace(' part=lead', '')
+        .replaceAll('&hats', '&hat'),
+    ).result;
+    expect(bare.diagnostics).toEqual([]);
     const readBare = (id: string) =>
       lineOf(bare.outputs.find((o) => o.id.startsWith(id))!.id, bare);
-    expect(readBare('padV:tune:')).toEqual({ line: 'tune' });
-    expect(readBare('kit:voices:hats:')).toEqual({ line: 'drums', role: 'hats' });
-    expect(lineOf('compV:pad:17:14')).toEqual({ line: 'pad' });
-    expect(lineOf('kit:voices:hat:9:35')).toEqual({ line: 'drums', role: 'hat' });
+    expect(readBare('padV:tune:')).toBeNull();
+    expect(readBare('kit:voices:hat:')).toBeNull();
+    expect(readBare('leadV:melody:')).toBeNull();
+    expect(lineOf(undefined, result)).toBeNull();
   });
 
   it.each(['Swing jazz', 'Synth-pop', 'Bossa nova', 'Funk'])(
@@ -287,21 +295,41 @@ describe('a section as one cells text, for the app (#399)', () => {
     },
   );
 
-  it.each(['Swing jazz', 'Synth-pop', 'Bossa nova', 'Funk'])(
-    'declares the part or the drum role of every note %s’s section sends, so none is read by its name (#615)',
-    (name) => {
-      const bars = section(name);
-      const { result } = compileSection(sectionTextOf(sectionAsCells(bars)));
-      const read = readerOf(result);
+  it('declares the part or the drum role of every note it sends, so none is read as none of the feel’s: every preset, seeds 1 and 2, 32 bars (#615, #506)', () => {
+    let sections = 0;
+    let outputs = 0;
+    const undeclared: string[] = [];
+    const nones = (text: string) => {
+      const { result } = compileSection(text);
+      const read = lineReader(result);
       const sent = result.outputs.filter(
         (o) =>
           !o.id.startsWith('readV:') &&
           (o.id.startsWith('kit:') || o.via.length + o.through.length > 0),
       );
-      expect(sent.length).toBeGreaterThan(0);
-      expect(sent.filter((o) => read(o.id) === null).map((o) => o.id)).toEqual([]);
-    },
-  );
+      return { sent, none: sent.filter((o) => read(o.id) === null).map((o) => o.id) };
+    };
+    for (const preset of PRESETS)
+      for (const seed of [1, 2]) {
+        const bars = section(preset.name, undefined, seed, 4 * SECTION_BARS);
+        for (let from = 0; from < bars.length; from += SECTION_BARS) {
+          const { sent, none } = nones(
+            sectionTextOf(sectionAsCells(bars.slice(from, from + SECTION_BARS))),
+          );
+          expect(sent.length).toBeGreaterThan(0);
+          undeclared.push(...none.map((id) => `${preset.name} ${seed} ${from}: ${id}`));
+          outputs += sent.length;
+          sections++;
+        }
+      }
+    expect(sections).toBe(PRESETS.length * 2 * 4);
+    expect(outputs).toBeGreaterThan(sections * 4);
+    expect(undeclared).toEqual([]);
+    // (shown firing: a section whose drum lines declare no role= sends hits none of the feel's)
+    const funk = sectionTextOf(sectionAsCells(section('Funk')));
+    expect(nones(funk).none).toEqual([]);
+    expect(nones(funk.replace(/ role=\w+/g, '')).none.length).toBeGreaterThan(0);
+  });
 
   it.each(['Swing jazz', 'Synth-pop', 'Bossa nova'])(
     'plays %s’s section back with each note’s line and role as the band writes them, its onset where the swing puts its step, and its end past it',
