@@ -64,6 +64,21 @@ export const DRUM_NOTES = {
  */
 export const CLAVES_NOTE = 75;
 
+/**
+ * The General MIDI toms, which a fragment's ostinato strikes (cells' `salsa_drums`: the conga's tumbao on `&lt`, `&mt`
+ * and `&ht`, `gm_kit`'s notes, #651). Like the claves, they pass to the drums as they are (`groove.ts`), the built-in
+ * kit voices them, and MIDI out sends them as themselves; none is a drum sound of the drummer's own.
+ */
+export const TOM_NOTES = { lowTom: 41, midTom: 45, highTom: 48 } as const;
+
+/**
+ * The roles the drummer writes of its own (`drums`): all but the ostinato and the clave, which only a fragment's line
+ * plays, so the drummer plays those as the fragment writes them (`grooveBar`).
+ */
+export const OWN_ROLES: readonly DrumRole[] = DRUM_ROLES.filter(
+  (role) => role !== 'ostinato' && role !== 'clave',
+);
+
 /** One of the drums' physical sounds, as `DRUM_NOTES` names it: not a groove `DrumRole`. */
 export type DrumSound = keyof typeof DRUM_NOTES;
 

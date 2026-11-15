@@ -20,8 +20,8 @@
  * Every reading runs, and Jambot meets each: a line whose text declares
  * none of the feel's parts or roles reads as none (#506).
  */
-import { type BarEnv, type DrumRole, PRESETS, type SwingLevel } from '@jambot/engine';
-import { planOf } from '@yggi/cells';
+import { type BarEnv, PRESETS, type SwingLevel } from '@jambot/engine';
+import { type DrumRole as FeelRole, planOf } from '@yggi/cells';
 import { readerOf } from '@yggi/cells/engine/perform/feel';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { describe, expect, it } from 'vitest';
@@ -51,7 +51,7 @@ interface FeelVector {
   };
   readonly events: readonly {
     readonly part: PitchedName | 'drums';
-    readonly role?: DrumRole;
+    readonly role?: FeelRole;
     readonly step: number;
     readonly note: number;
     readonly velocity: number;
@@ -167,7 +167,7 @@ const byName: typeof lineReader = (result) => {
     const reading = read(output);
     if (reading) return { line: reading.part, ...(reading.role ? { role: reading.role } : {}) };
     const [first, second, third] = (output ?? '').split(':');
-    if (first === 'kit') return { line: 'drums', role: third as DrumRole };
+    if (first === 'kit') return { line: 'drums', role: third as FeelRole };
     return { line: second as PitchedName };
   };
 };

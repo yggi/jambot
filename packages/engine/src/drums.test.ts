@@ -1,7 +1,7 @@
 import { METERS, type Meter, even, positions, stepsOf as stepsInBar } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarEnv } from './bar.ts';
-import { DRUM_NOTES, backbeatOf, drums } from './drums.ts';
+import { DRUM_NOTES, OWN_ROLES, TOM_NOTES, backbeatOf, drums } from './drums.ts';
 import {
   DRUM_ROLES,
   type DrumRole,
@@ -105,12 +105,24 @@ describe('drums', () => {
     expect(new Set(notes).size).toBe(notes.length);
   });
 
+  it('know the toms by General MIDI’s notes, which only a fragment’s ostinato strikes (cells’ `salsa_drums`, #651)', () => {
+    expect(TOM_NOTES).toEqual({ lowTom: 41, midTom: 45, highTom: 48 });
+    const kit = new Set<number>(Object.values(DRUM_NOTES));
+    for (const note of Object.values(TOM_NOTES)) expect(kit.has(note)).toBe(false);
+  });
+
   it('write well-formed drum hits, each with its role (T4)', () => {
     for (const env of sweep)
       for (const e of drums(env)) {
         expect(writtenProblems(e)).toEqual([]);
         expect(e.part).toBe('drums');
       }
+  });
+
+  it('write only their own roles: every role but the ostinato and the clave, which only a fragment’s line plays (#397, #651)', () => {
+    expect(OWN_ROLES).toEqual(DRUM_ROLES.filter((r) => r !== 'ostinato' && r !== 'clave'));
+    const written = new Set(sweep.flatMap((env) => drums(env).map((e) => e.role!)));
+    expect([...written].sort()).toEqual([...OWN_ROLES].sort());
   });
 
   it('strike each sound at most once per step, in order (F5)', () => {

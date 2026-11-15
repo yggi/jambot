@@ -91,8 +91,8 @@ import {
   walkRadio,
 } from '../src/index.ts';
 import type { BarEnv } from '../src/bar.ts';
-import { drums } from '../src/drums.ts';
-import { GROOVE_ROLES, isOwnLine, sectionHits } from '../src/rhythm-query.ts';
+import { OWN_ROLES, drums } from '../src/drums.ts';
+import { isOwnLine, sectionHits } from '../src/rhythm-query.ts';
 import { type SectionType, barEnergy } from '../src/form.ts';
 import { grooveBar } from '../src/groove.ts';
 import { EMPTY_LAYER, type LearnedLayer } from '../src/layer.ts';
@@ -574,8 +574,9 @@ export function claveLost(runs: readonly RhythmRun[]): {
 
 /**
  * E40: how far the drummer's bars move from `main`'s, as `rhythms.test.ts` measures it: for each preset, section type
- * and role but the clave, the hits a bar over the preset's runs, against the same runs on `main`; the farthest a
- * preset moves, over its types and roles.
+ * and role the drummer writes of its own (`OWN_ROLES`: the clave and the ostinato, which a fragment's line plays as
+ * written, aside, #651), the hits a bar over the preset's runs, against the same runs on `main`; the farthest a preset
+ * moves, over its types and roles.
  */
 export function drumDistance(
   runs: readonly RhythmRun[],
@@ -600,7 +601,7 @@ export function drumDistance(
       const [a, b] = [pooled(runs, name), pooled(main, name)];
       let far = 0;
       for (const type of Object.keys(b) as SectionType[])
-        for (const role of GROOVE_ROLES) {
+        for (const role of OWN_ROLES) {
           const perBar = (c: (typeof a)[SectionType]) => (c ? (c.hits[role] ?? 0) / c.bars : 0);
           far = Math.max(far, Math.abs(perBar(a[type]) - perBar(b[type])));
         }

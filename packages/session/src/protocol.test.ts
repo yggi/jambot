@@ -312,12 +312,12 @@ describe('the session protocol', () => {
   });
 
   it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([22, 13]);
-    for (const protocol of [13, 14, 15, 16, 17, 18, 19, 20, 21])
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([23, 13]);
+    for (const protocol of [13, 14, 15, 16, 17, 18, 19, 20, 21, 22])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
     for (const protocol of [12, 1, 13.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 22 .* takes 13 on/,
+        /version 23 .* takes 13 on/,
       );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
     expect(sameMajor('14')).toBe(false);
@@ -420,8 +420,9 @@ describe('the session protocol', () => {
     // shapes, which it states at protocol 15: 16 adds a listed session's `away` (#496), a
     // lobby's word, 17 a host's `role` (#567), 18 a player's `nudge`, 19 its key and meter, and
     // 20 the log's `event`, read by field, none adding a shape here; 21 adds a judgement's
-    // `origin` and 22 the style's `mood` (cells v0.23.0), which the hub's shapes carry.
-    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([22, 15, 22]);
+    // `origin` and 22 the style's `mood` (cells v0.23.0), which the hub's shapes carry. 23 has a drum hit's role be
+    // `ostinato` (#651), a value and no shape, which the hub records at its next lift.
+    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([22, 15, 23]);
     expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
@@ -477,7 +478,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 22,
+  protocol: 23,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',

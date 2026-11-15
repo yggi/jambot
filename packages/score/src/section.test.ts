@@ -15,6 +15,7 @@ import {
   type BandBar,
   type BandCarried,
   PRESETS,
+  TOM_NOTES,
   SECTION_BARS,
   LEAD_LEVEL,
   MISS_DISTANCE,
@@ -352,6 +353,36 @@ describe('a section as one cells text, for the app (#399)', () => {
     const funk = sectionTextOf(sectionAsCells(section('Funk')));
     expect(nones(funk).none).toEqual([]);
     expect(nones(funk.replace(/ role=\w+/g, '')).none.length).toBeGreaterThan(0);
+  });
+
+  it('writes a found ostinato as a drum line of its role, which cells reads none of until it knows the role: its 8 hits a bar play, with no line and no role (#651, #676, yggi/cells#717)', () => {
+    const [bars] = sections('Salsa', 1, SECTION_BARS, true);
+    expect(bars![0]!.plan.rhythmFragment).toBe('salsa_drums');
+    const text = sectionTextOf(sectionAsCells(bars!));
+    expect(text).toMatch(/^&ostinato role=ostinato step=16n /m);
+    // (its bar a cell of its own, played every bar: the tumbao on the mid, high and low toms)
+    expect(text).toMatch(/^&ostinatoA (?=.*&mt)(?=.*&ht)(?=.*&lt)/m);
+    const { result } = compileSection(text);
+    expect(result.diagnostics).toEqual([]);
+    const toms = result.outputs.filter((o) => o.id.startsWith('kit:voices:ostinato:'));
+    expect(toms.length).toBeGreaterThan(0);
+    // (cells v0.25.1's roles are eight, `ostinato` none of them, so its reader reads none of the line's `role=`, and a
+    // line's name gives none since #676: the hits are none of the feel's, and play as cells gives them, until cells
+    // knows the role, yggi/cells#717, which also writes `role=ostinato` on Salsa drums' tumbao)
+    for (const o of toms) expect(lineOf(o.id, result)).toBeNull();
+    const played = playSection(text, bars!);
+    expect(played.diagnostics).toEqual([]);
+    const tomNotes = new Set<number>(Object.values(TOM_NOTES));
+    for (const [i, bar] of bars!.entries()) {
+      const p = played.bars[i]!;
+      expect(mismatches(writtenNotes(bar), p.notes), `bar ${i}`).toEqual([]);
+      const hits = p.notes.flatMap((n, j) =>
+        n.part === 'drums' && tomNotes.has(n.note) ? [j] : [],
+      );
+      expect(hits.length, `bar ${i}`).toBe(8);
+      for (const j of hits)
+        expect([p.lines[j], p.roles[j]], `bar ${i}`).toEqual([undefined, undefined]);
+    }
   });
 
   it.each(['Swing jazz', 'Synth-pop', 'Bossa nova'])(

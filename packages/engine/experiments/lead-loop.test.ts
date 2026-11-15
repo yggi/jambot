@@ -104,7 +104,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     expect(dropped).toBe(0);
   });
 
-  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 66 sections of 5,361`, () => {
+  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 70 sections of 5,361`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThanOrEqual(LAYER_CAP);
     // (15,994, 85 and 5,265 before cells v0.24.0; 15,978, 28 and 5,387 before cells v0.23.0, whose walk files more
@@ -114,8 +114,8 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // apart, yggi/cells#674 and #540; 15,991 and 102 over 5,346 sections before the layer kept its groove variations by
     // reference and a line heard that is a seed's was that seed, #553; 15,984 and 72 before a player's line played
     // again came back in the next section, #547 rung 6; 15,980 and 65 before the walk rule retired on top of cells v0.25.1
-    // and #547 rung 6, #650)
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15991, 66]);
+    // and #547 rung 6, #650; 66 dropped before the ostinato on top of cells v0.25.1, #651)
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15991, 70]);
     // (5,281 before cells v0.25.0; 5,283 before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652; 5,345
     // before cells v0.25.1, whose swung sixteenths near Acid's point move the walk's meters, yggi/cells#540; 5,374 before a
     // player's line played again came back in the next section, #547 rung 6; 5,366 before the walk rule retired on top of

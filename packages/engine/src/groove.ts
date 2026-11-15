@@ -11,11 +11,13 @@
  * steps, its loudest first by its own accents (`baseVelocityOf`). A role the
  * fragment has no line for is the drummer's own, and a line of the fragment
  * for a role the drummer doesn't play in the bar plays nothing there. The
- * fill is the drummer's, a fragment's fill line left out. A clave's line
- * plays as a line of its own, the weakest role, so the rim wins a step they
- * share. Each hit is written as the drummer writes its own, a step long, and
- * the performer gives it its velocity, so the fragment's levels only order
- * its hits.
+ * fill is the drummer's, a fragment's fill line left out. A role the drummer
+ * has no part of its own for (`OWN_ROLES`: the ostinato and the clave) has
+ * nothing to count the fragment's hits by, so its line plays every hit as
+ * written (#651, a first piece of #656), the clave the weakest role, so the
+ * rim wins a step they share. Each hit is written as the drummer writes its
+ * own, a step long, and the performer gives it its velocity, so the
+ * fragment's levels only order its hits.
  *
  * The fragment is read with the meter straight (`rhythms.ts`), and the band
  * swings its hits as it swings its own (yggi/cells#121 keeps a Euclid on `1m`
@@ -24,9 +26,10 @@
 
 import { stepsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
+import { OWN_ROLES } from './drums.ts';
 import { baseVelocityOf } from './dynamics.ts';
 import { DRUM_ROLES, type DrumRole, type WrittenNote } from './events.ts';
-import { type FragmentHit, GROOVE_ROLES } from './rhythm-query.ts';
+import type { FragmentHit } from './rhythm-query.ts';
 
 const keyOf = (n: { step: number; note: number }) => n.step * 128 + n.note;
 
@@ -66,20 +69,22 @@ export function grooveBar(
   const ownLoud = (a: WrittenNote, b: WrittenNote) =>
     baseVelocityOf(env, b) - baseVelocityOf(env, a) || a.step - b.step;
   const roles = new Set(own.map((n) => n.role!));
-  const grooved = GROOVE_ROLES.filter((role) => role !== 'fill' && roles.has(role)).flatMap(
-    (role) => {
-      const theirs = own.filter((n) => n.role === role);
-      const kept = inBar
-        .filter((h) => h.role === role)
-        .sort(loud)
-        .slice(0, theirs.length)
-        .map((h) => written(role, h));
-      const taken = new Set(kept.map(keyOf));
-      const more = theirs.filter((n) => !taken.has(keyOf(n))).sort(ownLoud);
-      return [...kept, ...more.slice(0, theirs.length - kept.length)];
-    },
-  );
+  const grooved = OWN_ROLES.filter((role) => role !== 'fill' && roles.has(role)).flatMap((role) => {
+    const theirs = own.filter((n) => n.role === role);
+    const kept = inBar
+      .filter((h) => h.role === role)
+      .sort(loud)
+      .slice(0, theirs.length)
+      .map((h) => written(role, h));
+    const taken = new Set(kept.map(keyOf));
+    const more = theirs.filter((n) => !taken.has(keyOf(n))).sort(ownLoud);
+    return [...kept, ...more.slice(0, theirs.length - kept.length)];
+  });
   const fill = own.filter((n) => n.role === 'fill');
-  const clave = inBar.filter((h) => h.role === 'clave').map((h) => written('clave', h));
-  return merged([...grooved, ...fill, ...clave]);
+  // (the ostinato and the clave, every hit: the drummer plays none of its own)
+  const found = inBar.flatMap((h) => {
+    const role = DRUM_ROLES.find((r) => r === h.role && !OWN_ROLES.includes(r));
+    return role ? [written(role, h)] : [];
+  });
+  return merged([...grooved, ...fill, ...found]);
 }
