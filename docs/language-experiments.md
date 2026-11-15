@@ -1023,5 +1023,32 @@ run; the others have.
   - **Next**, for the owner (#237): whether the sensor hears what was played lately (the reading it gives is the one a lever moves); a lever with more reach where entropy 1 is still bored, such as E22's rate of variation (step 0b) or the ladder's fetch far; and the host's part: recognition at idle, off the clock, with a recogniser rebuilt or a cache bounded in cells, before any host runs the controller.
   - Not measured: a player, the page's cost, a session, the 30-minute soaks the ruling names (the band's events with the controller off are E44's), and how any of it sounds.
 
+- **E46. What tells a section's kind apart, measured** (yggi/cells#571 step 1, #547 rung 5's groundwork; twin #645), in
+  [`packages/engine/experiments/section-intensity.ts`](../packages/engine/experiments/section-intensity.ts),
+  held by [`packages/engine/experiments/section-intensity.test.ts`](../packages/engine/experiments/section-intensity.test.ts) (about 2 s under vitest; `E46_REPORT=1` prints the tables):
+  - **The question** (yggi/cells#571): before a section's style is spelled as an offset from the song's, is a section's intensity one scalar that drives everything the band plays, or more than one?
+  - **The runs:** the band held at each of the prototype's eight presets, entropy 0.3, in the preset's swing and mode, seeds 1 to 3, 64 bars each: 1,536 bars, 192 intro, 448 groove, 256 bridge, 192 build, 256 drop and 192 breakdown.
+  - **Each bar is read for** its density (onsets per step, every part, a chord one onset), its layers (parts sounding), its mean velocity, its register (the mean pitch of the parts but the drums), the lead's filter (its mean cutoff, where it plays) and cells' reading of it (`readStyle`: `sync` and `bite`).
+    The tempo is no component: no section kind moves it.
+  - **What the kind explains** (η², the share of a component's variance its section kind explains), what it explains past the bar's energy (`barEnergy`, the style's shaped by the kind), and each component's correlation with that energy:
+
+    | component | η² of the kind | past the energy | r with the energy | groove   | breakdown        |
+    | --------- | -------------- | --------------- | ----------------- | -------- | ---------------- |
+    | density   | 0.558          | 0.037           | 0.909             | 1.306    | 0.246            |
+    | layers    | 0.532          | 0.132           | 0.651             | 4.067    | 2.344            |
+    | velocity  | 0.678          | 0.164           | 0.804             | 72.4     | 53.5             |
+    | register  | 0.293          | 0.126           | 0.469             | 58.8     | 56.9             |
+    | filter    | 0.396          | 0.000           | 1.000             | 2,751 Hz | (the lead rests) |
+    | sync      | 0.307          | 0.066           | 0.602             | 0.165    | 0.039            |
+    | bite      | 0.244          | 0.193           | 0.708             | 0.363    | 0.042            |
+
+  - **More than one scalar.** The energy carries the density (r 0.91, the kind adding 0.04 past it) and the lead's filter (wholly).
+    The kind moves the layers, the velocity, the register and the bite past the energy (0.13 to 0.19 of their variance): who rests in a breakdown or an intro, `dynamics.ts`'s velocities by kind, and the held notes of a breakdown, whose bite reads 0.04 where every other kind reads 0.36.
+    So a section is at least two things: an intensity on the energy's scale, and an arrangement (who plays, and how) that the kind says on its own.
+  - **Step 1b, adjacent sections** (the owner's frame on yggi/cells#571): each section read as the mean of its bars' `sync`, `bite` and density, 168 steps between adjacent sections, a mean distance of 0.305 (the root of the mean squared difference).
+    By the kind a section moves to: into a breakdown 0.638, into a groove 0.462 (mostly out of a breakdown or an intro), a drop 0.136, a bridge 0.107, a build 0.099.
+    The sections differ most where the arrangement changes, and least between the kinds that differ in energy alone.
+  - Not measured: the presets past the prototype's eight, a player, entropy other than 0.3, harmony and mood (a reading of a span of bars, cells' `readPoint`, not of one), and how any of it sounds.
+
 #7's decisions are made: (a) to (c) as U1 to U3, (d) as U4 and U5, and (e) to
 (h) as T4's performance maps, C7, L6 and P5.
