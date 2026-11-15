@@ -675,6 +675,8 @@ test("a client's drums reach the host's Muse, which files the groove under its p
 
   // The host's Muse files it where the next section is planned: within two sections at Synth-pop's tempo.
   await showView(page, 'Cells');
+  // (the Cells view opens on what plays, #642: what the band filed is the Library's)
+  await page.getByRole('radio', { name: 'Library' }).click();
   await page.getByRole('radio', { name: 'Filed' }).click();
   await expect(page.getByRole('table', { name: 'Fragments' })).toContainText('Ada', {
     timeout: 45_000,
