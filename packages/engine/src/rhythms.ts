@@ -134,10 +134,8 @@ const ROLES: readonly string[] = DRUM_ROLES;
  * Muse hears a player's (`roleOfSound`: Electro swing drums' `&clap` the backbeat, its `&hats` and `&ticks` the hat, the
  * ghost of its snare a ghost; #508, the owner's ruling). Null for a sound outside the kit.
  *
- * So Salsa drums' `&tumbao`, which writes no `role=` at cells v0.25.1 and strikes the toms alone, reads as an ostinato
- * by its sounds (#651, the owner's ruling of 2026-11-11). That reading stands until yggi/cells#717 writes
- * `role=ostinato` on the line, as cells' other grooves write theirs; then the test that holds it
- * (`rhythms.test.ts`, Salsa's tumbao) can go.
+ * Cells v0.26.0 writes `role=` on 31 of its 32 rhythms' lines (yggi/cells#717; Salsa drums' `&tumbao` is
+ * `role=ostinato`); Electro swing drums' lines write none, and read by their sounds as above.
  */
 const roleOf = (line: string, note: number, step: number, meter: Meter): string | null =>
   ROLES.includes(line) ? line : roleOfSound(note, step % stepsOf(meter), meter);
@@ -249,8 +247,8 @@ const HELD = new WeakMap<readonly Fragment[], readonly Fragment[]>();
 /**
  * The fragments the drummer holds, each by its lines (`grooveLines`: what is fitted, read, unioned, layered, varied and
  * filed beside): all but a rhythm it can't play, one with no mix of lines (`mixOf`) or a line that strikes a sound it
- * has no role for (`roleOf`), read in 4/4. Of cells' seed that is every rhythm, 32 of 32 at cells v0.25.1, `salsa_drums`'
- * tumbao on the toms an ostinato (#651).
+ * has no role for (`roleOf`), read in 4/4. Of cells' seed that is every rhythm, 32 of 32 at cells v0.26.0, `salsa_drums`'
+ * tumbao on the toms an ostinato (#651, #717).
  */
 export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] {
   let held = HELD.get(fragments);

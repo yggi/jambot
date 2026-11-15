@@ -148,8 +148,9 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
   // (96 % since cells v0.25.0's aksak and twelve-eight drums, yggi/cells#707: 13,673 and 968 before; and as many with 2/4
   // and 2/2 among the band's meters on top of it, #652, the 132 points that now choose 2/4 finding March or Kinderlied
   // drums and the 66 that choose 2/2 Chip, Elektro or Deep house drums or the quiet pulse)
-  it(`misses over a grid of the four axes, the meter found first: 96 % found, none refused by the fit, 4 % past ${RHYTHM_MISS}`, () => {
-    expect(gridAnswers(11)).toEqual({ found: 14102, fit: 0, distance: 539 });
+  // (98 % since cells v0.26.0, whose twelve-eight drums weigh 1, not 0.25, yggi/cells#706: 14,102 and 539 before)
+  it(`misses over a grid of the four axes, the meter found first: 98 % found, none refused by the fit, 2 % past ${RHYTHM_MISS}`, () => {
+    expect(gridAnswers(11)).toEqual({ found: 14399, fit: 0, distance: 242 });
   });
 
   // a bound in wall-clock time, so it runs only when asked: on a shared runner it reads past 5 ms with nothing wrong (5.16 ms, #485's CI)

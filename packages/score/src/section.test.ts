@@ -355,7 +355,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(nones(funk.replace(/ role=\w+/g, '')).none.length).toBeGreaterThan(0);
   });
 
-  it('writes a found ostinato as a drum line of its role, which cells reads none of until it knows the role: its 8 hits a bar play, with no line and no role (#651, #676, yggi/cells#717)', () => {
+  it('writes a found ostinato as a drum line of its role, which cells reads as the ostinato of the feel: its 8 hits a bar play on the drums line, role ostinato (#651, #676, yggi/cells#717)', () => {
     const [bars] = sections('Salsa', 1, SECTION_BARS, true);
     expect(bars![0]!.plan.rhythmFragment).toBe('salsa_drums');
     const text = sectionTextOf(sectionAsCells(bars!));
@@ -366,10 +366,9 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(result.diagnostics).toEqual([]);
     const toms = result.outputs.filter((o) => o.id.startsWith('kit:voices:ostinato:'));
     expect(toms.length).toBeGreaterThan(0);
-    // (cells v0.25.1's roles are eight, `ostinato` none of them, so its reader reads none of the line's `role=`, and a
-    // line's name gives none since #676: the hits are none of the feel's, and play as cells gives them, until cells
-    // knows the role, yggi/cells#717, which also writes `role=ostinato` on Salsa drums' tumbao)
-    for (const o of toms) expect(lineOf(o.id, result)).toBeNull();
+    // (cells v0.26.0's tumbao writes `role=ostinato`, yggi/cells#717, so its hits are the feel's: line `drums`, role
+    // `ostinato`)
+    for (const o of toms) expect(lineOf(o.id, result)).toEqual({ line: 'drums', role: 'ostinato' });
     const played = playSection(text, bars!);
     expect(played.diagnostics).toEqual([]);
     const tomNotes = new Set<number>(Object.values(TOM_NOTES));
@@ -381,7 +380,7 @@ describe('a section as one cells text, for the app (#399)', () => {
       );
       expect(hits.length, `bar ${i}`).toBe(8);
       for (const j of hits)
-        expect([p.lines[j], p.roles[j]], `bar ${i}`).toEqual([undefined, undefined]);
+        expect([p.lines[j], p.roles[j]], `bar ${i}`).toEqual(['drums', 'ostinato']);
     }
   });
 

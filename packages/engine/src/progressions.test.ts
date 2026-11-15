@@ -93,20 +93,29 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
     // (`progressionText` alone spells some otherwise: Korobeiniki's changes write a chord held two bars twice,
     // `[0,2,4] [0,2,4]`, where it writes `[0,2,4]!2`, which cells' `sameText` keeps apart in a cell with `cycle=`,
     // yggi/cells#710; a lap read again it writes out to eight bars; and two chords to the bar, `step=2n`, it writes a
-    // bar's two halves, `[[0,2,4,6,8] [5,7,9,11,13]]`)
+    // bar's two halves, `[[0,2,4,6,8] [5,7,9,11,13]]`; and, since cells v0.26.0 writes a seed's style on its
+    // declaration line, #436, the eight whose `&harm from &key style=…` it leaves out)
     expect(
       READ_SEEDS.filter(
         (f) => progressionText(readProgression(f.text, METERS['4/4'])!.notes) !== f.text.trim(),
       ).map((f) => f.id),
     ).toEqual([
+      'tonic_vamp',
+      'vamp_to_the_seventh',
+      'vamp_to_the_fourth',
+      'vamp_to_the_sixth',
+      'vamp_to_the_fifth',
       'dark_cadence',
+      'haunted_progression',
       'axis_progression',
+      'fifths_sequence',
       'korobeiniki_changes',
       'montuno',
       'ninth_vamp',
       'ninth_loop',
       'turnaround',
       'ii_v_i',
+      'minor_swing',
     ]);
     // (and what no seed plays it states as `progressionText` does)
     const own = [0, 5, 6, 4, 0, 5, 6, 4].map((degree, b) => ({ step: b * 16, degree }));
