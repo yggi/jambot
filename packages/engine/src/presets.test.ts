@@ -83,13 +83,12 @@ const FOUND: Readonly<
     rhythm: 'ride_shuffle',
     bass: 'blues_walk',
   },
-  // (cells' quarter_bass, the root on every beat, is a walk to the band, which walks only under a swung meter
-  // (`isWalk`): the root bass, the next nearest, plays)
+  // (cells' quarter_bass, the root on every beat: a walk by its rhythm, which the band plays where cells places it, #650)
   'Sea shanty': {
     meter: 'meter',
     mode: 'dorian',
     rhythm: 'shanty_drums',
-    bass: 'root_bass',
+    bass: 'quarter_bass',
     swing: '16n 0.500',
   },
   // (cells' harmonic minor, read as aeolian: #516)
@@ -116,13 +115,12 @@ const FOUND: Readonly<
     bass: 'waltz_bass',
     swing: '16n 0.500',
   },
-  // (cells' 2/4, one of the band's meters since #652; on it the oom-pah, a note on every pulse, is a walk to the band,
-  // which walks only under a swung meter (`isWalk`, #650), so the pumping bass, the next nearest, plays)
+  // (cells' 2/4, one of the band's meters since #652, and its oom-pah, a note on every pulse, since #650)
   March: {
     meter: 'meter(grouping=meter("2/4"))',
     mode: 'ionian',
     rhythm: 'march_drums',
-    bass: 'pumping_bass',
+    bass: 'oom_pah_bass',
     swing: '16n 0.500',
   },
   'Trip-hop': {
