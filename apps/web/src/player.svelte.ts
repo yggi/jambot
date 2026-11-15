@@ -79,6 +79,7 @@
 
 import {
   type BarJudgement,
+  type DroppedDrums,
   type DroppedJudgement,
   type ForecastBar,
   type HarmonicWeights,
@@ -510,6 +511,8 @@ export class Player {
   lastPlayed: number | null = $state.raw(null);
   /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
   dropped: readonly DroppedJudgement[] = $state.raw([]);
+  /** The latest bars of drums that came after the Muse heard them (#426): this machine's log only, as no message of the wire carries them. */
+  droppedDrums: readonly DroppedDrums[] = $state.raw([]);
   /** The band's own notes heard sounding right now, one entry per performer. */
   sounding: SoundingNotes = $state(SILENT);
   /** The band's last bars, each track's notes in each, and whose motif the lead played in it (`Pattern`). */
@@ -635,6 +638,7 @@ export class Player {
         offer: this.offer,
         log: this.museLog,
         dropped: this.dropped,
+        droppedDrums: this.droppedDrums,
         players: this.players,
         memory: this.memory,
         asOf: this.museBar,
@@ -1175,6 +1179,7 @@ export class Player {
     this.offer = null;
     this.#forgetMemory();
     this.dropped = [];
+    this.droppedDrums = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
   }
@@ -1410,6 +1415,7 @@ export class Player {
     this.offer = null;
     this.#forgetMemory();
     this.dropped = [];
+    this.droppedDrums = [];
     this.players = {};
     this.#decide();
   }
@@ -1595,6 +1601,12 @@ export class Player {
     }
     if (scheduled.dropped.length > 0)
       this.dropped = [...this.dropped, ...scheduled.dropped].slice(-MUSE_LOG);
+    // (a bar of drums is said once a source and bar, over the ticks its notes arrive in)
+    const newlyLate = scheduled.droppedDrums.filter(
+      (d) => !this.droppedDrums.some((k) => k.bar === d.bar && k.source === d.source),
+    );
+    if (newlyLate.length > 0)
+      this.droppedDrums = [...this.droppedDrums, ...newlyLate].slice(-MUSE_LOG);
     if (this.hosting) {
       if (carried!.finale.bar !== null && !this.#finaleTold) {
         this.#finaleTold = true;

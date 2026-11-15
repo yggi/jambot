@@ -696,6 +696,37 @@ describe('the transport hearing bars judged elsewhere', () => {
     ]);
   });
 
+  it('says a bar of drums that arrives after the Muse heard its bar, once by its source and bar, as it says a late judgement (#426)', () => {
+    const k = 3;
+    const heardOn = silent.outputs.findIndex((o) => o.judged.some((j) => j.bar === k));
+    const drum = (source: string, step: number): HeardNote => ({
+      note: 36,
+      velocity: 100,
+      source,
+      position: k * 16 + step,
+      end: null,
+    });
+    const bar = [drum('a client', 0), drum('a client', 8), drum('another', 4)];
+    const drumming = (on: number) =>
+      run(
+        env(lively),
+        ticks(0.9, 700).map((tick, i) => (i === on ? { ...tick, drums: bar } : tick)),
+      ).outputs;
+    const late = drumming(heardOn + 1);
+    expect(late.flatMap((o) => o.droppedDrums)).toEqual([
+      { bar: k, source: 'a client' },
+      { bar: k, source: 'another' },
+    ]);
+    // Said once: the tick after it carries none, and no bar changes.
+    expect(late.filter((o) => o.droppedDrums.length > 0)).toHaveLength(1);
+    expect(late.flatMap((o) => o.composed)).toEqual(silent.outputs.flatMap((o) => o.composed));
+    // Delivered on the tick the Muse hears the bar, or before it, it is heard, and nothing is said.
+    for (const on of [heardOn, heardOn - 1])
+      expect(drumming(on).flatMap((o) => o.droppedDrums)).toEqual([]);
+    // Nothing is said over a song nobody drums in.
+    expect(silent.outputs.flatMap((o) => o.droppedDrums)).toEqual([]);
+  });
+
   it("drops a judgement no ear would have made in its bar's key, and plays on as before", () => {
     const k = 3;
     const judgement = judgeBar(motifIn(k, 'a client'), k, keyOf(k))[0]!;

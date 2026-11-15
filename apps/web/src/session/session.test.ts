@@ -420,6 +420,8 @@ describe('a host and a client session', () => {
     expect(host.player.layer.filed[0]!.fragment.text).toMatch(/^&kick role=kick step=16n &bd:0:/m);
     // A client keeps no layer and files nothing of its own.
     expect(client.player.layer.filed).toEqual([]);
+    // Every bar arrived in time, so none is said to have come too late (#426).
+    expect(host.player.droppedDrums).toEqual([]);
   });
 
   it("file the bass a client's player plays on the bass part in the host's layer, as a bass line under the client's name (#569)", async () => {
