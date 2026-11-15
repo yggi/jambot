@@ -611,9 +611,12 @@ export function sectionLead(
   rejected: readonly string[] = [],
   known: readonly string[] = [],
 ): string | undefined {
-  // (a motif a player just played, which the Muse knew, is the section's line, as a player's tonic wins: #547 rung 6)
+  // (a motif a player just played, which the Muse knew, is the section's line, as a player's tonic wins: #547 rung 6;
+  // once: one the section before played already is left to the composer, so a player who keeps playing it doesn't pin
+  // the lead to it, the owner's ruling of 2026-11-14)
   const heard = known.find(
-    (id) => !rejected.includes(id) && leads?.read(id, meter.meter, layer)?.bars === 1,
+    (id) =>
+      id !== before && !rejected.includes(id) && leads?.read(id, meter.meter, layer)?.bars === 1,
   );
   if (heard !== undefined) return heard;
   return leads

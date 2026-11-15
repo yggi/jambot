@@ -59,7 +59,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // 2,622 before 2/4 and 2/2 were among the band's meters, #652, where 250 sections now play 2/4, which lasts half a
     // 4/4, and none plays 2/2; 2,601 before a line heard that is a seed's was that seed, #553; 2,646 before the Muse
     // knew a player's line she had filed when it came again, and the next section played it back, #547 rung 6)
-    expect([playing, mostUsed]).toEqual([8533, 1854]);
+    expect([playing, mostUsed]).toEqual([8533, 1855]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -72,7 +72,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // and `question` stand apart and off the centre, yggi/cells#674 and #540; −21.44 and 1.97 before a line heard that is
     // a seed's was that seed, #553; −20.73 and 1.95 before a player's line played again came back in the next section,
     // #547 rung 6)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-41.92', '1.43']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-41.93', '1.43']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
