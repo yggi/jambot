@@ -8,7 +8,9 @@ import {
   type SetupBook,
   chooseDevice,
   hardwareOutputs,
+  addOutput,
   withCrossing,
+  withProfile,
   ANY_INPUT,
   withPlays,
 } from '@yggi/webmidi/core';
@@ -213,6 +215,25 @@ describe('the device’s MIDI ports', () => {
     await d.connect(() => {});
     d.forwardKeys(60, 100, true, 0);
     expect(synth.sent).toEqual([]);
+  });
+
+  it('passes a played note on at once to every output, whatever its latency: the band goes that much earlier, the played note lands that much later (#565)', async () => {
+    const keys = fakeInput('in-1', 'Keys');
+    const synth = fakePort('out-1', 'Synth');
+    const slow = fakePort('out-2', 'Slow');
+    installMidi(fakeAccess([keys], [synth, slow]));
+    const { device: d } = device();
+    changed(d, (book) => chooseDevice(book, 'o1', { id: 'out-1', name: 'Synth' }));
+    changed(d, (book) => addOutput(book, { id: 'out-2', name: 'Slow' }).book);
+    changed(d, (book) => withProfile(book, 'Slow', { latency: 30 }));
+    changed(d, (book) => withCrossing(book, BAND, KEYS, 'o1', 1));
+    changed(d, (book) => withCrossing(book, BAND, KEYS, 'o2', 1));
+    await d.connect(() => {});
+    d.forwardKeys(60, 100, true, 0);
+    // (each at once and unstamped, as a port sends when it is given none: neither is sent early by its latency, and
+    // an output of 0 ms is as it was)
+    expect(synth.sent).toEqual([{ data: [0x90, 60, 100], timestamp: undefined }]);
+    expect(slow.sent).toEqual([{ data: [0x90, 60, 100], timestamp: undefined }]);
   });
 
   it('picks up an output of the setup when it is plugged in later', async () => {
