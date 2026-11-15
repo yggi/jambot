@@ -154,7 +154,8 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     // 15,925 and once before cells v0.21.0, whose bass lines and progressions are filed with their signature, #562;
     // 15,959 and 8 times before the layer kept the composer's groove variations by reference, #553; 15,802 before the walk
     // rule retired on top of cells v0.25.1 and #553, #650; 15,115 before the ostinato on top of cells v0.25.1, #651)
-    expect(bytes).toBe(15148);
+    // (15,148 before cells v0.26.0's twelve-eight drums, yggi/cells#706)
+    expect(bytes).toBe(14008);
     expect(bytes).toBeLessThan(LAYER_CAP);
     expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(0);
   });

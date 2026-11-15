@@ -170,10 +170,10 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     ).toEqual(['crash']);
   });
 
-  it('reads Salsa’s tumbao, which writes no `role=` and strikes the toms alone, as an ostinato, beside its clave and its cáscara (#651, until yggi/cells#717)', () => {
+  it('reads Salsa’s tumbao, which writes `role=ostinato` and strikes the toms alone, as an ostinato, beside its clave and its cáscara (#651, yggi/cells#717)', () => {
     const salsa = RHYTHM_FRAGMENTS.find((f) => f.id === 'salsa_drums')!;
-    // (cells v0.25.1: the line writes no role, so its sounds give it)
-    expect(salsa.text).toMatch(/^&tumbao step=8n /m);
+    // (cells v0.26.0: the line writes its role)
+    expect(salsa.text).toMatch(/^&tumbao role=ostinato step=8n /m);
     const read = readRhythm(salsa.text, METERS['4/4'])!;
     const { lowTom, midTom, highTom } = TOM_NOTES;
     const at = (role: string) =>
@@ -260,11 +260,12 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
       'Swing jazz': 'ghost_drums',
     };
     // (cells v0.24.0's grooves, yggi/cells#675 and #679: Waltz drums, near Ambient, fit 3/4, 6/8 and 12/8; March
-    // drums, nearer Techno than Acid drums, fit 12/8; the quiet pulse, nearer Lo-fi hip hop than Ghost drums, fits 7/8)
+    // drums, nearer Techno than Acid drums, fit 12/8; the quiet pulse, nearer Lo-fi hip hop than Ghost drums, fits 7/8;
+    // cells v0.26.0's twelve-eight drums weigh 1, not 0.25, yggi/cells#706, so Bossa nova's 12/8 is within their reach)
     const NEW: Readonly<Partial<Record<MeterName, Readonly<Record<string, string>>>>> = {
       '3/4': { Ambient: 'waltz_drums' },
       '6/8': { Ambient: 'waltz_drums' },
-      '12/8': { Ambient: 'waltz_drums', Techno: 'march_drums' },
+      '12/8': { Ambient: 'waltz_drums', Techno: 'march_drums', 'Bossa nova': 'twelve_eight_drums' },
       '7/8': { 'Lo-fi hip hop': 'quiet_pulse' },
     };
     for (const name of ['3/4', '6/8', '12/8', '5/4', '7/8', '10/8'] as MeterName[])
@@ -645,7 +646,7 @@ describe('a groove variation kept by reference (#553)', () => {
         });
         const stored = storedLayer(layer);
         expect(stored.filed[0]!.fragment.text, `${seed.id} ${by}`).toBe('');
-        expect(stored.filed[0]!.meta[HASH]).toMatch(/^e1:[0-9a-f]{16}$/);
+        expect(stored.filed[0]!.meta[HASH]).toMatch(/^e2:[0-9a-f]{16}$/);
         expect(rebuiltLayer(stored), `${seed.id} ${by}`).toEqual({ layer, dropped: [] });
         count++;
       }
