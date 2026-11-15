@@ -1,5 +1,10 @@
 <!--
-  Cells, a card (`fragmentsView.ts`): every cells fragment the band has met,
+  Cells, a card in two tabs. Playing, the default (`playingView.ts`, #642):
+  what the band plays in the section heard, as a tree read off its score with
+  cells' outline, each part under what it is taken on, or, switched, under
+  what plays it; a row a part, the fragment it is taken from or written, what
+  plays it and its weight in the composer's mind, and a row picked opens to
+  the score's lines it is. Library (`fragmentsView.ts`): every cells fragment the band has met,
   as one table told apart by where each has been. Folded, how many over how
   many of each; unfolded, a filter (All, Filed, Retrieved, Muse, In mind)
   over the table, a row for each: its name, its part (meter, rhythm, clave,
@@ -18,6 +23,8 @@
 <script lang="ts">
   import type { LearnedLayer } from '@jambot/engine';
   import type { Workbench } from '../fragmentsView.ts';
+  import { type Projection, playingRows } from '../playingView.ts';
+  import type { Score } from '../shadow.ts';
   import { untrack } from 'svelte';
   import {
     FRAGMENT_FILTERS,
@@ -48,6 +55,8 @@
     carry?: Carry | null;
     /** The composer's workbench, where this device plans; null for a client. */
     workbench?: Workbench | null;
+    /** The score of the section heard and its outline (`Player.heardScore`), a client's as its host's; none yet. */
+    score?: Score | null;
   }
 
   interface Carry {
@@ -61,7 +70,15 @@
     onimport: (text: string) => string | null;
   }
 
-  let { bar, layer, memory, players, carry = null, workbench = null }: Props = $props();
+  let {
+    bar,
+    layer,
+    memory,
+    players,
+    carry = null,
+    workbench = null,
+    score = null,
+  }: Props = $props();
 
   /** What the last import said: that it took, or why not. */
   let imported: string | null = $state(null);
@@ -78,6 +95,21 @@
     const section = takenOf(bar);
     untrack(() => (log = logged(log, section)));
   });
+
+  let tab: 'playing' | 'library' = $state('playing');
+  let projection: Projection = $state('ground');
+  let pickedRow: string | null = $state(null);
+  const TABS = [
+    { value: 'playing', text: 'Playing', name: 'Playing' },
+    { value: 'library', text: 'Library', name: 'Library' },
+  ] as const;
+  const PROJECTIONS = [
+    { value: 'ground', text: 'From the ground', name: 'From the ground' },
+    { value: 'outputs', text: 'From the outputs', name: 'From the outputs' },
+  ] as const;
+  const tree = $derived(score ? playingRows(score.text, score.outline, projection, workbench) : []);
+  const scoreLines = $derived(score ? score.text.split('\n') : []);
+  const openRow = $derived(tree.find((r) => r.key === pickedRow) ?? null);
 
   let filter: FragmentFilter = $state('all');
   let picked: string | null = $state(null);
@@ -110,115 +142,171 @@
 </script>
 
 <Card title="Cells" main={fragmentsMain(rows)} sub={fragmentsSub(rows)}>
-  <Segmented label="Show" {options} value={filter} onselect={(value) => (filter = value)} />
-  {#if shown.length === 0}
-    <p class="note">
-      {rows.length === 0
-        ? 'Nothing yet: the band takes a meter and a rhythm a section at a time, and files what it and its players invent.'
-        : 'None of these yet.'}
-    </p>
-  {:else}
-    <div class="box">
-      <table aria-label="Fragments">
-        <thead>
-          <tr>
-            <th scope="col">Fragment</th>
-            <th scope="col">Part</th>
-            <th scope="col"><span aria-hidden="true">F R M I</span><span class="sr">Where</span></th
-            >
-            <th scope="col">Source</th>
-            <th scope="col" class="n">Sections</th>
-            <th scope="col" class="n">Since</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each shown as row (row.key)}
-            <tr class:picked={row.key === picked} class:playing={row.playing}>
-              <td>
-                <button
-                  type="button"
-                  class="name"
-                  aria-expanded={row.key === picked}
-                  onclick={() => (picked = picked === row.key ? null : row.key)}
-                >
-                  {row.name}
-                </button>
-                {#if row.playing}<span class="now"
-                    >{row.role === 'motif' ? 'on offer' : 'playing'}</span
-                  >{/if}
-              </td>
-              <td><span class="part {row.role}">{row.role}</span></td>
-              <td>
-                <span class="marks">
-                  {#each MARKS as [which, letter, title] (which)}
-                    <span
-                      class="mark"
-                      class:on={row[which]}
-                      {title}
-                      aria-label={row[which] ? title : undefined}>{letter}</span
-                    >
-                  {/each}
-                </span>
-              </td>
-              <td class="source"><i style:background={dot(row)}></i>{row.source}</td>
-              <td class="n">{row.sections || '–'}</td>
-              <td class="n">{row.since}</td>
+  <Segmented label="Tab" options={TABS} value={tab} onselect={(value) => (tab = value)} />
+  {#if tab === 'playing'}
+    <Segmented
+      label="Tree"
+      options={PROJECTIONS}
+      value={projection}
+      onselect={(value) => (projection = value)}
+    />
+    {#if tree.length === 0}
+      <p class="note">Nothing yet: the tree shows the section heard once its score is written.</p>
+    {:else}
+      <div class="box">
+        <table aria-label="Playing">
+          <thead>
+            <tr>
+              <th scope="col">Part</th>
+              <th scope="col">Fragment</th>
+              <th scope="col">Plays on</th>
+              <th scope="col" class="n">In mind</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {/if}
+          </thead>
+          <tbody>
+            {#each tree as row (row.key)}
+              <tr class:picked={row.key === pickedRow}>
+                <td class="tree" style:padding-left="{8 + row.depth * 14}px">
+                  <i class="chip" class:written={row.id === null}></i>
+                  <button
+                    type="button"
+                    class="name"
+                    aria-expanded={row.key === pickedRow}
+                    onclick={() => (pickedRow = pickedRow === row.key ? null : row.key)}
+                  >
+                    {row.label}
+                  </button>
+                </td>
+                <td class="frag">
+                  {#if row.id === null}<span class="written-word">written</span
+                    >{:else}{row.id}{#if row.args}<span class="args">({row.args})</span>{/if}{/if}
+                </td>
+                <td class="on">{row.on.join(' · ')}</td>
+                <td class="n">{row.weight === null ? '' : `${Math.round(row.weight * 100)} %`}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      {#if openRow}
+        <section class="detail" aria-label={openRow.label}>
+          <h3>{openRow.label}</h3>
+          <pre>{openRow.lines.map((n) => scoreLines[n - 1]).join('\n')}</pre>
+        </section>
+      {/if}
+    {/if}
+  {:else}
+    <Segmented label="Show" {options} value={filter} onselect={(value) => (filter = value)} />
+    {#if shown.length === 0}
+      <p class="note">
+        {rows.length === 0
+          ? 'Nothing yet: the band takes a meter and a rhythm a section at a time, and files what it and its players invent.'
+          : 'None of these yet.'}
+      </p>
+    {:else}
+      <div class="box">
+        <table aria-label="Fragments">
+          <thead>
+            <tr>
+              <th scope="col">Fragment</th>
+              <th scope="col">Part</th>
+              <th scope="col"
+                ><span aria-hidden="true">F R M I</span><span class="sr">Where</span></th
+              >
+              <th scope="col">Source</th>
+              <th scope="col" class="n">Sections</th>
+              <th scope="col" class="n">Since</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each shown as row (row.key)}
+              <tr class:picked={row.key === picked} class:playing={row.playing}>
+                <td>
+                  <button
+                    type="button"
+                    class="name"
+                    aria-expanded={row.key === picked}
+                    onclick={() => (picked = picked === row.key ? null : row.key)}
+                  >
+                    {row.name}
+                  </button>
+                  {#if row.playing}<span class="now"
+                      >{row.role === 'motif' ? 'on offer' : 'playing'}</span
+                    >{/if}
+                </td>
+                <td><span class="part {row.role}">{row.role}</span></td>
+                <td>
+                  <span class="marks">
+                    {#each MARKS as [which, letter, title] (which)}
+                      <span
+                        class="mark"
+                        class:on={row[which]}
+                        {title}
+                        aria-label={row[which] ? title : undefined}>{letter}</span
+                      >
+                    {/each}
+                  </span>
+                </td>
+                <td class="source"><i style:background={dot(row)}></i>{row.source}</td>
+                <td class="n">{row.sections || '–'}</td>
+                <td class="n">{row.since}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
 
-  {#if open}
-    <section class="detail" aria-label={open.name}>
-      <h3>{open.name}</h3>
-      {#if open.text !== null}<pre>{open.text}</pre>{/if}
-      {#if open.point.length > 0}
-        <div class="axes" aria-label="Found at">
-          {#each open.point as { axis, value } (axis)}
-            <div class="axis">
-              <span>{axis} {value.toFixed(2)}</span>
-              <span class="track"><i style:left="{value * 100}%"></i></span>
-            </div>
-          {/each}
-        </div>
-      {/if}
-      {#if open.weight !== null}
-        <p class="line">
-          <span>In mind</span><span>{Math.round(open.weight * 100)} %</span>
-        </p>
-      {/if}
-      {#if open.lineage !== null}
-        <p class="line">
-          <span>Boredom</span><span>{open.lineage.boredom.toFixed(1)} · {open.lineage.rung}</span>
-        </p>
-      {/if}
-      {#if open.strength !== null}
-        <p class="line">
-          <span>In her memory</span><span>{Math.round(open.strength * 100)} %</span>
-        </p>
-      {/if}
-      {#if open.varies !== null}
-        <p class="line">
-          <span>Varies</span><span
-            >{open.by === null ? open.varies : `${open.varies} by ${open.by}`}</span
-          >
-        </p>
-      {/if}
-      {#if open.tags.length > 0}
-        <ul class="tags" aria-label="Tags">
-          {#each open.tags as tag (tag)}<li>{tag}</li>{/each}
-        </ul>
-      {/if}
-      {#if open.together.length > 0}
-        <ul class="together" aria-label="Used together with">
-          {#each open.together as { id, count } (id)}
-            <li><span>{id}</span><span>× {count}</span></li>
-          {/each}
-        </ul>
-      {/if}
-    </section>
+    {#if open}
+      <section class="detail" aria-label={open.name}>
+        <h3>{open.name}</h3>
+        {#if open.text !== null}<pre>{open.text}</pre>{/if}
+        {#if open.point.length > 0}
+          <div class="axes" aria-label="Found at">
+            {#each open.point as { axis, value } (axis)}
+              <div class="axis">
+                <span>{axis} {value.toFixed(2)}</span>
+                <span class="track"><i style:left="{value * 100}%"></i></span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+        {#if open.weight !== null}
+          <p class="line">
+            <span>In mind</span><span>{Math.round(open.weight * 100)} %</span>
+          </p>
+        {/if}
+        {#if open.lineage !== null}
+          <p class="line">
+            <span>Boredom</span><span>{open.lineage.boredom.toFixed(1)} · {open.lineage.rung}</span>
+          </p>
+        {/if}
+        {#if open.strength !== null}
+          <p class="line">
+            <span>In her memory</span><span>{Math.round(open.strength * 100)} %</span>
+          </p>
+        {/if}
+        {#if open.varies !== null}
+          <p class="line">
+            <span>Varies</span><span
+              >{open.by === null ? open.varies : `${open.varies} by ${open.by}`}</span
+            >
+          </p>
+        {/if}
+        {#if open.tags.length > 0}
+          <ul class="tags" aria-label="Tags">
+            {#each open.tags as tag (tag)}<li>{tag}</li>{/each}
+          </ul>
+        {/if}
+        {#if open.together.length > 0}
+          <ul class="together" aria-label="Used together with">
+            {#each open.together as { id, count } (id)}
+              <li><span>{id}</span><span>× {count}</span></li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/if}
   {/if}
   {#if carry}
     <div class="actions">
@@ -248,6 +336,38 @@
 </Card>
 
 <style>
+  .tree {
+    white-space: nowrap;
+  }
+  .chip {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    margin-right: 6px;
+    border-radius: 2px;
+    background: var(--teal);
+    vertical-align: -2px;
+  }
+  .chip.written {
+    border: 1.5px dashed var(--muted);
+    background: none;
+  }
+  .frag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+  }
+  .args,
+  .written-word,
+  .on {
+    color: var(--muted);
+  }
+  .written-word {
+    font-family: inherit;
+    font-style: italic;
+  }
+  .on {
+    font-size: 12px;
+  }
   .actions {
     display: flex;
     flex-wrap: wrap;

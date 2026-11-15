@@ -45,8 +45,10 @@ import { type Meter, formatNumeral, joinChord, stepsOf } from '@jambot/theory';
 import {
   type CompileResult,
   type DrumRole as FeelRole,
+  type Outline,
   type Plan,
   type Played,
+  outlineOf,
   planOf,
   windowAt,
 } from '@yggi/cells';
@@ -235,6 +237,15 @@ export const compileSection = (
   text: string,
   resolve: Resolve = resolveBand(text, resolveSeed),
 ): Plan => planOf(`${text}\n${READING}`, undefined, { resolve });
+
+export type { Outline, OutlineNode, OutlinePart } from '@yggi/cells';
+
+/**
+ * A compiled section's outline (cells' `outlineOf`, yggi/cells#695): its parts, each a line of the score or a fragment
+ * one takes, linked by what reads what, for the Cells view's Playing tree (#642). The reading's own lines appended past
+ * the score are parts of it too, which a reader leaves out by their line.
+ */
+export const sectionOutline = (plan: Plan): Outline => outlineOf(plan.result);
 
 /**
  * The voices whose own sound a score's notes are played with (`soundOf`): each the score writes itself, and each the
