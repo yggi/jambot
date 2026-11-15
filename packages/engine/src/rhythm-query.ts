@@ -16,7 +16,7 @@
  * - **the rhythm playing holds**: another is taken only where it is nearer by
  *   more than `RHYTHM_HOLD`.
  *
- * A fragment that names none of the drummer's roles (`isOwnLine`: the
+ * A fragment that names none of a drum bar's roles (`isOwnLine`: the
  * library's claves) is never a section's rhythm by itself: it only layers on
  * a drum bar, so where it lies nearer than any drum bar, the nearest drum bar
  * is the rhythm and the clave layers on it, and where no drum bar lies near,
@@ -141,7 +141,7 @@ export const RHYTHM_HOLD = METER_HOLD;
  */
 export const LAYER_DISTANCE = 0.1;
 
-/** The drummer's own roles, which a fragment's lines of those names give a pattern to: all but the clave, which plays as a line of its own. */
+/** The roles of a drum bar's lines: all but the clave, which plays as a line of its own, layered on a drum bar; an ostinato is a drum bar's (#651). */
 export const GROOVE_ROLES: readonly DrumRole[] = DRUM_ROLES.filter((role) => role !== 'clave');
 
 /** Whether a fragment names none of the drummer's roles: a line of its own, as a clave is. */

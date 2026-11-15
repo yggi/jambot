@@ -46,15 +46,22 @@ const bars = [1, 2, 3].flatMap((seed) => tour(seed));
 
 const clamp = (v: number) => Math.max(1, Math.min(127, Math.round(v)));
 
-/** A written note as a text states it and cells plays it: its line, step, pitch and role, its velocity at feel 0 as MIDI says it, and its sounding length at feel 0. */
-const stated = (env: BarEnv, w: WrittenNote): CellsNote => ({
-  part: w.part,
-  step: w.step,
-  note: w.note,
-  ...(w.role !== undefined && { role: w.role }),
-  velocity: clamp(composedLevel(env, w)),
-  length: baseLengthOf(env, w),
-});
+/**
+ * A written note as a text states it and cells plays it: its line, step, pitch and role, its velocity at feel 0 as MIDI
+ * says it, and its sounding length at feel 0. The tour finds no rhythm, so it plays no ostinato, a role cells' feel
+ * reads none of until yggi/cells#717 (#651).
+ */
+const stated = (env: BarEnv, w: WrittenNote): CellsNote => {
+  if (w.role === 'ostinato') throw new Error('the tour plays no ostinato');
+  return {
+    part: w.part,
+    step: w.step,
+    note: w.note,
+    ...(w.role !== undefined && { role: w.role }),
+    velocity: clamp(composedLevel(env, w)),
+    length: baseLengthOf(env, w),
+  };
+};
 
 describe('cells’ events as the performer plays them (#552)', () => {
   it('plays a note as a text states it as the band’s own performer plays the note written: the same velocity and length, every note of the tour, accented past MIDI’s 1 to 127 too, and every motif’s accent on the lead’s level (#405, #433, decision 037)', () => {

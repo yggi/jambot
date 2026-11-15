@@ -39,7 +39,7 @@
 
 import { type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
 import { bjorklund } from '@yggi/cells/engine/parser/generators';
-import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, backbeatOf } from './drums.ts';
+import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, TOM_NOTES, backbeatOf } from './drums.ts';
 import { BAR_STEPS, DRUM_ROLES, type DrumRole, type SongClock } from './events.ts';
 import type { LearnedLayer } from './layer.ts';
 import { type HeardNote, heardStep } from './muse.ts';
@@ -57,13 +57,23 @@ export const DRUM_VOICES: Readonly<Record<DrumSound, string>> = {
   ride: 'rd',
 };
 
-/** The voice each drum note is written with (E31): the kit's, and General MIDI's name for the claves a clave line strikes, which cells sends as 75 (cells v0.7.0). */
+/**
+ * The voice each drum note is written with (E31): the kit's; cells' `gm_kit` names for the toms an ostinato strikes,
+ * `&lt`, `&mt` and `&ht` (#651); and General MIDI's name for the claves a clave line strikes, which cells sends as 75
+ * (cells v0.7.0).
+ */
 export const VOICE_OF_NOTE: ReadonlyMap<number, string> = new Map([
   ...(Object.keys(DRUM_VOICES) as DrumSound[]).map(
     (sound) => [DRUM_NOTES[sound], DRUM_VOICES[sound]] as const,
   ),
+  [TOM_NOTES.lowTom, 'lt'],
+  [TOM_NOTES.midTom, 'mt'],
+  [TOM_NOTES.highTom, 'ht'],
   [CLAVES_NOTE, 'claves'],
 ]);
+
+/** The toms' notes. */
+const TOMS: ReadonlySet<number> = new Set(Object.values(TOM_NOTES));
 
 /** A velocity as a level, (v/127)², which cells' MIDI out strikes at 127·√level: six decimals, no leading 0. */
 export function levelOf(velocity: number): string {
@@ -208,11 +218,13 @@ export interface HeardDrumBar {
  * The role a sound of the kit plays in a player's groove, as the drummer's
  * own: the kick its kick; the snare and the clap the backbeat on a
  * backbeat pulse (`backbeatOf`), else a ghost; the rim the Euclid's; the pedal hat the
- * pedal; the closed and open hats and the ride the hat. Null for a note
- * outside the kit.
+ * pedal; the closed and open hats and the ride the hat; and the toms, which
+ * the drummer has no part of its own on, an ostinato (a tumbao on them, #651).
+ * Null for a note outside the kit.
  */
 export function roleOfSound(note: number, step: number, meter: Meter): DrumRole | null {
   if (!VOICE_OF_NOTE.has(note)) return null;
+  if (TOMS.has(note)) return 'ostinato';
   if (note === DRUM_NOTES.kick) return 'kick';
   if (note === DRUM_NOTES.rim) return 'euclid';
   if (note === DRUM_NOTES.pedalHat) return 'pedal';

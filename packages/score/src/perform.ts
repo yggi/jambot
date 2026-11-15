@@ -14,14 +14,8 @@
  * feel and draws.
  */
 
-import {
-  type BarEnv,
-  type DoughNote,
-  type DrumRole,
-  type VoiceSound,
-  timbreOf,
-} from '@jambot/engine';
-import { type FeelFrame, type SectionType, played } from '@yggi/cells';
+import { type BarEnv, type DoughNote, type VoiceSound, timbreOf } from '@jambot/engine';
+import { type DrumRole as FeelRole, type FeelFrame, type SectionType, played } from '@yggi/cells';
 import type { NotePart, PitchedName } from './section-text.ts';
 
 /** What the feel reads of a bar: its seed and number, its meter in eighths, its section, style, swing and energy. */
@@ -40,12 +34,13 @@ export function frameOf(bar: BarEnv): FeelFrame {
 
 /**
  * One of cells' events in a bar as read back (`playSection`): its line, a drum
- * hit's role, its step, pitch and velocity as MIDI sends it, its sounding
+ * hit's role, one cells' feel reads (`lineOf`; Jambot's but the ostinato, until
+ * yggi/cells#717), its step, pitch and velocity as MIDI sends it, its sounding
  * length in steps, and its voice's own sound where the text gives it one.
  */
 export interface CellsNote {
   readonly part: PitchedName | 'drums';
-  readonly role?: DrumRole;
+  readonly role?: FeelRole;
   readonly step: number;
   readonly note: number;
   readonly velocity: number;

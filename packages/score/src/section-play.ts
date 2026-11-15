@@ -34,7 +34,6 @@
 
 import {
   type BandBar,
-  type DrumRole,
   type Key,
   type MeterSwing,
   type VoiceSound,
@@ -43,7 +42,14 @@ import {
   stepSeconds,
 } from '@jambot/engine';
 import { type Meter, formatNumeral, joinChord, stepsOf } from '@jambot/theory';
-import { type CompileResult, type Plan, type Played, planOf, windowAt } from '@yggi/cells';
+import {
+  type CompileResult,
+  type DrumRole as FeelRole,
+  type Plan,
+  type Played,
+  planOf,
+  windowAt,
+} from '@yggi/cells';
 import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
 import { readerOf } from '@yggi/cells/engine/perform/feel';
 import type { Resolve } from '@yggi/cells/engine/program';
@@ -95,7 +101,7 @@ export interface PlayedBar {
   /** The line each note comes from, as its text declares it (`lineOf`): a pitched line, or the drums; none where it declares none of the feel's. */
   readonly lines: (PitchedName | 'drums' | undefined)[];
   /** Each drum hit's role, as its line declares it; none for a pitched note, or a hit whose line declares no role of the feel's. */
-  readonly roles: (DrumRole | undefined)[];
+  readonly roles: (FeelRole | undefined)[];
   /** Each note's voice's own sound, where the text gives it one (`soundOf`); none where its voice holds only a register. */
   readonly sounds: (VoiceSound | undefined)[];
 }
@@ -140,7 +146,8 @@ function shareOf(plan: Plan, output: string | undefined, at: number): number {
  *
  * A name gives neither: an output whose text declares none of the feel's parts, or no drum role of the feel's, is
  * none of the feel's (`null`), and plays as cells gives it (#506). The band's own sections declare every note they
- * play (`section.test.ts`), so none of theirs reads so.
+ * play (`section.test.ts`), so none of theirs reads so but a found ostinato's (Salsa drums' tumbao, #651): its line
+ * declares `role=ostinato`, a role cells' feel knows none of until yggi/cells#717.
  */
 export const lineOf = (
   output: string | undefined,
@@ -150,7 +157,7 @@ export const lineOf = (
 /** A note's line and drum role, as `lineOf` reads them. */
 export interface NoteLine {
   readonly line: PitchedName | 'drums';
-  readonly role?: DrumRole;
+  readonly role?: FeelRole;
 }
 
 /** `lineOf` over one compile, its declarations read once. */
@@ -290,7 +297,7 @@ export function playSection(
     onset: number;
     end: number;
     line: PitchedName | 'drums' | undefined;
-    role: DrumRole | undefined;
+    role: FeelRole | undefined;
     sound: VoiceSound | undefined;
   };
   const read = bars.map(() => ({ timed: [] as Timed[] }));

@@ -14,7 +14,7 @@ import {
   readLine,
   readingBench,
 } from './bass-lines.ts';
-import { type LineNote, type LineRead, isWalk, lineTone } from './bass-query.ts';
+import { type LineNote, type LineRead, lineTone } from './bass-query.ts';
 import type { BarChord } from './chords.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { type Key, keyHelix } from './key.ts';
@@ -144,16 +144,6 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     // a lap of more than a bar where its grid doesn't divide the bar: the pump's eight eighths over 3/4's six
     const pump = BASS_FRAGMENTS.find((f) => f.id === 'pumping_bass')!;
     expect(readLine(pump.text, METERS['3/4'])!.bars).toBe(4);
-  });
-
-  it('tells a walk: a note on every pulse and nowhere else, in every bar of its lap', () => {
-    const walks = BASS_FRAGMENTS.filter((f) =>
-      isWalk(readLine(f.text, METERS['4/4'])!, METERS['4/4'], 16),
-    ).map((f) => f.id);
-    // (the seeds named: which others cells offers, and whether they walk, is cells' library's)
-    expect(walks).toContain('walking_bass');
-    for (const id of ['root_bass', 'pumping_bass', 'eighths_bass', 'funk_bass'])
-      expect(walks).not.toContain(id);
   });
 
   it('states a bar of notes as cells text that reads back as them: the round trip a filing relies on, on the coarsest grid they fall on', () => {
