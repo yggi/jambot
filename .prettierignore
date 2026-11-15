@@ -8,3 +8,5 @@ docs/briefs/
 packages/session/fixtures/
 packages/theory/fixtures/
 packages/engine/fixtures/
+# An experiment's recorded numbers, as `pnpm record` writes them: a name to a line
+*.recorded.json
