@@ -82,7 +82,13 @@ import {
   valueIn,
   withMeter,
 } from '@jambot/engine';
-import { type PlayedBar, asCellsGives, levelSwings, performCells } from '@jambot/score';
+import {
+  type Outline,
+  type PlayedBar,
+  asCellsGives,
+  levelSwings,
+  performCells,
+} from '@jambot/score';
 import type { SectionText } from '@jambot/session';
 import { type SectionStated, type SectionTexts, foreseenOf, inlineTexts } from './section-texts.ts';
 
@@ -281,6 +287,15 @@ const JOINING = 'the text came with the welcome and was on its way when its bar 
 /** How many texts told a host keeps for a client's welcome: those of the section playing and the next, and more. */
 const TOLD_KEPT = 8;
 
+/** How many scores taken are kept for the Cells view: the section heard and those built ahead of it. */
+const SCORES_KEPT = 4;
+
+/** A section's score as the Cells view reads it: its text and cells' outline of it (#642). */
+export interface Score {
+  readonly text: string;
+  readonly outline: Outline;
+}
+
 /** A swing track that holds straight, for an environment with none. */
 const STILL: SwingTrack = {
   level: '16n',
@@ -308,6 +323,8 @@ export class Shadow {
   #errors: string[] = [];
   #cost = noCost();
   #text = '';
+  /** The scores taken lately with their outlines, latest last, each with the bars it states: what the Cells view shows (#642). */
+  #scores: { readonly bar: number; readonly bars: number; readonly score: Score }[] = [];
   #texts: SectionTexts;
   /** The latest ask for each bar, by bar, and the asks not yet answered, by ask. */
   #asked = new Map<number, number>();
@@ -352,6 +369,7 @@ export class Shadow {
     this.#asked.clear();
     this.#pending.clear();
     this.#told = [];
+    this.#scores = [];
     this.#lastTick = null;
     this.#texts.begin();
   }
@@ -426,6 +444,11 @@ export class Shadow {
     this.#ask({ asked, bars, forecast: [], textStart: text.step, main: null }, (answer) =>
       this.#texts.play(text, answer),
     );
+  }
+
+  /** The score of the section that states `bar`, and its outline, the latest taken; none where none is (#642). */
+  scoreAt(bar: number): Score | null {
+    return this.#scores.findLast((s) => bar >= s.bar && bar < s.bar + s.bars)?.score ?? null;
   }
 
   /** The texts told that state a bar from `bar` on, in the order told: what a client's welcome gives (#446). */
@@ -598,6 +621,15 @@ export class Shadow {
     }
     if (stated.error !== null && this.#errors.length < 20) this.#errors.push(stated.error);
     if (stated.source) this.#text = stated.source;
+    if (stated.source && stated.outline)
+      this.#scores = [
+        ...this.#scores.filter((s) => s.bar !== bars[0]),
+        {
+          bar: bars[0]!,
+          bars: bars.length,
+          score: { text: stated.source, outline: stated.outline },
+        },
+      ].slice(-SCORES_KEPT);
     const { played } = stated;
     let took = false;
     for (const [i, b] of bars.entries()) {

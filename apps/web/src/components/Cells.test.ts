@@ -1,6 +1,7 @@
 import { COMPOSER, DRUMMER, EMPTY_LAYER, type LearnedLayer } from '@jambot/engine';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
+import { compileSection, sectionOutline } from '@jambot/score';
 import Cells from './Cells.svelte';
 import type { BarView } from '../hud.ts';
 
@@ -41,7 +42,39 @@ const names = () =>
     .getAllByRole('button')
     .map((b) => b.textContent?.trim());
 
+/** The Library tab opened, where every fragment the band met is a row (#642: Playing is the default). */
+const library = () => fireEvent.click(screen.getByRole('radio', { name: 'Library' }));
+
 describe('the cells card', () => {
+  it('opens on what the band plays: the section heard as a tree, from the ground or, switched, from the outputs (#642)', async () => {
+    const text = [
+      '&harm, &key from',
+      '&bar from meter 120bpm',
+      '&key from diatonic(mode=aeolian) A',
+      '&style label="groove" style=&(map=style .5 .5 .5 .5)',
+      '&harm over=&key step=1m [0,2,4] [5,7,9]',
+      '&kick role=kick step=16n &bd:0:.4 ~ ~ ~',
+      '&drumlines [&kick]',
+      '&bassline part=bass over=&harm step=16n legato=.6 0@4 3@4',
+      '&bassLevel map=amp step=16n .4@8',
+      '&padline part=pad step=1m ~',
+      '&stabline part=stab step=1m ~',
+      '&leadline part=lead step=1m ~',
+      '* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, style=&style)',
+    ].join('\n');
+    render(Cells, props({ score: { text, outline: sectionOutline(compileSection(text)) } }));
+    const rows = () =>
+      within(screen.getByRole('table', { name: 'Playing' }))
+        .getAllByRole('button')
+        .map((b) => b.textContent?.trim());
+    // (the harmony is the bass's alone here, so it is the bass's row: a line more than one row reads is its own)
+    expect(rows()).toEqual(['bar', 'drums', 'pad', 'stab', 'lead', 'key', 'bass', 'style']);
+    await fireEvent.click(screen.getByRole('button', { name: 'bass' }));
+    expect(screen.getByRole('region', { name: 'bass' })).toHaveTextContent('&bassline part=bass');
+    await fireEvent.click(screen.getByRole('radio', { name: 'From the outputs' }));
+    expect(rows()).toContain('band');
+  });
+
   it("filters what the composer has in mind, and opens a rhythm's weight and boredom (#443)", async () => {
     render(
       Cells,
@@ -53,6 +86,7 @@ describe('the cells card', () => {
         },
       }),
     );
+    await library();
     await fireEvent.click(screen.getByRole('radio', { name: /In mind/ }));
     expect(names()).toEqual(['funk_drums']);
     await fireEvent.click(screen.getByRole('button', { name: 'funk_drums' }));
@@ -69,6 +103,7 @@ describe('the cells card', () => {
 
   it('logs each section heard, once, and counts the sections that took each fragment', async () => {
     const card = render(Cells, props({ bar: bar(0) }));
+    await library();
     await card.rerender(props({ bar: { ...bar(0), bar: 1 } }));
     await card.rerender(props({ bar: bar(1, { rhythm: 'techno_drums' }) }));
     expect(names()).toEqual(['4/4', 'techno_drums', 'funk_drums']);
@@ -84,6 +119,7 @@ describe('the cells card', () => {
 
   it('filters the table by where a fragment has been', async () => {
     render(Cells, props({ bar: bar(0), layer }));
+    await library();
     expect(names()).toEqual(['4/4', 'funk_drums', 'drummer song 1, bar 8']);
     await fireEvent.click(screen.getByRole('radio', { name: 'Filed' }));
     expect(names()).toEqual(['drummer song 1, bar 8']);
@@ -113,6 +149,7 @@ describe('the cells card', () => {
       ],
     };
     render(Cells, props({ layer: varied }));
+    await library();
     const line = () => screen.getByText('Varies').closest('p')!;
     await fireEvent.click(screen.getByRole('button', { name: 'composer song 1, bar 16' }));
     expect(line()).toHaveTextContent(/^Varies\s*drummer song 1, bar 8 by drop &hat 6$/);
@@ -122,6 +159,7 @@ describe('the cells card', () => {
 
   it('opens a row picked: its text, its point, its tags; a second pick closes it', async () => {
     render(Cells, props({ layer }));
+    await library();
     const name = screen.getByRole('button', { name: 'drummer song 1, bar 8' });
     await fireEvent.click(name);
     expect(name).toHaveAttribute('aria-expanded', 'true');

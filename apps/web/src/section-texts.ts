@@ -31,6 +31,8 @@ import {
   keyText,
   playSection,
   sectionAsCells,
+  sectionOutline,
+  type Outline,
   sectionTextOf,
   statedChords,
   swingText,
@@ -103,6 +105,8 @@ export interface SectionStated {
   readonly unstated: string | null;
   /** What cells plays, once compiled; none where the text wasn't built or cells threw. */
   readonly played: PlayedSection | null;
+  /** The score's outline (cells' `outlineOf`), what the Cells view's Playing tree reads (#642); none where it wasn't compiled. */
+  readonly outline: Outline | null;
   /** The bars, by their place in the section, a note was cut in (it runs past its line's next onset or the text's end). */
   readonly cut: readonly number[];
   /** What cells threw. */
@@ -137,7 +141,7 @@ export function stateSection(
       /^a section's (\w+) changes at its bar.*$/,
       "the section's $1 moves between its bars: one text states one",
     );
-    const none = { source: '', frame, foreseen, played: null, cut: [], error: null };
+    const none = { source: '', frame, foreseen, played: null, outline: null, cut: [], error: null };
     return { ...none, unstated: reason, cost: { build: clock() - t0, compile: 0, play: 0 } };
   }
   const built = clock() - t0;
@@ -159,15 +163,16 @@ export function playText(
   clock: () => number = () => performance.now(),
 ): SectionStated {
   const { text: source, frame, foreseen, cut, unstated } = given;
-  const none = { source, frame, foreseen, unstated, played: null, cut, error: null };
+  const none = { source, frame, foreseen, unstated, played: null, outline: null, cut, error: null };
   if (unstated !== null) return { ...none, cost: { build: 0, compile: 0, play: 0 } };
   const t1 = clock();
   try {
     const plan = compileSection(source);
     const t2 = clock();
     const played = playSection(source, framesOf(frame, foreseen.length), plan);
+    const outline = sectionOutline(plan);
     const t3 = clock();
-    return { ...none, played, cost: { build: 0, compile: t2 - t1, play: t3 - t2 } };
+    return { ...none, played, outline, cost: { build: 0, compile: t2 - t1, play: t3 - t2 } };
   } catch (error) {
     return {
       ...none,

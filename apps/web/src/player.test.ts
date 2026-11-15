@@ -411,6 +411,24 @@ describe('the player', () => {
     for (const { weight } of inMind) expect(weight).toBeGreaterThanOrEqual(SHORT_TERM_FLOOR);
   });
 
+  it('shows the score of the section heard and its outline, as the band took it, for the Cells view (#642)', async () => {
+    const { world, s } = surroundings();
+    const player = new Player(s);
+    expect(player.heardScore).toBeNull();
+    void player.start();
+    world.resolve();
+    await settle();
+    for (let t = 0; t < 12; t += 0.025) {
+      world.currentTime += 0.025;
+      world.tickers[0]!.tick();
+      world.frames[0]!.follow();
+    }
+    const score = player.heardScore!;
+    expect(score.text.split('\n')[0]).toBe('&harm, &key from');
+    expect(score.text.split('\n').at(-1)).toMatch(/^\* from band\(/);
+    expect(score.outline.parts.map((p) => p.id)).toContain('band');
+  });
+
   it('opens in a key picked while stopped, and shows it heading there', () => {
     const { s } = surroundings();
     const player = new Player(s);

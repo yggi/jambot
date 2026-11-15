@@ -210,7 +210,7 @@ import { meterNudged } from './meter-choice.ts';
 import { movedLine } from './session/log-lines.ts';
 import { Heard } from './heard.ts';
 import { type SectionTexts, browserTexts } from './section-texts.ts';
-import { Shadow } from './shadow.ts';
+import { type Score, Shadow } from './shadow.ts';
 import { type Ear, browserEar } from './ear.ts';
 import { Hearing } from './hearing.ts';
 import { PlayedLog } from './played.ts';
@@ -430,6 +430,11 @@ export class Player {
    * solo's, read once a section; null for a client, or before a song.
    */
   workbench: Workbench | null = $state.raw(null);
+  /**
+   * The score of the section heard and cells' outline of it, as the shadow took it (#642): a host's and a band
+   * alone's as built, a client's as given. None before a section's score is taken, or where none states it.
+   */
+  heardScore: Score | null = $state.raw(null);
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
   /**
@@ -1777,7 +1782,11 @@ export class Player {
     const heard = heardOn(output);
     this.countStep = this.counting ? this.#countStepAt(heard) : null;
     const latest = this.#heard.take(heard);
-    if (latest !== undefined) this.heard = latest;
+    if (latest !== undefined) {
+      this.heard = latest;
+      const score = this.shadow.scoreAt(this.clock.barAt(latest));
+      if (score !== this.heardScore) this.heardScore = score;
+    }
     if (latest !== undefined && this.rhythmPlays && this.rhythm.length > 0) this.#logRhythm(latest);
     else if (latest !== undefined) this.#rhythmLogged = latest;
     this.#metronome?.follow(heard);
