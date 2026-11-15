@@ -156,18 +156,16 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
       ).toBe(0);
   });
 
-  it('takes the walk only under a meter that swings its 8ths: at Swing jazz’s point in a straight 4/4 it takes the next nearest', () => {
+  it('takes a walk where cells places it, under any meter: at Swing jazz’s point the walking bass, swung or straight (#650)', () => {
     const swing = byName('Swing jazz');
     const env = { bassLines: BASS_REPOSITORY, style: writtenStyle({ ...swing.style, entropy: 0 }) };
     const meter = { meter: METERS['4/4'], meterFragment: 'meter(swing=8n:2/3)' };
     expect(sectionLine(env, { ...meter, swing: '8n', share: 2 / 3 }, undefined)).toBe(
       'walking_bass',
     );
-    // (the next nearest: since cells v0.24.0 Baroque's continuo bass, yggi/cells#679; funk bass before; Spooky's
-    // creeping bass from cells v0.12.0 until v0.23.0's axes, where mood parts Swing jazz's bright ionian from Spooky's
-    // dark harmonic minor, yggi/cells#572)
+    // (until #650, a walk was taken only under a meter swung on its 8ths, and the next nearest played in a straight 4/4)
     expect(sectionLine(env, { meter: METERS['4/4'], swing: '16n', share: 0.5 }, undefined)).toBe(
-      'continuo_bass',
+      'walking_bass',
     );
   });
 

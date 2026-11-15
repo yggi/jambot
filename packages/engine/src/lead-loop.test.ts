@@ -822,6 +822,30 @@ describe('the Muse finds a motif a player plays again, and the band plays it bac
     ]);
   });
 
+  it('takes it once: heard again in the section that played it back, the next section is the composer’s, seeds 1 and 2', () => {
+    for (const seed of [1, 2]) {
+      // (Twinkle's opening bar in bars 12 and 13, and again in 20 and 21, the section that plays it back)
+      const silent: (readonly [number, number])[] = [];
+      const { leads } = heardSong(
+        seed,
+        [
+          TWINKLE_OPENING,
+          TWINKLE_OPENING,
+          ...range(6).map(() => silent),
+          TWINKLE_OPENING,
+          TWINKLE_OPENING,
+        ],
+        5,
+      );
+      expect(leads.slice(0, 4), `seed ${seed}`).toEqual([
+        'hook',
+        'hook',
+        'kinderlied/twinkle',
+        'hook',
+      ]);
+    }
+  });
+
   it('files a line it doesn’t know as before: Ada’s motif, under her name, and the band’s line held', () => {
     const { leads, layer } = heardSong(1, [ADA.map((n, i) => [ADA_STEPS[i]!, n] as const)]);
     expect(

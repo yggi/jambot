@@ -59,7 +59,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // 2,622 before 2/4 and 2/2 were among the band's meters, #652, where 250 sections now play 2/4, which lasts half a
     // 4/4, and none plays 2/2; 2,601 before a line heard that is a seed's was that seed, #553; 2,646 before the Muse
     // knew a player's line she had filed when it came again, and the next section played it back, #547 rung 6)
-    expect([playing, mostUsed]).toEqual([8533, 1854]);
+    expect([playing, mostUsed]).toEqual([8533, 1855]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -72,7 +72,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // and `question` stand apart and off the centre, yggi/cells#674 and #540; −21.44 and 1.97 before a line heard that is
     // a seed's was that seed, #553; −20.73 and 1.95 before a player's line played again came back in the next section,
     // #547 rung 6)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-41.92', '1.43']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-41.93', '1.43']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
@@ -104,7 +104,7 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     expect(dropped).toBe(0);
   });
 
-  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 68 sections of 5,366`, () => {
+  it(`keeps a layer within its cap of ${LAYER_CAP.toLocaleString('en')} bytes over 3 hours with the drums, the bass and the lead filing, the cap dropping the oldest in 70 sections of 5,361`, () => {
     const bytes = Math.max(...LONG.map((r) => layerBytes(r.learning!.layer)));
     expect(bytes).toBeLessThanOrEqual(LAYER_CAP);
     // (15,994, 85 and 5,265 before cells v0.24.0; 15,978, 28 and 5,387 before cells v0.23.0, whose walk files more
@@ -113,12 +113,14 @@ describe('the lead on the radio’s walk, learning, a player answering (E42, #42
     // #652, where 120 sections now play 2/4, which lasts half a 4/4; 99 dropped before cells v0.25.1's motifs placed
     // apart, yggi/cells#674 and #540; 15,991 and 102 over 5,346 sections before the layer kept its groove variations by
     // reference and a line heard that is a seed's was that seed, #553; 15,984 and 72 before a player's line played
-    // again came back in the next section, #547 rung 6; 65 dropped before the ostinato on top of cells v0.25.1, #651)
-    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15980, 68]);
+    // again came back in the next section, #547 rung 6; 15,980 and 65 before the walk rule retired on top of cells v0.25.1
+    // and #547 rung 6, #650; 66 dropped before the ostinato on top of cells v0.25.1, #651)
+    expect([bytes, LONG.reduce((n, r) => n + r.learning!.dropped, 0)]).toEqual([15991, 70]);
     // (5,281 before cells v0.25.0; 5,283 before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652; 5,345
     // before cells v0.25.1, whose swung sixteenths near Acid's point move the walk's meters, yggi/cells#540; 5,374 before a
-    // player's line played again came back in the next section, #547 rung 6)
-    expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5366);
+    // player's line played again came back in the next section, #547 rung 6; 5,366 before the walk rule retired on top of
+    // cells v0.25.1 and #547 rung 6, #650)
+    expect(LONG.reduce((n, r) => n + r.sections, 0)).toBe(5361);
     expect(leadsFiled(HEAVIEST).length).toBeGreaterThan(0);
   });
 });
