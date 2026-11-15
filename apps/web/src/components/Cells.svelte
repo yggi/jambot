@@ -1,10 +1,12 @@
 <!--
-  Cells, a card in two tabs. Playing, the default (`playingView.ts`, #642):
+  Cells, a card in three tabs. Playing, the default (`playingView.ts`, #642):
   what the band plays in the section heard, as a tree read off its score with
   cells' outline, each part under what it is taken on, or, switched, under
   what plays it; a row a part, the fragment it is taken from or written, what
   plays it and its weight in the composer's mind, and a row picked opens to
-  the score's lines it is. Library (`fragmentsView.ts`): every cells fragment the band has met,
+  the score's lines it is. Folded, it counts the parts the section heard
+  plays; on a phone a row's fragment and what plays it go beneath its part.
+  Next §: the same tree for the section built ahead. Library (`fragmentsView.ts`): every cells fragment the band has met,
   as one table told apart by where each has been. Folded, how many over how
   many of each; unfolded, a filter (All, Filed, Retrieved, Muse, In mind)
   over the table, a row for each: its name, its part (meter, rhythm, clave,
@@ -23,7 +25,7 @@
 <script lang="ts">
   import type { LearnedLayer } from '@jambot/engine';
   import type { Workbench } from '../fragmentsView.ts';
-  import { type Projection, playingRows } from '../playingView.ts';
+  import { type Projection, playingRows, playingSummary } from '../playingView.ts';
   import type { Score } from '../shadow.ts';
   import { untrack } from 'svelte';
   import {
@@ -57,6 +59,8 @@
     workbench?: Workbench | null;
     /** The score of the section heard and its outline (`Player.heardScore`), a client's as its host's; none yet. */
     score?: Score | null;
+    /** The score of the section after it, as built ahead (`Player.nextScore`); none yet. */
+    next?: Score | null;
   }
 
   interface Carry {
@@ -78,6 +82,7 @@
     carry = null,
     workbench = null,
     score = null,
+    next = null,
   }: Props = $props();
 
   /** What the last import said: that it took, or why not. */
@@ -96,19 +101,25 @@
     untrack(() => (log = logged(log, section)));
   });
 
-  let tab: 'playing' | 'library' = $state('playing');
+  let tab = $state<'playing' | 'next' | 'library'>('playing');
   let projection: Projection = $state('ground');
   let pickedRow: string | null = $state(null);
   const TABS = [
     { value: 'playing', text: 'Playing', name: 'Playing' },
+    { value: 'next', text: 'Next §', name: 'Next section' },
     { value: 'library', text: 'Library', name: 'Library' },
   ] as const;
   const PROJECTIONS = [
     { value: 'ground', text: 'From the ground', name: 'From the ground' },
     { value: 'outputs', text: 'From the outputs', name: 'From the outputs' },
   ] as const;
-  const tree = $derived(score ? playingRows(score.text, score.outline, projection, workbench) : []);
-  const scoreLines = $derived(score ? score.text.split('\n') : []);
+  const heard = $derived(score ? playingRows(score.text, score.outline, 'ground', workbench) : []);
+  const shownScore = $derived(tab === 'next' ? next : score);
+  const tree = $derived(
+    shownScore ? playingRows(shownScore.text, shownScore.outline, projection, workbench) : [],
+  );
+  const scoreLines = $derived(shownScore ? shownScore.text.split('\n') : []);
+  const summary = $derived(heard.length > 0 ? playingSummary(heard) : null);
   const openRow = $derived(tree.find((r) => r.key === pickedRow) ?? null);
 
   let filter: FragmentFilter = $state('all');
@@ -141,9 +152,13 @@
         : 'var(--amber)';
 </script>
 
-<Card title="Cells" main={fragmentsMain(rows)} sub={fragmentsSub(rows)}>
+<Card
+  title="Cells"
+  main={summary?.main ?? fragmentsMain(rows)}
+  sub={summary?.sub ?? fragmentsSub(rows)}
+>
   <Segmented label="Tab" options={TABS} value={tab} onselect={(value) => (tab = value)} />
-  {#if tab === 'playing'}
+  {#if tab !== 'library'}
     <Segmented
       label="Tree"
       options={PROJECTIONS}
@@ -151,15 +166,19 @@
       onselect={(value) => (projection = value)}
     />
     {#if tree.length === 0}
-      <p class="note">Nothing yet: the tree shows the section heard once its score is written.</p>
+      <p class="note">
+        {tab === 'next'
+          ? 'Nothing yet: the tree shows the next section once the band has built it.'
+          : 'Nothing yet: the tree shows the section heard once its score is written.'}
+      </p>
     {:else}
       <div class="box">
-        <table aria-label="Playing">
+        <table aria-label={tab === 'next' ? 'Next section' : 'Playing'}>
           <thead>
             <tr>
               <th scope="col">Part</th>
-              <th scope="col">Fragment</th>
-              <th scope="col">Plays on</th>
+              <th scope="col" class="frag-head">Fragment</th>
+              <th scope="col" class="on-head">Plays on</th>
               <th scope="col" class="n">In mind</th>
             </tr>
           </thead>
@@ -176,6 +195,13 @@
                   >
                     {row.label}
                   </button>
+                  <span class="sub"
+                    >{row.id === null
+                      ? 'written'
+                      : `${row.id}${row.args ? ` (${row.args})` : ''}`}{row.on.length
+                      ? ` · ${row.on.join(' · ')}`
+                      : ''}</span
+                  >
                 </td>
                 <td class="frag">
                   {#if row.id === null}<span class="written-word">written</span
@@ -405,6 +431,7 @@
     color: var(--muted);
   }
   .box {
+    container-type: inline-size;
     overflow-x: auto;
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -521,6 +548,20 @@
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+  }
+  .sub {
+    display: none;
+  }
+  /* (on a phone a row takes two lines: the part, what it is taken from and on beneath it, its weight on the right) */
+  @container (max-width: 480px) {
+    :is(th, td):is(.frag, .on, .frag-head, .on-head) {
+      display: none;
+    }
+    .sub {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
   }
   .detail {
     display: grid;

@@ -14,7 +14,7 @@ import {
 } from '@jambot/engine';
 import { compileSection, sectionAsCells, sectionOutline, sectionTextOf } from '@jambot/score';
 import { describe, expect, it } from 'vitest';
-import { type PlayingRow, playingRows } from './playingView.ts';
+import { type PlayingRow, playingRows, playingSummary } from './playingView.ts';
 
 /** A preset's first section as the app's band composes it, finding its parts in the repository, seed 1. */
 function firstSection(name: string): BandBar[] {
@@ -107,6 +107,16 @@ describe('the Playing tree (#642)', () => {
     });
     expect(rows.find((r) => r.label === 'clave')!.weight).toBe(0.5);
     expect(rows.find((r) => r.label === 'bar')!.weight).toBeNull();
+  });
+
+  it('sums up, folded, how many parts play and how many of them are fragments', () => {
+    expect(playingSummary(playingRows(funk.text, funk.outline, 'ground'))).toEqual({
+      main: '11 parts playing',
+      sub: '4 from fragments · 7 written',
+    });
+    expect(playingSummary(playingRows(funk.text, funk.outline, 'ground').slice(0, 1)).main).toBe(
+      '1 part playing',
+    );
   });
 
   it.each(PRESETS.map((p) => p.name))(

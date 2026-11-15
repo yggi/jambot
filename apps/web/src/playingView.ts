@@ -265,3 +265,12 @@ export function playingRows(
     visit(root, 0);
   return out;
 }
+
+/** The card's summary, folded, of the section heard: how many parts it plays, and how many of them are fragments. */
+export function playingSummary(rows: readonly PlayingRow[]): { main: string; sub: string } {
+  const taken = rows.filter((r) => r.id !== null).length;
+  return {
+    main: `${rows.length} ${rows.length === 1 ? 'part' : 'parts'} playing`,
+    sub: `${taken} from fragments · ${rows.length - taken} written`,
+  };
+}

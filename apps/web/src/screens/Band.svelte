@@ -268,6 +268,7 @@
       carry={layers && !following ? { playing: player.playing, ...layers } : null}
       workbench={following ? null : player.workbench}
       score={player.heardScore}
+      next={player.nextScore}
     />
   {/if}
 {/snippet}
