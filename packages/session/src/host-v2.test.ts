@@ -9,8 +9,8 @@ import {
   hostScoreOf,
   ledgerOf,
   scoreFor,
-  scoresInForce,
 } from './host-v2.ts';
+import { scoresInForce } from './follow-v2.ts';
 import { type FragmentText, readHostMessageV2 } from './protocol-v2.ts';
 import type { SentBar } from './protocol.ts';
 

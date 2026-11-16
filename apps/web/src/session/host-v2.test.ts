@@ -18,7 +18,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SectionTexts, inlineTexts } from '../section-texts.ts';
 import { device, memoryLobby } from './fixtures.ts';
-import { HOST_SPEAKS, HostSession } from './host.svelte.ts';
+import { HostSession } from './host.svelte.ts';
+import { SESSION_SPEAKS } from './speaks.ts';
 import type { Lobby } from './lobby.ts';
 
 type Score = Extract<HostMessageV2, { kind: 'score' }>;
@@ -153,8 +154,8 @@ describe('a host that speaks version 2 of the session contract (#553)', () => {
   afterEach(() => void vi.useRealTimers());
 
   it('speaks version 1 unless switched, its bars and texts as version 1 sends them', async () => {
-    expect(HOST_SPEAKS).toBe(1);
-    const { session, join, run } = await hosting({ speaks: HOST_SPEAKS });
+    expect(SESSION_SPEAKS).toBe(1);
+    const { session, join, run } = await hosting({ speaks: SESSION_SPEAKS });
     const ada = await join('Ada', undefined, PROTOCOL);
     await run(12);
     const kinds = new Set(ada.raw.map((m) => (m as { kind: string }).kind));

@@ -163,6 +163,12 @@
           value="{following.lacked} {following.lacked === 1 ? 'bar' : 'bars'}"
         />
       {/if}
+      {#if following.silent > 0}
+        <Reading
+          label="No score stated"
+          value="{following.silent} {following.silent === 1 ? 'bar' : 'bars'}"
+        />
+      {/if}
       {#if following.status === 'reconnecting'}
         <p class="note">The link was lost. This band plays on what it has, and joins again.</p>
       {:else if following.hostAway}

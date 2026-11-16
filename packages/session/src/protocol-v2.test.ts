@@ -7,6 +7,8 @@ import {
   SESSION_V2,
   type SectionScore,
   readHostMessageV2,
+  readHostSaid,
+  versionOf,
 } from './protocol-v2.ts';
 import {
   FIRST_PROTOCOL,
@@ -135,5 +137,20 @@ describe('the session protocol, version 2 (read, not yet spoken)', () => {
     expect(readClientMessage(join)).toBe(join);
     const nudge = { kind: 'nudge', target: 'key', by: -1 };
     expect(readClientMessage(nudge)).toBe(nudge);
+  });
+});
+
+describe('a host of either version, as a lobby hands it a client (#553 rung 3)', () => {
+  it('says the version a protocol is of: 1 to 29, 2 from 30', () => {
+    expect([FIRST_PROTOCOL, PROTOCOL, FIRST_PROTOCOL_V2 - 1].map(versionOf)).toEqual([1, 1, 1]);
+    expect([FIRST_PROTOCOL_V2, PROTOCOL_V2].map(versionOf)).toEqual([2, 2]);
+  });
+
+  it('reads a message of either version, and none of neither', () => {
+    expect(readHostSaid({ kind: 'conduct', ...conduct })).toEqual({ kind: 'conduct', ...conduct });
+    expect(readHostSaid({ kind: 'score', ...score })).toEqual({ kind: 'score', ...score });
+    expect(readHostSaid({ kind: 'stop' })).toEqual({ kind: 'stop' });
+    expect(readHostSaid({ kind: 'conduct', ...conduct, entropy: 2 })).toBeNull();
+    expect(readHostSaid({ kind: 'nothing' })).toBeNull();
   });
 });

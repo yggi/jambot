@@ -1,10 +1,10 @@
 /**
  * What a host says to its clients in version 2 of the session contract
  * (yggi/music-commons `contracts/session`, minor 1: protocol 31), as a client
- * reads it: read here, written by the app's host behind a switch
- * (`host-v2.ts`, `HOST_SPEAKS` in the app: #553's rung 2), played by the
- * client at rung 3, and spoken once the protocol moves to it at rung 4;
- * Jambot speaks version 1, `PROTOCOL`.
+ * reads it: read here, written by the app's host and played by its client
+ * behind one switch (`host-v2.ts`, `follow-v2.ts`, `SESSION_SPEAKS` in the
+ * app: #553's rungs 2 and 3), and spoken once the protocol moves to it at
+ * rung 4; Jambot speaks version 1, `PROTOCOL`.
  *
  * Version 2 sends a section's **score** (`score`) in place of its text
  * (`section`), and each bar's **conduct** (`conduct`) in place of the bar
@@ -45,6 +45,7 @@ import {
   type SessionEvent,
   type SessionVersion,
   type Song,
+  readHostMessage,
 } from './protocol.ts';
 import type { ForecastDelta } from './forecast.ts';
 
@@ -152,7 +153,8 @@ export type HostSaid = HostMessage | HostMessageV2;
 const SECTION_NAMES: ReadonlySet<unknown> = new Set(SECTION_TYPES);
 
 const isRef = (r: unknown): boolean => isObject(r) && isString(r.id) && isString(r.hash);
-const isFragmentText = (f: unknown): boolean =>
+/** A fragment's text by its id and hash, each a string. */
+export const isFragmentText = (f: unknown): boolean =>
   isRef(f) && isString((f as FragmentRef & { text: unknown }).text);
 /** A lock's entry: a fragment by its id and hash, never the band, which never travels. */
 const isLocked = (r: unknown): boolean => isRef(r) && (r as FragmentRef).id !== 'band';
@@ -217,4 +219,15 @@ const HOST_FIELDS_V2: FieldChecks = {
  */
 export function readHostMessageV2(data: unknown): HostMessageV2 | null {
   return readByKind<HostMessageV2>(HOST_FIELDS_V2, data);
+}
+
+/** The major version of the session contract a protocol is of: version 2 from `FIRST_PROTOCOL_V2` on, version 1 below. */
+export const versionOf = (protocol: number): 1 | 2 => (protocol >= FIRST_PROTOCOL_V2 ? 2 : 1);
+
+/**
+ * A message from a host of either version, or null for one of neither: what a lobby hands a client, which reads it
+ * again by the version its host's welcome says (`versionOf`).
+ */
+export function readHostSaid(data: unknown): HostSaid | null {
+  return readHostMessage(data) ?? readHostMessageV2(data);
 }

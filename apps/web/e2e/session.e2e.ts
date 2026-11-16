@@ -398,6 +398,40 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   expect(clientErrors).toEqual([]);
 });
 
+test('a client of session version 2 plays its host’s scores on the clock its conducts give, event for event, and none of the band’s own notes (#553, `?speaks=2`)', async ({
+  page,
+  context,
+}) => {
+  const client = await context.newPage();
+  const hostErrors = await listen(page, '/?speaks=2');
+  const clientErrors = await listen(client, '/?speaks=2');
+  await host(page, 'score jam');
+  await join(client, 'score jam', 'Ada');
+  await joined(page, 'Ada');
+  await page.getByRole('button', { name: 'Start the band' }).click();
+  await expect(state(client)).toContainText('host playing');
+  for (const p of [page, client])
+    await expect
+      .poll(() => lastBar(p), { timeout: 40_000, intervals: [500] })
+      .toBeGreaterThanOrEqual(BARS_COMPARED + 1);
+  const compared = await sessionAgrees(page, client);
+  const theirs = (await client.evaluate(() => window.jambot!.shadow))!;
+  console.log(
+    `version 2: bars ${compared.bars.from} to ${compared.bars.to}: ${compared.events} events, ` +
+      `the client lacked ${compared.lacked.client.events}, was given ${theirs.texts.given} scores, ` +
+      `played ${theirs.played.cells} from cells and ${theirs.played.band} from the band`,
+  );
+  expect(compared.bars.to - compared.bars.from + 1).toBeGreaterThanOrEqual(BARS_COMPARED);
+  expect(compared.events).toBeGreaterThan(0);
+  expect(compared.lacked.client.events).toBe(0);
+  expect(theirs.from).toBe('scored');
+  expect(theirs.texts.given).toBeGreaterThanOrEqual(2);
+  await playsThroughCells(page);
+  await playsThroughCells(client);
+  expect(hostErrors).toEqual([]);
+  expect(clientErrors).toEqual([]);
+});
+
 test("a client in another browser context joins through the lobby server, in step through a hold of the client's audio and a stall of the host's page", async ({
   page,
   browser,

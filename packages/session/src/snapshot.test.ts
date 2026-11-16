@@ -159,7 +159,13 @@ describe('what a host keeps to come back from a reload', () => {
 describe('what a client keeps to come back from a closed app', () => {
   it('reads what it wrote, and nothing that is not one, or too old', () => {
     expect(readClientResume(JSON.parse(JSON.stringify(resume)), 1001)).toEqual(resume);
+    const fragments = [
+      { id: 'muse_riff_1', hash: 'e2:00000000000000a1', text: '&muse_riff_1 0 2' },
+    ];
+    expect(readClientResume({ ...resume, fragments }, 1001)).toEqual({ ...resume, fragments });
     for (const junk of [
+      { ...resume, fragments: 'none' },
+      { ...resume, fragments: [{ id: 'muse_riff_1', hash: 'e2:00000000000000a1' }] },
       null,
       {},
       { ...resume, version: 0 },

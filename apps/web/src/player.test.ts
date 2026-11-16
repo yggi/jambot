@@ -1890,6 +1890,10 @@ describe('the band through cells (#399, #469)', () => {
         said.push('play');
         inline.play(given, answer);
       },
+      score: (given, answer) => {
+        said.push('score');
+        inline.score(given, answer);
+      },
       end: () => void said.push('end'),
     };
     const player = new Player({ ...s, texts: () => texts });

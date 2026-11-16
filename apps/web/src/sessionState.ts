@@ -28,6 +28,8 @@ export interface Following {
   readonly role: Role;
   readonly trip: number | null;
   readonly lacked: number;
+  /** The bars it played silent, no score of a host of session version 2 stating them (#553). */
+  readonly silent: number;
 }
 
 /**

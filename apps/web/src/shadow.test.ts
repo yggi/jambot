@@ -38,7 +38,13 @@ import {
 import { METERS, type MeterName } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { conductRadio, radioStyle } from './conductor.ts';
-import { type SectionTexts, inlineTexts, playText, stateSection } from './section-texts.ts';
+import {
+  type SectionTexts,
+  inlineTexts,
+  playScore,
+  playText,
+  stateSection,
+} from './section-texts.ts';
 import { Shadow, type ShadowReadout } from './shadow.ts';
 
 /** Within 1 ms: the bound on an onset. */
@@ -168,6 +174,13 @@ function run({
             due.push({
               at: clock + delay,
               deliver: () => offPage(() => structuredClone(playText(copy)), answer),
+            });
+          },
+          score(given, answer) {
+            const copy = structuredClone(given);
+            due.push({
+              at: clock + delay,
+              deliver: () => offPage(() => structuredClone(playScore(copy)), answer),
             });
           },
         };

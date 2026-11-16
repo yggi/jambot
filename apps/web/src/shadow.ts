@@ -59,6 +59,14 @@
  * sent otherwise than foreseen waits for the host's text again, and plays
  * the band's own if it hasn't come, counted late.
  *
+ * A client of session version 2 (#553) is given scores in place of texts
+ * (`givenScore`, `from` `scored`): each is read, compiled and played where its
+ * own are (`SectionTexts.score`), and what it states of each of its bars, as it
+ * is read and once it has been, goes to the client's follower (`stated`),
+ * which lays a bar only where its conduct carries the digest its score foresaw
+ * (`scoreSource` in `@jambot/session`). So a bar laid there is the score's,
+ * and plays cells' events alone: the band's own are none on that path.
+ *
  * Each text told goes as a score too (`HostScore`, session version 2, #553),
  * with its section's type, each bar's energy and what it locks. A host of
  * version 2 asks for a section's bars in runs that each hold one meter,
@@ -89,6 +97,7 @@ import {
   withMeter,
 } from '@jambot/engine';
 import {
+  type HeardChord,
   type Outline,
   type PlayedBar,
   asCellsGives,
@@ -96,11 +105,27 @@ import {
   performCells,
   sectionRuns,
 } from '@jambot/score';
-import { type HostScore, type SectionText, hostScoreOf, scoresInForce } from '@jambot/session';
-import { type SectionStated, type SectionTexts, foreseenOf, inlineTexts } from './section-texts.ts';
+import {
+  type HostScore,
+  type SectionText,
+  type StatedBar as ScoreStatement,
+  hostScoreOf,
+  scoresInForce,
+  statedBars,
+} from '@jambot/session';
+import {
+  type GivenScore,
+  type SectionStated,
+  type SectionTexts,
+  foreseenOf,
+  inlineTexts,
+} from './section-texts.ts';
 
-/** Where a song's texts come from: asked for from the band's own bars (alone or hosting), or given by a host (a client, #446). */
-export type TextsFrom = 'asked' | 'given';
+/**
+ * Where a song's texts come from: asked for from the band's own bars (alone or hosting), or given by a host (a client,
+ * #446), as texts, or as scores by a host of session version 2 (`scored`, #553).
+ */
+export type TextsFrom = 'asked' | 'given' | 'scored';
 
 /** How many cost samples the readout keeps, the latest. */
 const SAMPLES_KEPT = 5000;
@@ -204,6 +229,8 @@ interface StatedBar {
   /** What the bar was foreseen as when the text was written, a digest: what a bar composed or sent is checked against. */
   readonly foreseen: string;
   readonly played: PlayedBar | null;
+  /** The chords cells plays of the harmony in the bar, as it sounds them: what a client of session version 2 folds (#553). */
+  readonly chords: readonly HeardChord[];
   /** Why cells states nothing for the bar. */
   readonly gap: string | null;
 }
@@ -283,6 +310,8 @@ interface Pending {
   readonly forecast: readonly BandBar[];
   readonly textStart: number;
   main: number | null;
+  /** The score it reads, a score a host of session version 2 gave (#553). */
+  readonly score?: GivenScore['score'];
 }
 
 /** The reason a step is laid without cells: its bar's text is still on its way. */
@@ -336,6 +365,11 @@ export class Shadow {
    * to its clients, by the version of the session it speaks (#446, #553).
    */
   told: ((text: SectionText, score: HostScore) => void) | null = null;
+  /**
+   * Hears what each score a host of session version 2 gave states of its bars (#553): that it is being read as it is
+   * given, and what it states once read, for each bar it is still the latest for. What a client's follower lays by.
+   */
+  stated: ((bars: readonly ScoreStatement[]) => void) | null = null;
   /**
    * Whether the bars asked for as one text are asked for in runs, split where the key, the meter, the swing or the
    * melodic scale moves (`sectionRuns`), each run a text of its own: what a host of session version 2 does, since a
@@ -472,6 +506,28 @@ export class Shadow {
     );
   }
 
+  /**
+   * A score a host of session version 2 gave (#553), as it took it or with its welcome (`joined`), with the fragments
+   * the session sent that it locks: read, compiled and played where this page's texts are, each bar it states then
+   * holding what cells plays in it, and what it states of each said (`stated`).
+   */
+  givenScore(given: GivenScore, joined = false) {
+    if (this.#from !== 'scored') return;
+    const asked = joined ? 'joined' : 'given';
+    this.#counted[asked]++;
+    const { score } = given;
+    const bars = score.foreseen.map((_, i) => score.bar + i);
+    this.stated?.(statedBars(score, 'reading'));
+    this.#ask({ asked, bars, forecast: [], textStart: score.step, main: null, score }, (answer) =>
+      this.#texts.score(given, answer),
+    );
+  }
+
+  /** The chords cells plays in a bar, as the latest text or score that states it sounds them; none where none does. */
+  chordsAt(bar: number): readonly HeardChord[] {
+    return this.#bars.get(bar)?.chords ?? [];
+  }
+
   /** The score of the section that states `bar`, and its outline, the latest taken; none where none is (#642). */
   scoreAt(bar: number): Score | null {
     return this.#scores.findLast((s) => bar >= s.bar && bar < s.bar + s.bars)?.score ?? null;
@@ -552,9 +608,15 @@ export class Shadow {
     return digest;
   }
 
-  /** A bar a host sent (#446): played through cells once a text given states it as it was sent. */
+  /**
+   * A bar a host sent (#446): played through cells once a text given states it as it was sent. A bar a score states
+   * (#553) is laid only where its conduct carries the score's digest, so it is the score's as it is.
+   */
   #sent(bar: BandBar) {
-    this.#keep(bar);
+    if (this.#from === 'scored') {
+      this.#composedBars.set(bar.bar, bar);
+      this.#composedBars.delete(bar.bar - 2 * SECTION_BARS);
+    } else this.#keep(bar);
   }
 
   #forecast(
@@ -698,8 +760,13 @@ export class Shadow {
         asked,
         foreseen: stated.foreseen[i]!,
         played: played?.bars[i] ?? null,
+        chords: played?.chords[i] ?? [],
         gap,
       });
+    }
+    if (took && pending.score) {
+      const read = stated.read ?? { lacks: stated.error ?? 'its score was not read' };
+      this.stated?.(statedBars(pending.score, read).filter((b) => this.#asked.get(b.bar) === ask));
     }
     const first = bars[0]!;
     if (took && this.#from === 'asked') this.#tell(first, textStart, stated, pending.forecast);

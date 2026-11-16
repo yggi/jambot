@@ -37,15 +37,37 @@ export const HISTORY_DECAY = 0.85;
  * each chord adds its length, in bars, to each pitch class it holds once.
  */
 export function foldBar(history: HarmonicWeights, chords: readonly BarChord[]): HarmonicWeights {
-  return fold(history, HISTORY_DECAY, readingsOf(chords));
+  return foldHeard(
+    history,
+    chords.map(({ slot, chord }) => ({ step: slot.step, notes: joinChord(chord) })),
+    BAR_STEPS,
+  );
+}
+
+/** A chord as its notes sound: the step of its bar it starts on, and its notes, as heights or pitch classes. */
+export interface SoundingChord {
+  readonly step: number;
+  readonly notes: readonly number[];
+}
+
+/**
+ * A bar of `steps` steps folded into the history from its chords as they sound, each lasting to the next or the bar's
+ * end: what a client of session version 2 folds from the harmony its score states (#553), where the band folds the
+ * chords it decided (`foldBar`).
+ */
+export function foldHeard(
+  history: HarmonicWeights,
+  chords: readonly SoundingChord[],
+  steps: number,
+): HarmonicWeights {
+  return fold(history, HISTORY_DECAY, readingsOf(chords, steps));
 }
 
 /** A bar's chords as readings: each chord's length, in bars, to each pitch class it holds once. */
-function* readingsOf(chords: readonly BarChord[]): Generator<[number, number]> {
-  for (const [i, { slot, chord }] of chords.entries()) {
-    const length = ((chords[i + 1]?.slot.step ?? BAR_STEPS) - slot.step) / BAR_STEPS;
-    for (const pitchClass of new Set(joinChord(chord).map((h) => mod(h, 12))))
-      yield [pitchClass, length];
+function* readingsOf(chords: readonly SoundingChord[], steps: number): Generator<[number, number]> {
+  for (const [i, { step, notes }] of chords.entries()) {
+    const length = ((chords[i + 1]?.step ?? steps) - step) / steps;
+    for (const pitchClass of new Set(notes.map((h) => mod(h, 12)))) yield [pitchClass, length];
   }
 }
 

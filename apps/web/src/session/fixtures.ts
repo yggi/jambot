@@ -3,7 +3,7 @@
  * lobby in memory. Only tests import it.
  */
 
-import { type ClientMessage, type HostMessage } from '@jambot/session';
+import { type ClientMessage, type HostSaid } from '@jambot/session';
 import type { Output } from '../audio/output.ts';
 import type { Ear } from '../ear.ts';
 import { Metronome } from '../metronome.svelte.ts';
@@ -17,9 +17,9 @@ import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
  * a buffer the output drops moves the offset. Its band plays cells' events
  * (#446, #469), its texts built where `texts` says (on its thread where it
  * says nothing), and it hears itself where `ear` says (#495; not at all
- * where it says nothing).
+ * where it says nothing). Its songs are drawn from `seed`.
  */
-export function device(clockAt: number, texts?: () => SectionTexts, ear?: () => Ear) {
+export function device(clockAt: number, texts?: () => SectionTexts, ear?: () => Ear, seed = 42) {
   const world = {
     currentTime: clockAt,
     heardOffset: 0,
@@ -59,7 +59,7 @@ export function device(clockAt: number, texts?: () => SectionTexts, ear?: () => 
       return () => void world.tickers.splice(world.tickers.indexOf(tick), 1);
     },
     frame: () => () => {},
-    seed: () => 42,
+    seed: () => seed,
     page: () => world.currentTime,
     ...(texts && { texts }),
     ...(ear && { ear }),
@@ -81,7 +81,7 @@ export function memoryLobby(): Lobby & {
   const hosts = new Map<string, (message: ClientMessage, from: string) => void>();
   const clients = new Map<
     string,
-    Map<string, { hear: (message: HostMessage) => void; lost: ((why: string) => void) | undefined }>
+    Map<string, { hear: (message: HostSaid) => void; lost: ((why: string) => void) | undefined }>
   >();
   const names = new Map<string, string>();
   let made = 0;
@@ -110,8 +110,7 @@ export function memoryLobby(): Lobby & {
         reclaim: null,
         send(message, to) {
           for (const [id, { hear }] of clients.get(key)!)
-            // (a client's hear reads version 1; a test of a host of version 2 reads what it hears with version 2's reader)
-            if (to === undefined || to === id) hear(structuredClone(message) as HostMessage);
+            if (to === undefined || to === id) hear(structuredClone(message));
         },
         close: () => void hosts.delete(key),
       } satisfies HostLink;

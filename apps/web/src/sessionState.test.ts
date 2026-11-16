@@ -10,6 +10,7 @@ const following: Following = {
   role: 'player',
   trip: 12,
   lacked: 0,
+  silent: 0,
 };
 const nobody = { session: 'Garage', guests: [] };
 const ada = { id: 'c0', name: 'Ada', role: 'player' as const };

@@ -5,6 +5,7 @@ import {
   FIRST_PROTOCOL,
   HOST_PLAYER,
   type HostMessage,
+  type HostSaid,
   type HostSnapshot,
   PROTOCOL,
   RECONNECT,
@@ -270,7 +271,8 @@ describe('a host and a client session', () => {
     // Bo joins mid-song: the welcome gives the texts of the bars not yet played.
     const joining = new ClientSession(late.player, late.clocks);
     const tapped = lobby.join;
-    lobby.join = (session, hear, lost) => tapped(session, (m) => (sent.push(m), hear(m)), lost);
+    lobby.join = (session, hear, lost) =>
+      tapped(session, (m) => (sent.push(m as HostMessage), hear(m)), lost);
     await joining.join(lobby, 'Jam', 'Bo');
     await run([host, client, late], 30);
     const welcome = sent.find((m) => m.kind === 'welcome');
@@ -674,7 +676,7 @@ describe('a host and a client session', () => {
     const host = device(0);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam', 'Bo');
-    const heard: HostMessage[][] = [[], [], []];
+    const heard: HostSaid[][] = [[], [], []];
     const links = await Promise.all(heard.map((h) => lobby.join('jam', (m) => h.push(m))));
     links[0]!.send({ kind: 'join', protocol: PROTOCOL, name: 'Ada' });
     links[1]!.send({ kind: 'join', protocol: PROTOCOL, name: 'ADA ' });
@@ -693,7 +695,7 @@ describe('a host and a client session', () => {
     const host = device(0);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
-    const heard: HostMessage[] = [];
+    const heard: HostSaid[] = [];
     const link = await lobby.join('jam', (m) => heard.push(m));
     link.send({ kind: 'join', protocol: FIRST_PROTOCOL - 1, name: 'Old' });
     expect(heard[0]).toMatchObject({ kind: 'refused', reason: expect.stringMatching(/version/) });
@@ -702,7 +704,7 @@ describe('a host and a client session', () => {
       [FIRST_PROTOCOL, 'Ada'],
       [PROTOCOL + 1, 'Bo'],
     ] as const) {
-      const said: HostMessage[] = [];
+      const said: HostSaid[] = [];
       const other = await lobby.join('jam', (m) => said.push(m));
       other.send({ kind: 'join', protocol, name });
       expect(said[0]).toMatchObject({ kind: 'welcome', protocol: PROTOCOL });
@@ -956,7 +958,7 @@ describe('a host and a client session', () => {
     const host = device(0);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
-    const heard: HostMessage[] = [];
+    const heard: HostSaid[] = [];
     const link = await lobby.join('jam', (m) => heard.push(m));
     link.send({ kind: 'join', protocol: PROTOCOL, name: 'Quiet' });
     expect(hosting.guests).toHaveLength(1);
@@ -976,7 +978,7 @@ describe('a host and a client session', () => {
 
 /** A client's words to a host, and its welcome's token. */
 async function joined(lobby: Lobby, session: string, name: string, resume?: string, code?: string) {
-  const heard: HostMessage[] = [];
+  const heard: HostSaid[] = [];
   const link = await lobby.join(session, (m) => heard.push(m));
   link.send({
     kind: 'join',
@@ -1237,8 +1239,8 @@ describe('the lobby between tabs', () => {
     await expect(lobby.host(' tab jam', () => {})).rejects.toThrow(/already open/);
     expect(await lobby.sessions()).toEqual([{ name: 'Tab Jam', players: 1 }]);
 
-    const toAda: HostMessage[] = [];
-    const toBob: HostMessage[] = [];
+    const toAda: HostSaid[] = [];
+    const toBob: HostSaid[] = [];
     const ada = await lobby.join('tab jam', (m) => toAda.push(m));
     const bob = await lobby.join('TAB JAM', (m) => toBob.push(m));
     ada.send({ kind: 'join', protocol: PROTOCOL, name: 'Ada' });

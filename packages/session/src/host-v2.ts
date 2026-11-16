@@ -3,7 +3,7 @@
  * each bar's conduct, each section's score, and the fragments a score locks
  * that a client lacks, sent to each client once by hash. Written here, and
  * spoken by the app's host only where it is switched to version 2
- * (`HOST_SPEAKS` in the app); the client plays them at rung 3.
+ * (`SESSION_SPEAKS` in the app); a client plays them (`follow-v2.ts`).
  *
  * A conduct is made from the bar the host sends at version 1 (`SentBar`), as
  * the contract's rule makes it (`conductOf` in yggi/music-commons
@@ -17,6 +17,7 @@
  * those it lacks (`fragmentsLacked`). Which hashes each client was sent is
  * the host's ledger (`FragmentLedger`), kept by the client's seat, so a
  * client that comes back with its token is not sent again what it was sent.
+ * The scores a welcome carries are those in force (`scoresInForce`, `follow-v2.ts`).
  */
 
 import type { BarEnv } from '@jambot/engine';
@@ -115,17 +116,4 @@ export function fragmentsLacked(
 /** The ledger of the seats held, a seat that is freed forgotten. */
 export function ledgerOf(ledger: FragmentLedger, seats: readonly string[]): FragmentLedger {
   return Object.fromEntries(seats.flatMap((s) => (ledger[s] ? [[s, ledger[s]]] : [])));
-}
-
-/**
- * The scores in force from bar `from` on, in the order they were stated: each
- * that is the latest to state some bar from `from` on. What a welcome carries,
- * a score stated again in place of one before leaving the one before out.
- */
-export function scoresInForce(scores: readonly HostScore[], from: number): HostScore[] {
-  const latest = new Map<number, HostScore>();
-  for (const s of scores)
-    for (let i = 0; i < s.foreseen.length; i++) if (s.bar + i >= from) latest.set(s.bar + i, s);
-  const kept = new Set(latest.values());
-  return scores.filter((s) => kept.has(s));
 }
