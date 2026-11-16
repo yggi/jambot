@@ -256,6 +256,19 @@ describe('the device’s MIDI ports', () => {
     expect(synth.sent[1]!.timestamp).toBeGreaterThan(0);
   });
 
+  it('sends all notes off on the 16 channels of one output, by its key', async () => {
+    const { synth } = midi();
+    const { device: d } = device();
+    changed(d, (book) => chooseDevice(book, 'o1', { id: 'out-1', name: 'Synth' }));
+    await d.connect(() => {});
+    d.panicOutput('o1');
+    expect(synth.sent.map((m) => m.data)).toEqual(
+      Array.from({ length: 16 }, (_, ch) => [0xb0 | ch, 123, 0]),
+    );
+    d.panicOutput('nowhere');
+    expect(synth.sent).toHaveLength(16);
+  });
+
   it('leaves out a port the browser keeps listed as disconnected', async () => {
     const { access } = midi();
     const { device: d } = device();

@@ -2,13 +2,13 @@
   The details of the sound card: how this device sounds, and where the band
   goes, as webmidi's patchbay (`@yggi/webmidi/ui`): the connection
   (`MidiStatus`), what went wrong lately, the setups (`SetupPicker`), the
-  patch (`PatchMatrix`: the clock, the five parts with the drum sounds' notes
-  on each output, the keys, then the inputs with what each plays and the
+  patch (`PatchMatrix`: the clock, the five parts, the keys, then the inputs with what each plays and the
   preset that assigns them, down; the built-in synth first, then the setup's
   MIDI outputs, across), the whole width of the sheet, and a column's
-  settings in a dialog over it, opened from its head or its button under the
-  patch: an output's device (`DeviceInspector`), or the synth's own (its
-  volume, the card's, and the parts it plays). The synth is a column of the
+  settings in a dialog over it, opened from its head: an output's device (the
+  matrix's own `DeviceDialog`, webmidi v0.5.0, which we feed `ontest` and
+  `onpanic` by output key), or the synth's own (Jambot's: its volume, the
+  card's, and the parts it plays; also a button under the patch). The synth is a column of the
   setup (webmidi's `BUILT_IN`, decision 004), so a setup can be MIDI only;
   it plays a part where the part's row crosses it (`synthPlays`). A change is
   a new book (`MidiSettings.book`), applied at once: `band-output.ts`
@@ -26,25 +26,18 @@
     HEARD,
     type PortOption,
     type SetupBook,
-    chooseDevice,
-    forgetDevice,
-    hardwareOutputs,
-    hasBuiltIn,
     isBuiltIn,
-    profileOf,
     removeOutput,
     withCrossing,
   } from '@yggi/webmidi/core';
-  import { DeviceInspector, MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
+  import { MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
   import {
     BAND,
     BAND_PARTS,
     BAND_ROWS,
     channelsTo,
-    drumsTo,
     missingOutputs,
     synthPlays,
-    withOutputProfile,
   } from '../midi/patch.ts';
   import type { MidiSettings } from '../midi/settings.svelte.ts';
   import Fader from './Fader.svelte';
@@ -70,6 +63,8 @@
     onpanic?: () => void;
     /** A test note on an output, by its key, on a channel 1–16. */
     ontest?: (key: string, channel: number) => void;
+    /** All notes off on one output, by its key. */
+    onpanicoutput?: (key: string) => void;
     /** The synth's volume, a fader position 0–1: the Sound card's. */
     volume?: number;
     onvolume?: (volume: number) => void;
@@ -87,6 +82,7 @@
     onrefresh,
     onpanic,
     ontest,
+    onpanicoutput,
     volume = 1,
     onvolume,
   }: Props = $props();
@@ -94,12 +90,9 @@
   const setup = $derived(settings.setup);
   const missing = $derived(missingOutputs(setup, ports.outputs));
 
-  /** The output whose device settings are open, by key, or null. */
-  let inspecting: string | null = $state(null);
-  const output = $derived(setup.outputs.find((o) => o.key === inspecting) ?? null);
-  /** The outputs that send MIDI, numbered from 1 as the matrix numbers them: the synth is none of them. */
-  const hardware = $derived(hardwareOutputs(setup));
-  const slotOf = (key: string) => hardware.findIndex((o) => o.key === key) + 1;
+  /** The synth's settings open: its own dialog, since the synth has no device (the matrix opens the devices' itself). */
+  let inspecting = $state(false);
+  const output = $derived(setup.outputs.find(isBuiltIn) ?? null);
   const SYNTH = 'Synth';
   /** The synth's part labels, as the matrix's rows name them. */
   const partLabel = (part: string) => BAND_ROWS.find((r) => r.id === part)?.label ?? part;
@@ -126,32 +119,32 @@
   // The dialog follows what is inspected: shown modal (over everything, Escape closes it), or closed.
   $effect(() => {
     if (!dialog) return;
-    if (output && !dialog.open) {
+    if (inspecting && output && !dialog.open) {
       if (typeof dialog.showModal === 'function') dialog.showModal();
       else dialog.setAttribute('open', '');
-    } else if (!output && dialog.open) {
+    } else if (!(inspecting && output) && dialog.open) {
       if (typeof dialog.close === 'function') dialog.close();
       else dialog.removeAttribute('open');
     }
   });
-  const close = () => (inspecting = null);
+  const close = () => (inspecting = false);
 
   /** A change of the book, kept; an output it no longer has closes the dialog (`output` is then null). */
   const change = (book: SetupBook) => (settings.book = book);
 
-  /** An output removed (the last is left with no device, its routes kept: webmidi's `removeOutput`), and its dialog closed. */
+  /** The synth taken out of the setup, and its dialog closed. */
   function remove(key: string) {
     change(removeOutput(settings.book, key));
-    inspecting = null;
+    inspecting = false;
   }
 
-  const outLabel = (o: { id: string; name: string }) =>
-    isBuiltIn(o) ? SYNTH : o.id === 'none' ? 'No device' : o.name || o.id;
+  /** A test note, on the first channel routed to the output (else 1). */
+  const testOn = (key: string) => ontest?.(key, channelsTo(setup, key)[0] ?? 1);
 
   let confirmingReset = $state(false);
   function resetMidi() {
     confirmingReset = false;
-    inspecting = null;
+    inspecting = false;
     settings.reset();
   }
 </script>
@@ -188,20 +181,21 @@
           heardBy="the Muse"
           preset={DEFAULT_PRESET}
           builtIn={{ label: SYNTH }}
-          {...inspecting ? { selected: inspecting } : {}}
           onchange={change}
-          onselect={(key) => (inspecting = key)}
+          {...ontest && connected ? { ontest: testOn } : {}}
+          {...onpanicoutput && connected ? { onpanic: onpanicoutput } : {}}
+          onbuiltin={() => (inspecting = true)}
         />
       </div>
-      <div class="devices" role="group" aria-label="Device settings">
-        <span class="hint">Device settings</span>
-        {#each setup.outputs as o (o.key)}
-          <button type="button" class="device" onclick={() => (inspecting = o.key)}>
-            <span class="slot">{isBuiltIn(o) ? 'BUILT-IN' : `OUT ${slotOf(o.key)}`}</span>
-            {outLabel(o)}
+      {#if output}
+        <div class="devices" role="group" aria-label="Device settings">
+          <span class="hint">Device settings</span>
+          <button type="button" class="device" onclick={() => (inspecting = true)}>
+            <span class="slot">BUILT-IN</span>
+            {SYNTH}
           </button>
-        {/each}
-      </div>
+        </div>
+      {/if}
       <div class="reset">
         {#if confirmingReset}
           <span>Forget every MIDI setup and device setting on this device?</span>
@@ -217,14 +211,12 @@
 
       <dialog
         class="inspect"
-        aria-label={output
-          ? `${isBuiltIn(output) ? 'BUILT-IN' : `OUT ${slotOf(output.key)}`}: ${outLabel(output)}`
-          : 'Device settings'}
+        aria-label={`BUILT-IN: ${SYNTH}`}
         bind:this={dialog}
         onclose={close}
         onclick={(e) => e.target === dialog && close()}
       >
-        {#if output && isBuiltIn(output)}
+        {#if output && inspecting}
           <div class="frame">
             <button type="button" class="close" aria-label="Close" onclick={close}>×</button>
             <section class="synth" aria-labelledby="synth-title">
@@ -274,27 +266,6 @@
                 </p>
               </div>
             </section>
-          </div>
-        {:else if output}
-          {@const used = channelsTo(setup, output.key)}
-          <div class="frame">
-            <button type="button" class="close" aria-label="Close" onclick={close}>×</button>
-            <DeviceInspector
-              {output}
-              slot={slotOf(output.key)}
-              ports={ports.outputs}
-              profile={profileOf(settings.book, output.name)}
-              {used}
-              drums={drumsTo(setup, output.key)}
-              canRemove={setup.outputs.length > 1 || output.id !== 'none' || hasBuiltIn(setup)}
-              onport={(port) => change(chooseDevice(settings.book, output.key, port))}
-              onprofile={(c) => change(withOutputProfile(settings.book, output, c))}
-              onremove={() => remove(output.key)}
-              {...Object.hasOwn(settings.book.devices, output.name)
-                ? { onforget: () => change(forgetDevice(settings.book, output.name)) }
-                : {}}
-              {...ontest && connected ? { ontest: () => ontest(output.key, used[0] ?? 1) } : {}}
-            />
           </div>
         {/if}
       </dialog>

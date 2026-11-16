@@ -378,6 +378,7 @@
       onrefresh={() => device.refresh()}
       onpanic={() => player.panicMidi()}
       ontest={(key, channel) => device.testNote(key, channel)}
+      onpanicoutput={(key) => device.panicOutput(key)}
       volume={device.volume}
       onvolume={(volume) => (device.volume = volume)}
     />

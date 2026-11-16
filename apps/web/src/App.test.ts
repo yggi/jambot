@@ -7,13 +7,13 @@ import { fakeAudioContext } from './audio/fake-context.ts';
 import { FADE_OUT } from './device.svelte.ts';
 import { CLIENT_KEY } from './session/storage.ts';
 
-/** The first output's device settings opened, from its button under the patch. */
+/** The first output's details opened, from its head in the patch. */
 const openOutput = () =>
   fireEvent.click(
-    within(screen.getByRole('group', { name: 'Device settings', hidden: true })).getByRole(
-      'button',
-      { name: /^OUT 1/, hidden: true },
-    ),
+    within(screen.getByRole('table', { hidden: true })).getByRole('button', {
+      name: /^OUT 1/,
+      hidden: true,
+    }),
   );
 
 /** The page past its door: solo chosen, the band behind it. */
