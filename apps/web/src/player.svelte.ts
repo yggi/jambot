@@ -310,6 +310,8 @@ interface Follow {
   keys: readonly { readonly bar: number; readonly key: Key }[];
   /** The host's last bar, once it has said which. */
   ends: number | undefined;
+  /** The meter the host's song counts in and opens in: the song's `tempoMeter`, which a bar 0 not yet arrived leaves the count-in (#663). */
+  opening: Meter;
   told: Following;
 }
 
@@ -1197,11 +1199,12 @@ export class Player {
    * The meter the song opens in, which its count-in is a bar of: the meter
    * asked for, or with none the one the repository finds at the style the
    * song opens with (#375); as a client the one its host's first bar is in
-   * once that has arrived, else the song's.
+   * once that has arrived, else the one the host's song told it opens in
+   * (`Song.tempoMeter`), which bar 0 follows a beat after a live start (#663).
    */
   #opening(): Meter {
     const first = this.#follow?.arrived.find((sent) => sent.bar.bar === 0);
-    if (this.#follow) return first?.bar.plan.meter ?? SONG_METER;
+    if (this.#follow) return first?.bar.plan.meter ?? this.#follow.opening;
     return sectionMeter(
       {
         meter: this.meter ?? undefined,
@@ -1319,6 +1322,7 @@ export class Player {
       ear: EAR,
       keys: [],
       ends: undefined,
+      opening: SONG_METER,
       told,
     };
     this.#bars = [];
@@ -1340,6 +1344,7 @@ export class Player {
       ear: EAR,
       keys: [],
       ends: undefined,
+      opening: song.tempoMeter,
     });
     this.status = 'starting';
     const output = await this.prepare();
@@ -1692,6 +1697,8 @@ export class Player {
       ends: follow.ends,
     });
     follow.carried = carried;
+    // The bar the song ends on, as the host's (#663): the count down to it.
+    if (carried!.finale.bar !== this.lastBar) this.lastBar = carried!.finale.bar;
     // The host's texts play through cells, the performer's feel on them, as at the host (#446).
     const scheduled = this.shadow.follow({ env, carried: carried!, output: laid, now });
     if (scheduled.composed.length > 0)
