@@ -79,8 +79,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/theory
       '@yggi/webmidi':
-        specifier: github:yggi/webmidi#v0.6.0
-        version: https://codeload.github.com/yggi/webmidi/tar.gz/8764f7db9484b7a7dea368cb1b88189857e7ea61(svelte@5.57.3(@typescript-eslint/types@8.70.1))
+        specifier: github:yggi/webmidi#v0.6.1
+        version: https://codeload.github.com/yggi/webmidi/tar.gz/a79a4ad8d4b6a6e59a0ab42060eed81d915e4e48(svelte@5.57.3(@typescript-eslint/types@8.70.1))
     devDependencies:
       '@jambot/lobby':
         specifier: workspace:*
@@ -1404,9 +1404,9 @@ packages:
     version: 0.26.0
     engines: {node: '>=22'}
 
-  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/8764f7db9484b7a7dea368cb1b88189857e7ea61':
-    resolution: {tarball: https://codeload.github.com/yggi/webmidi/tar.gz/8764f7db9484b7a7dea368cb1b88189857e7ea61}
-    version: 0.6.0
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/a79a4ad8d4b6a6e59a0ab42060eed81d915e4e48':
+    resolution: {tarball: https://codeload.github.com/yggi/webmidi/tar.gz/a79a4ad8d4b6a6e59a0ab42060eed81d915e4e48}
+    version: 0.6.1
     engines: {node: '>=22'}
     peerDependencies:
       svelte: ^5.57.2
@@ -4378,7 +4378,7 @@ snapshots:
 
   '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/b2a5f90940de89294b41b768b2cc76bbfd6c2655': {}
 
-  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/8764f7db9484b7a7dea368cb1b88189857e7ea61(svelte@5.57.3(@typescript-eslint/types@8.70.1))':
+  '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/a79a4ad8d4b6a6e59a0ab42060eed81d915e4e48(svelte@5.57.3(@typescript-eslint/types@8.70.1))':
     optionalDependencies:
       svelte: 5.57.3(@typescript-eslint/types@8.70.1)
 
