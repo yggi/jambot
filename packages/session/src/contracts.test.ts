@@ -1,23 +1,28 @@
 /**
- * The family's session contract, version 1 (yggi/music-commons `contracts/session-v1`,
- * version 1, minor 9: protocol 22) run against this package's readers, as
- * yggi/webmidi and yggi/cells run theirs: the hub's `vectors.json` is copied
- * into `fixtures/contracts/session.json` with a first field, `lifted`, naming
- * the hub and the commit it came from, and the hub's `README.md` for the
- * contract is the rule. The hub's own `lifted`, what it lifted from Jambot,
- * is kept in the copy as `hubLifted`, its one change.
+ * The family's session contract (yggi/music-commons `contracts/session-v1`,
+ * version 1, minor 9: protocol 22; and `contracts/session`, version 2,
+ * minor 1: protocol 31) run against this package's readers, as yggi/webmidi
+ * and yggi/cells run theirs: each version's hub `vectors.json` is copied into
+ * `fixtures/contracts/` (`session.json` for version 1, `session-v2.json` for
+ * version 2) with a first field, `lifted`, naming the hub's path and the
+ * commit it came from, and the hub's `README.md` for the contract is the
+ * rule. The hub's own `lifted`, what it lifted from Jambot, is kept in the
+ * copy as `hubLifted`, its one change.
  *
  * Each vector names its reader: `host` reads a client's message
- * (`readClientMessage`), `client` a host's (`readHostMessage`), `lobby` a
- * page's request (`readToLobby`) and `page` what a lobby says
- * (`readFromLobby`). A reader gives a message it reads back as it is, and
- * null for one it doesn't; a vector with `put` has a number JSON can't hold
- * set at its dotted path first. A join with `admits` is met by the host's
- * `admit` (`roster.ts`), as `host.svelte.ts` calls it: the host's code
- * (`byCode`), the seat the join's token opens (`seat`), the lock from the
- * wrong codes tried (`wrongCodes`, at the join's time `at`), and whether it
- * is seated to listen (`listens`). A welcome with `admits` is met by the
- * client's check, `sameMajor` (`client.svelte.ts`).
+ * (`readClientMessage`, which version 2 shares, its client messages being
+ * version 1's at minor 9), `client` a host's (`readHostMessage`, or
+ * `readHostMessageV2` for version 2), `lobby` a page's request
+ * (`readToLobby`) and `page` what a lobby says (`readFromLobby`), both
+ * versions' alike, as a lobby reads no version. A reader gives a message it
+ * reads back as it is, and null for one it doesn't; a vector with `put` has
+ * a number JSON can't hold set at its dotted path first. A join with
+ * `admits` is met by the host's `admit` (`roster.ts`) at the vector's
+ * version, as `host.svelte.ts` calls it: the host's code (`byCode`), the
+ * seat the join's token opens (`seat`), the lock from the wrong codes tried
+ * (`wrongCodes`, at the join's time `at`), and whether it is seated to
+ * listen (`listens`). A welcome with `admits` is met by the client's check,
+ * `sameMajor` at the vector's version (`client.svelte.ts`).
  * Both readers drop a kind they don't know as they drop one malformed, and
  * keep the link, so `ignored` is met by `reads` alone, as the contract allows.
  *
@@ -27,10 +32,12 @@
  */
 import { PARTS } from '@jambot/engine';
 import { describe, expect, it } from 'vitest';
-import hub from '../fixtures/contracts/session.json';
+import hubV1 from '../fixtures/contracts/session.json';
+import hubV2 from '../fixtures/contracts/session-v2.json';
 import { CLOCK } from './clock.ts';
 import { EAR_AFTER } from './ear.ts';
 import { SESSION_NAME_MAX, readFromLobby, readToLobby } from './lobby.ts';
+import { FIRST_PROTOCOL_V2, PROTOCOL_V2, SESSION_V2, readHostMessageV2 } from './protocol-v2.ts';
 import {
   type ClientMessage,
   FIRST_PROTOCOL,
@@ -38,6 +45,8 @@ import {
   PLAYED_MOST,
   PROTOCOL,
   type Role,
+  SESSION_V1,
+  type SessionVersion,
   WRONG_CODES,
   readClientMessage,
   readHostMessage,
@@ -63,7 +72,7 @@ interface Vector {
   readonly listens?: boolean;
 }
 
-const contract = hub as unknown as {
+interface Contract {
   readonly lifted: string;
   readonly contract: string;
   readonly version: number;
@@ -73,13 +82,28 @@ const contract = hub as unknown as {
   readonly parts: readonly string[];
   readonly limits: Readonly<Record<string, number>>;
   readonly vectors: readonly Vector[];
-};
+}
 
-const READERS: Record<Vector['reader'], (data: unknown) => unknown> = {
-  host: readClientMessage,
-  client: readHostMessage,
-  lobby: readToLobby,
-  page: readFromLobby,
+type Readers = Record<Vector['reader'], (data: unknown) => unknown>;
+
+/** One version of the contract as Jambot runs it: the copy, its readers, and the version its peers admit by. */
+interface Run {
+  readonly contract: Contract;
+  readonly readers: Readers;
+  readonly speaks: SessionVersion;
+}
+
+const LOBBY_READERS = { lobby: readToLobby, page: readFromLobby } as const;
+
+const V1: Run = {
+  contract: hubV1 as unknown as Contract,
+  readers: { host: readClientMessage, client: readHostMessage, ...LOBBY_READERS },
+  speaks: SESSION_V1,
+};
+const V2: Run = {
+  contract: hubV2 as unknown as Contract,
+  readers: { host: readClientMessage, client: readHostMessageV2, ...LOBBY_READERS },
+  speaks: SESSION_V2,
 };
 
 /** A vector's message as its reader gets it: a number JSON can't hold put in at its path. */
@@ -131,14 +155,14 @@ function rosterFor(v: Vector, join: ClientMessage & { kind: 'join' }): Roster {
 }
 
 /**
- * How Jambot meets a vector: null where it does, or what differs. A reader
- * reads the message as it is or not at all, and a peer admits exactly the
- * joins and welcomes the vector admits, for the reason it names, a join
- * seated to listen where it says so.
+ * How Jambot meets a vector of a version: null where it does, or what
+ * differs. A reader reads the message as it is or not at all, and a peer
+ * admits exactly the joins and welcomes the vector admits, for the reason it
+ * names, a join seated to listen where it says so.
  */
-function differs(v: Vector): string | null {
+function differs(run: Run, v: Vector): string | null {
   const message = delivered(v);
-  const read = READERS[v.reader](message);
+  const read = run.readers[v.reader](message);
   if (v.reads && read !== message) return `${v.reader} doesn't read it`;
   if (!v.reads && read !== null) return `${v.reader} reads it`;
   if (v.admits === undefined) return null;
@@ -154,6 +178,7 @@ function differs(v: Vector): string | null {
       '',
       v.byCode ?? null,
       locked,
+      run.speaks,
     );
     const why = 'refusal' in admitted ? admitted.refusal : null;
     if ((why === null) !== v.admits) return v.admits ? `host refuses: ${why}` : 'host admits';
@@ -166,105 +191,177 @@ function differs(v: Vector): string | null {
       return v.listens ? 'host seats it to play' : 'host seats it to listen';
     return null;
   }
-  const stays = sameMajor((read as { protocol: unknown }).protocol);
+  const stays = sameMajor((read as { protocol: unknown }).protocol, run.speaks);
   return stays === v.admits ? null : stays ? 'client stays' : 'client leaves';
 }
 
 /**
- * The vectors Jambot doesn't meet, by name, each with why. Empty: a client
- * checks a host message's fields (`readHostMessage`), a host's join a
- * protocol that is an integer, and a page a listed session's `away`
- * (`readFromLobby`), as the contract's rule has them.
+ * The vectors Jambot doesn't meet, by version and name, each with why.
+ * Empty for both: a client checks a host message's fields
+ * (`readHostMessage`, `readHostMessageV2`), a host's join a protocol that is
+ * an integer, and a page a listed session's `away` (`readFromLobby`), as the
+ * contract's rule has them.
  */
-const RECORDED: Readonly<Record<string, string>> = {};
+const RECORDED: Readonly<Record<1 | 2, Readonly<Record<string, string>>>> = { 1: {}, 2: {} };
 
 /** The names recorded that name no vector: none while each record is of one. */
 const strays = (names: readonly string[], recorded: readonly string[]) =>
   recorded.filter((n) => !names.includes(n));
 
-describe('the session contract (yggi/music-commons contracts/session-v1, version 1, minor 9)', () => {
-  const names = contract.vectors.map((v) => v.name);
-  const named = (name: string) => contract.vectors.find((v) => v.name === name)!;
+const namesOf = (run: Run) => run.contract.vectors.map((v) => v.name);
+const named = (run: Run, name: string) => run.contract.vectors.find((v) => v.name === name)!;
 
-  it('is the version Jambot speaks, lifted with its source named, each vector named once', () => {
-    expect(contract.lifted).toMatch(
-      /^Lifted from yggi\/music-commons contracts\/session-v1\/vectors\.json @ [0-9a-f]{7,40}$/,
+describe.each([
+  [1, V1, 'session-v1', 9, 360],
+  [2, V2, 'session', 1, 365],
+] as const)(
+  'the session contract, version %i (yggi/music-commons contracts/%s, minor %i)',
+  (version, run, path, minor, count) => {
+    const { contract } = run;
+    const names = namesOf(run);
+
+    it('is lifted with its source named, each vector named once, every record of a vector', () => {
+      expect(contract.lifted).toMatch(
+        new RegExp(
+          `^Lifted from yggi/music-commons contracts/${path}/vectors\\.json @ [0-9a-f]{7,40}$`,
+        ),
+      );
+      expect([contract.contract, contract.version, contract.minor]).toEqual([
+        'session',
+        version,
+        minor,
+      ]);
+      expect(contract.firstProtocol).toBe(run.speaks.firstProtocol);
+      expect(new Set(names).size).toBe(names.length);
+      expect(strays(names, Object.keys(RECORDED[version]))).toEqual([]);
+      expect(names).toHaveLength(count);
+    });
+
+    it("holds Jambot's parts and the limits this package keeps", () => {
+      expect(contract.parts).toEqual(PARTS);
+      const {
+        playedMost,
+        sentAfterSteps,
+        resumeSeconds,
+        tooFarSeconds,
+        sessionNameMost,
+        codeDigits,
+        wrongCodes,
+        wrongCodesSeconds,
+      } = contract.limits;
+      expect({
+        playedMost,
+        sentAfterSteps,
+        resumeSeconds,
+        tooFarSeconds,
+        sessionNameMost,
+        codeDigits,
+        wrongCodes,
+        wrongCodesSeconds,
+      }).toEqual({
+        playedMost: PLAYED_MOST,
+        sentAfterSteps: EAR_AFTER,
+        resumeSeconds: RESUME_WINDOW,
+        tooFarSeconds: CLOCK.tooFar,
+        sessionNameMost: SESSION_NAME_MAX,
+        codeDigits: CODE_DIGITS,
+        wrongCodes: WRONG_CODES.count,
+        wrongCodesSeconds: WRONG_CODES.seconds,
+      });
+    });
+
+    it.each(contract.vectors.map((v) => [v.reader, v.name, v] as const))(
+      '%s: %s',
+      (_reader, name, v) => {
+        const recorded = RECORDED[version];
+        if (Object.hasOwn(recorded, name)) expect(differs(run, v), recorded[name]).not.toBeNull();
+        else expect(differs(run, v)).toBeNull();
+      },
     );
-    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 9]);
+  },
+);
+
+describe('the session contract, version 1, as Jambot speaks it', () => {
+  it('is the version Jambot speaks, a minor on from the copy', () => {
     // (Jambot speaks minor 10, protocol 23: a drum hit's role may be `ostinato`, #651, a value the hub records at its
     // next lift; minor 9's vectors still hold, a minor only adding)
-    expect([contract.protocol + 1, contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
-    expect(new Set(names).size).toBe(names.length);
-    expect(strays(names, Object.keys(RECORDED))).toEqual([]);
-    expect(names).toHaveLength(360);
-  });
-
-  it("holds Jambot's parts and the limits this package keeps", () => {
-    expect(contract.parts).toEqual(PARTS);
-    const {
-      playedMost,
-      sentAfterSteps,
-      resumeSeconds,
-      tooFarSeconds,
-      sessionNameMost,
-      codeDigits,
-      wrongCodes,
-      wrongCodesSeconds,
-    } = contract.limits;
-    expect({
-      playedMost,
-      sentAfterSteps,
-      resumeSeconds,
-      tooFarSeconds,
-      sessionNameMost,
-      codeDigits,
-      wrongCodes,
-      wrongCodesSeconds,
-    }).toEqual({
-      playedMost: PLAYED_MOST,
-      sentAfterSteps: EAR_AFTER,
-      resumeSeconds: RESUME_WINDOW,
-      tooFarSeconds: CLOCK.tooFar,
-      sessionNameMost: SESSION_NAME_MAX,
-      codeDigits: CODE_DIGITS,
-      wrongCodes: WRONG_CODES.count,
-      wrongCodesSeconds: WRONG_CODES.seconds,
-    });
+    expect([V1.contract.protocol + 1, V1.contract.firstProtocol]).toEqual([
+      PROTOCOL,
+      FIRST_PROTOCOL,
+    ]);
+    expect(SESSION_V1).toEqual({ protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL });
   });
 
   it('is shown firing: a vector turned over, or a record of none, is caught', () => {
-    const ping = named('ping');
-    expect(differs(ping)).toBeNull();
-    expect(differs({ ...ping, reads: false })).toBe('host reads it');
-    const older = named('handshake: a welcome at protocol 12, a version before');
-    expect(differs({ ...older, admits: true })).toBe('client leaves');
-    const old = named('handshake: a join at protocol 12, a version before');
-    expect(differs({ ...old, admits: true })).toMatch(/^host refuses: .*version/);
-    expect(differs({ ...old, refusedFor: 'name' })).toBe('host refuses for version');
+    const ping = named(V1, 'ping');
+    expect(differs(V1, ping)).toBeNull();
+    expect(differs(V1, { ...ping, reads: false })).toBe('host reads it');
+    const older = named(V1, 'handshake: a welcome at protocol 12, a version before');
+    expect(differs(V1, { ...older, admits: true })).toBe('client leaves');
+    const old = named(V1, 'handshake: a join at protocol 12, a version before');
+    expect(differs(V1, { ...old, admits: true })).toMatch(/^host refuses: .*version/);
+    expect(differs(V1, { ...old, refusedFor: 'name' })).toBe('host refuses for version');
     const locked = named(
+      V1,
       'handshake: "Ada", code "042917", to a host by code "042917", wrong codes at 0, 10, 20, 30, 40 s, joining at 59.9 s',
     );
-    expect(differs({ ...locked, refusedFor: 'code' })).toBe('host refuses for locked');
-    expect(differs({ ...locked, at: 60 })).toBe('host admits');
-    const listens = named('handshake: "Ada", no code, to a host by code "042917"');
-    expect(differs({ ...listens, listens: false })).toBe('host seats it to listen');
-    expect(differs({ ...listens, byCode: null })).toBe('host seats it to play');
+    expect(differs(V1, { ...locked, refusedFor: 'code' })).toBe('host refuses for locked');
+    expect(differs(V1, { ...locked, at: 60 })).toBe('host admits');
+    const listens = named(V1, 'handshake: "Ada", no code, to a host by code "042917"');
+    expect(differs(V1, { ...listens, listens: false })).toBe('host seats it to listen');
+    expect(differs(V1, { ...listens, byCode: null })).toBe('host seats it to play');
     const listener = named(
+      V1,
       'handshake: "Bo", no code, a listener\'s token, beside the host, to a host by code "042917"',
     );
-    expect(differs({ ...listener, seat: 'player' })).toBe('host seats it to play');
+    expect(differs(V1, { ...listener, seat: 'player' })).toBe('host seats it to play');
     const away = named(
+      V1,
       'from a lobby: {"op":"sessions","sessions":[{"name":"jam","players":2,"away":"yes"},{"name":"reel","players":1}]}',
     );
-    expect(differs({ ...away, reads: true })).toBe("page doesn't read it");
+    expect(differs(V1, { ...away, reads: true })).toBe("page doesn't read it");
     expect(strays(['a', 'b'], ['a', 'gone'])).toEqual(['gone']);
   });
+});
 
-  it.each(contract.vectors.map((v) => [v.reader, v.name, v] as const))(
-    '%s: %s',
-    (_reader, name, v) => {
-      if (Object.hasOwn(RECORDED, name)) expect(differs(v), RECORDED[name]).not.toBeNull();
-      else expect(differs(v)).toBeNull();
-    },
-  );
+describe('the session contract, version 2, as Jambot reads it (nothing speaks it yet)', () => {
+  it("is version 2's own protocol and first", () => {
+    expect([V2.contract.protocol, V2.contract.firstProtocol]).toEqual([
+      PROTOCOL_V2,
+      FIRST_PROTOCOL_V2,
+    ]);
+    expect(SESSION_V2).toEqual({ protocol: PROTOCOL_V2, firstProtocol: FIRST_PROTOCOL_V2 });
+  });
+
+  it("is shown firing: version 1's reader or admission in its place, or a vector turned over, is caught", () => {
+    // Version 1's reader reads none of version 2's own kinds, and reads version 1's `bar`, which version 2 ignores.
+    const asV1: Run = { ...V2, readers: V1.readers, speaks: SESSION_V1 };
+    const score = named(V2, 'score, a text');
+    expect(differs(V2, score)).toBeNull();
+    expect(differs(asV1, score)).toBe("client doesn't read it");
+    expect(differs(asV1, named(V2, 'conduct'))).toBe("client doesn't read it");
+    expect(differs(asV1, named(V2, 'welcome while playing'))).toBe("client doesn't read it");
+    expect(differs(asV1, named(V2, 'bar, version 1’s, to a client of version 2'))).toBe(
+      'client reads it',
+    );
+    // Version 1's admission takes a join and a welcome at 29, which version 2 refuses.
+    const joinAt29 = named(V2, 'handshake: a join at protocol 29, a version before');
+    const welcomeAt29 = named(V2, 'handshake: a welcome at protocol 29, a version before');
+    expect(differs(V2, joinAt29)).toBeNull();
+    expect(differs(V2, welcomeAt29)).toBeNull();
+    const admitsAsV1: Run = { ...V2, speaks: SESSION_V1 };
+    expect(differs(admitsAsV1, joinAt29)).toBe('host admits');
+    expect(differs(admitsAsV1, welcomeAt29)).toBe('client stays');
+    // Each refusal of version 2's own fields, turned over.
+    for (const name of [
+      'score, a text: lock.1.id = "band"',
+      'score, a text: section = "chorus"',
+      'conduct: entropy = 1.5',
+      'welcome while stopped: band.hash = 7',
+      'welcome while playing: song.conducts absent',
+    ])
+      expect(differs(V2, { ...named(V2, name), reads: true }), name).toBe("client doesn't read it");
+    const own = named(V2, 'handshake: a join at protocol 31, its own');
+    expect(differs(V2, { ...own, admits: false })).toBe('host admits');
+  });
 });
