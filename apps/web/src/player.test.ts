@@ -1069,6 +1069,29 @@ describe('the count-in', () => {
     const late = new Player(surroundings().s, new Metronome());
     expect(late.counting).toBe(false);
   });
+
+  it.each(['6/8', '7/8'] as const)(
+    'counts a client in the meter its host’s song opens in, %s, before the host’s first bar has reached it (#663)',
+    async (meter) => {
+      const { world, s } = surroundings();
+      const player = new Player(s, new Metronome());
+      player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
+      const song = {
+        seed: 3,
+        start: 5,
+        track: holdingSynthPop(),
+        swing: holdingSwing(STRAIGHT),
+        tempoMeter: METERS[meter],
+      };
+      void player.followSong(song, []);
+      world.resolve();
+      await settle();
+      expect(world.clicks.map((c) => c.seconds)).toEqual(
+        countIn(song.track, song.start, METERS[meter]).map((c) => c.seconds),
+      );
+      expect(world.clicks.length).toBe(meter === '6/8' ? 2 : 3);
+    },
+  );
 });
 
 describe('stopping on a cadence', () => {

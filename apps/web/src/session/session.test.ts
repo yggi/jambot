@@ -207,6 +207,54 @@ describe('a host and a client session', () => {
     hosting.close();
   });
 
+  it.each(['6/8', '7/8'] as const)(
+    "counts a client in the host's meter, %s, to the host's clicks, when it joined before the song (#663)",
+    async (meter) => {
+      const lobby = memoryLobby();
+      const host = device(105);
+      const client = device(100);
+      host.player.setMeter(METERS[meter]);
+      const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+      await hosting.open(lobby, 'Jam');
+      const following = new ClientSession(client.player, client.clocks);
+      await following.join(lobby, 'Jam', 'Ada');
+      await host.player.start();
+      await run([host, client], 1);
+      // The count-in is a bar of the meter the song opens in: the host's clicks, on the host's clock.
+      expect(host.world.clicks.length).toBe(meter === '6/8' ? 2 : 3);
+      // The client's are on its own clock, 5 s behind, and begin a beat after the host's start: the host's clicks it
+      // hadn't passed, the same weights, none off by more than 1 ms.
+      const mine = client.world.clicks;
+      expect(mine.length).toBeGreaterThan(0);
+      const theirs = host.world.clicks.slice(-mine.length);
+      expect(mine.map((c) => c.weight)).toEqual(theirs.map((c) => c.weight));
+      mine.forEach((c, i) =>
+        expect(Math.abs(c.seconds + 5 - theirs[i]!.seconds)).toBeLessThan(0.001),
+      );
+      following.leave();
+      hosting.close();
+    },
+  );
+
+  it("sets a client's last bar to the host's once the host asks the song to end, and counts it down (#663)", async () => {
+    const lobby = memoryLobby();
+    const host = device(105);
+    const client = device(100);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
+    await hosting.open(lobby, 'Jam');
+    const following = new ClientSession(client.player, client.clocks);
+    await following.join(lobby, 'Jam', 'Ada');
+    await host.player.start();
+    await run([host, client], 10);
+    expect([host.player.lastBar, client.player.lastBar]).toEqual([null, null]);
+    host.player.stop();
+    await run([host, client], 1);
+    expect(host.player.lastBar).not.toBeNull();
+    expect(client.player.lastBar).toBe(host.player.lastBar);
+    following.leave();
+    hosting.close();
+  });
+
   it('play the host’s section texts on a client through cells, event for event, the one that joins before the song and one that joins mid-song alike (#446)', async () => {
     const lobby = memoryLobby();
     const host = device(105);
