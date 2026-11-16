@@ -5,7 +5,7 @@
  * wording and each colour.
  */
 
-import type { Role } from '@jambot/session';
+import type { LackedBy, Role } from '@jambot/session';
 import { SOURCE_COLOURS } from './attribution.ts';
 import type { Mode } from './player.svelte.ts';
 import type { ClientStatus } from './session/client.svelte.ts';
@@ -16,6 +16,8 @@ export interface Hosting {
   readonly guests: readonly Guest[];
   /** The code a host admits its clients by (#461), or null (or absent) while its session is open. */
   readonly code?: string | null;
+  /** The bars each client told the host it didn't play, by why, by its id (#553), or absent for none. */
+  readonly lacked?: LackedBy;
 }
 
 export interface Following {

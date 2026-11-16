@@ -319,6 +319,8 @@ export interface Following {
   forget(): void;
   /** The host's heard moment less this output's now, once the clocks are trusted: read every tick. */
   skew(): number | null;
+  /** Bars it didn't play, following a host of session version 2, each once as it passes, and why (#553). */
+  lacked?(said: readonly Said[]): void;
 }
 
 /**
@@ -1935,6 +1937,7 @@ export class Player {
     follow.scores = [];
     for (const { given, joined } of scores) this.shadow.givenScore(given, joined);
     const scored = this.#scoredOver(env, now, follow, follow.ends);
+    if (scored.newlySaid.length > 0) follow.told.lacked?.(scored.newlySaid);
     const playing = clockOfTransport(scored.carried).barAt(scored.carried.head.step);
     follow.kept = keptFrom(follow.kept.scores, follow.kept.conducts, playing);
     return scored;
@@ -1955,10 +1958,13 @@ export class Player {
     });
     over.scored = carried;
     const { lacked, silent, said } = carried!.source;
+    // Each bar newly lacked or silent, the latest of those said, as many as the counts grew by: a client tells its host.
+    const fresh = lacked + silent - (this.lacked + this.silent);
+    const newlySaid = fresh > 0 ? said.slice(-fresh) : [];
     if (lacked !== this.lacked) this.lacked = lacked;
     if (silent !== this.silent) this.silent = silent;
     if (said !== this.said) this.said = said;
-    return { carried: carried!, laid };
+    return { carried: carried!, laid, newlySaid };
   }
 
   /** Play what the transport scheduled, count it, and keep its steps for what is heard. */

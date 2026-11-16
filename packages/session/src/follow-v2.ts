@@ -13,7 +13,8 @@
  * A bar plays from its score only where its conduct carries the digest the
  * score foresaw for it; otherwise it is lacked, and said so (`said`). A bar no
  * score states (none told, or one that says why it can't) plays silent, and
- * is said and counted (`silent`). A lacked or silent bar is passed, as
+ * is said and counted (`silent`). Each is said as the contract's `lacked`
+ * names why (`LACKED_AS`), which a client tells its host. A lacked or silent bar is passed, as
  * version 1 passes a bar that hasn't arrived: nothing is laid in it, and the
  * conduct of the bar after sets the clock again.
  *
@@ -39,6 +40,7 @@ import {
 } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
 import type { BarConduct, SectionScore } from './protocol-v2.ts';
+import type { LackedWhy } from './protocol.ts';
 
 /** How many bars back a client keeps the scores and conducts it was told (#553, #626): a looper's or a section lock's window. */
 export const KEPT_BARS = 8;
@@ -89,11 +91,11 @@ interface BarStated {
 /** What reaches a follower: a bar's conduct, or what a score states of a bar. */
 export type ScoreArrival = { readonly conduct: BarConduct } | { readonly stated: StatedBar };
 
-/** A bar lacked or silent, and why: what a client says of it. */
+/** A bar lacked or silent: why, as the contract's `lacked` names it, and in words: what a client says of it, and tells its host. */
 export interface Said {
   readonly bar: number;
-  readonly silent: boolean;
-  readonly why: string;
+  readonly why: LackedWhy;
+  readonly text: string;
 }
 
 export interface ScoreFollowCarried {
@@ -116,6 +118,22 @@ export const SAYS = {
   reading: 'its score was still being read',
   digest: 'its conduct’s digest is not the one its score foresaw',
 } as const;
+
+/**
+ * Each way a follower lacks a bar, as the session contract's `lacked` names why (version 2, minor 2): a bar whose
+ * conduct didn't come or whose score was still being read when it was due came too late to play (`late`); one no
+ * score states, none told or one `unstated`, plays silent (`silent`); one whose conduct's digest isn't its score's
+ * is `digest`; one whose score can't be played here, as it locks a fragment the client lacks or cells reads no frame
+ * in it, is `lock`.
+ */
+export const LACKED_AS = {
+  noConduct: 'late',
+  reading: 'late',
+  noScore: 'silent',
+  unstated: 'silent',
+  digest: 'digest',
+  lacking: 'lock',
+} as const satisfies Readonly<Record<keyof typeof SAYS | 'unstated' | 'lacking', LackedWhy>>;
 
 /** Each bar a score states, as it leaves it once read, or while it is read. */
 export function statedBars(
@@ -181,7 +199,7 @@ export function barOfScore(
 
 const sayOf = (carried: ScoreFollowCarried, said: Said): ScoreFollowCarried => ({
   ...carried,
-  ...(said.silent ? { silent: carried.silent + 1 } : { lacked: carried.lacked + 1 }),
+  ...(said.why === 'silent' ? { silent: carried.silent + 1 } : { lacked: carried.lacked + 1 }),
   said: [...carried.said, said].slice(-SAID_KEPT),
 });
 
@@ -213,19 +231,16 @@ export const scoreSource: BarSource<ScoreFollowCarried, ScoreArrival> = {
     const conduct = carried.conducts.find((c) => c.bar === env.bar);
     const stated = carried.stated[env.bar];
     const rest = past(carried, env.bar);
-    const lacked = (why: string) => ({
-      carried: sayOf(rest, { bar: env.bar, silent: false, why }),
+    const lacked = (as: keyof typeof LACKED_AS, text: string) => ({
+      carried: sayOf(rest, { bar: env.bar, why: LACKED_AS[as], text }),
       bar: null,
     });
-    if (!conduct) return lacked(SAYS.noConduct);
-    if (!stated || stated.kind === 'unstated')
-      return {
-        carried: sayOf(rest, { bar: env.bar, silent: true, why: stated?.why ?? SAYS.noScore }),
-        bar: null,
-      };
-    if (stated.kind === 'reading') return lacked(SAYS.reading);
-    if (stated.kind === 'lacking') return lacked(stated.why);
-    if (stated.foreseen !== conduct.foreseen) return lacked(SAYS.digest);
+    if (!conduct) return lacked('noConduct', SAYS.noConduct);
+    if (!stated) return lacked('noScore', SAYS.noScore);
+    if (stated.kind === 'unstated') return lacked('unstated', stated.why);
+    if (stated.kind === 'reading') return lacked('reading', SAYS.reading);
+    if (stated.kind === 'lacking') return lacked('lacking', stated.why);
+    if (stated.foreseen !== conduct.foreseen) return lacked('digest', SAYS.digest);
     const bar = barOfScore(env, conduct, stated.frame);
     return conduct.start === null
       ? { carried: rest, bar }

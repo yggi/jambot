@@ -28,15 +28,17 @@
  * after the app was closed is kept as it changes (`ClientKeep`).
  *
  * It joins at the version of the session contract the app speaks
- * (`SESSION_SPEAKS`, or `speaks` as it is made), and reads its host by the
- * version the host's welcome says (`versionOf`): a client of version 2 plays
- * a host of version 1 as one of version 1 does. A host of version 2 (#553)
- * sends each bar's conduct and each section's score, which go to the player
+ * (`SESSION_SPEAKS`, version 2, or `speaks` as it is made), and leaves a
+ * host whose welcome says another version (`versionOf`), saying `leave`, as
+ * the contract's rollout has Jambot's pages move together (#553): a page of
+ * version 1 cached from before is left. A host of version 2 sends each bar's
+ * conduct and each section's score, which go to the player
  * (`followConduct`, `followScore`), and with a score the fragments it locks
  * that this client lacks, once each by hash: they are kept, given with each
  * later score that locks them, and kept with the resume record, so a page
  * that reloads and joins again by its token still holds what the host won't
- * send its seat again.
+ * send its seat again. Each bar the player didn't play it tells the host
+ * (`lacked`, minor 2), with why, as the contract names it (`LACKED_AS`).
  */
 
 import type { ForecastBar, Nudged } from '@jambot/engine';
@@ -47,6 +49,7 @@ import {
   type HostMessage,
   type HostMessageV2,
   type HostSaid,
+  FIRST_PROTOCOL_V2,
   PROTOCOL_V2,
   type SectionScore,
   readHostMessage,
@@ -264,6 +267,10 @@ export class ClientSession {
       },
       forget: () => this.#send({ kind: 'forget' }),
       skew: () => this.#skew(),
+      // Each bar it didn't play, told to a host of version 2, which counts them (minor 2, #553).
+      lacked: (said) => {
+        if (this.#version === 2) for (const s of said) this.#send({ kind: 'lacked', ...s });
+      },
     });
     try {
       await this.#connect(lobby);
@@ -446,19 +453,20 @@ export class ClientSession {
   }
 
   /**
-   * A host's message, read by the version its welcome says (a welcome by its own protocol): version 1's as ever, and
-   * version 2's (#553) where this client speaks it; one that doesn't read as its version's is dropped.
+   * A host's message, read by the version its welcome says (a welcome by its own protocol), which is the one this
+   * client speaks, else it leaves: version 2's (#553), or version 1's where made to speak it; one that doesn't read as
+   * its version's is dropped.
    */
   #hear(said: HostSaid) {
     if (said.kind === 'welcome') {
       if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
       this.#welcomeWait = null;
       const version = versionOf(said.protocol);
-      // A host of a major version this app doesn't read: say so, and go (#460).
-      if (version === 2 ? this.#speaks !== 2 : !sameMajor(said.protocol)) {
+      // A host of another major version than this app speaks: say so, and go (#460, the contract's rollout).
+      if (version !== this.#speaks || !sameMajor(said.protocol)) {
         this.#send({ kind: 'leave' });
         return this.#end(
-          `This host speaks version ${said.protocol} of the session protocol, and this app reads ${FIRST_PROTOCOL} on: reload the host.`,
+          `This host speaks version ${said.protocol} of the session protocol, and this app reads ${this.#speaks === 2 ? FIRST_PROTOCOL_V2 : FIRST_PROTOCOL} on: reload the host.`,
         );
       }
       this.#version = version;

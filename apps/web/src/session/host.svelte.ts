@@ -27,8 +27,9 @@
  * player's nudge leans the band, weighed by the players present (`nudgeFrom`,
  * step 2 of docs/briefs/session-roles.md); a listener's is dropped.
  *
- * It speaks one version of the session contract (`SESSION_SPEAKS`, or `speaks`
- * as it is made), and admits a client of that version. Version 1 sends each
+ * It speaks one version of the session contract (`SESSION_SPEAKS`, version 2,
+ * or `speaks` as it is made), and admits a client of that version alone, any
+ * minor of it. Version 1, which only a test makes it speak now, sends each
  * bar the band composed (`bar`) and each section's text (`section`).
  * Version 2 (#553) sends each bar's conduct in place of the bar
  * (`conductOf`) and each section's score in place of its text; either way its
@@ -37,7 +38,9 @@
  * for its own player (#711). With a score go the
  * fragments it locks that a client lacks, each sent to a client once, by
  * hash (`fragmentsLacked`), the ledger kept by the client's seat, so a
- * client back with its token is not sent again what it was sent.
+ * client back with its token is not sent again what it was sent. A client
+ * of version 2 tells it each bar it didn't play (`lacked`, minor 2), which it
+ * counts by the client's seat (`lacked`), for its Session card and a soak.
  */
 
 import { type BandBar, type ForecastBar, SECTION_BARS } from '@jambot/engine';
@@ -50,6 +53,7 @@ import {
   type HostSaid,
   type HostScore,
   type HostSnapshot,
+  type LackedBy,
   type MuseState,
   PROTOCOL,
   PROTOCOL_V2,
@@ -72,6 +76,7 @@ import {
   type SessionEvent,
   type SentBar,
   conductOf,
+  countLacked,
   fragmentsLacked,
   ledgerOf,
   scoreFor,
@@ -135,6 +140,8 @@ export class HostSession {
   code: string | null = $state(null);
   /** The session's log, oldest first (`log.ts`): what the players and the band said. */
   log: readonly SessionEvent[] = $state.raw([]);
+  /** The bars each client told it it didn't play, by why, by the client's seat (version 2's `lacked`, #553). */
+  lacked: LackedBy = $state.raw({});
 
   #player: Player;
   #clocks: DeviceClocks;
@@ -366,6 +373,7 @@ export class HostSession {
     this.code = null;
     this.guests = [];
     this.log = [];
+    this.lacked = {};
     this.#roster = [];
     this.#ledger = {};
     this.#wrongCodes = [];
@@ -472,6 +480,10 @@ export class HostSession {
         return this.#say(
           nudgedLine(this.#bar(), member.id, member.name, message.target, message.by),
         );
+      case 'lacked':
+        // Counted for a player and a listener alike: what a bar lacked says is the session's, not the Muse's.
+        if (this.#speaks === 2) this.lacked = countLacked(this.lacked, member.id, message.why);
+        return;
       case 'leave':
         this.#seat(leave(this.#roster, from));
         return this.#say(leftLine(this.#bar(), member.id, member.name));

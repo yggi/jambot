@@ -28,6 +28,7 @@ import {
 } from '@jambot/engine';
 import {
   type FollowCarried,
+  LACKED_AS,
   SAYS,
   type ScoreArrival,
   type ScoreFollowCarried,
@@ -653,7 +654,10 @@ describe('the band through cells (#399, #469)', () => {
     expect(readout.played).toEqual({ cells: 0, band: 0 });
     expect(lacked!.silent).toBeGreaterThanOrEqual(16);
     expect(lacked!.lacked).toBe(0);
-    expect(lacked!.said.at(-1)).toMatchObject({ silent: true, why: 'a test states none' });
+    expect(lacked!.said.at(-1)).toMatchObject({
+      why: 'silent',
+      text: expect.stringContaining('a test states none'),
+    });
   });
 
   it('holds the band to what it checks: a lead note moved in the text, an onset 2 ms late, a note the band plays that cells lacks, a velocity one louder or a note sounding shorter, each fails it', () => {
@@ -836,7 +840,8 @@ describe('a section’s text from a worker (#406)', () => {
     const { readout, band, played, lacked } = run({ delay: 2 });
     expect(lacked!.lacked).toBeGreaterThan(0);
     expect(lacked!.silent).toBe(0);
-    expect(lacked!.said.map((s) => s.why)).toContain(SAYS.reading);
+    expect(lacked!.said.map((s) => s.why)).toContain(LACKED_AS.reading);
+    expect(lacked!.said.some((s) => s.text.includes(SAYS.reading))).toBe(true);
     expect(readout.played.band).toBe(0);
     expect(readout.played.cells).toBeGreaterThan(0);
     const bars = new Set(played.map((e) => e.bar));
