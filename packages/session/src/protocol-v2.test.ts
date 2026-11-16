@@ -4,14 +4,18 @@ import {
   type BarConduct,
   FIRST_PROTOCOL_V2,
   PROTOCOL_V2,
+  NO_LACKED,
   SESSION_V2,
   type SectionScore,
+  countLacked,
+  lackedIn,
   readHostMessageV2,
   readHostSaid,
   versionOf,
 } from './protocol-v2.ts';
 import {
   FIRST_PROTOCOL,
+  LACKED_WHYS,
   PROTOCOL,
   SESSION_V1,
   readClientMessage,
@@ -69,10 +73,10 @@ const welcome = {
   band: { id: 'band', hash: 'h3' },
 };
 
-describe('the session protocol, version 2 (read, not yet spoken)', () => {
-  it('is protocol 31, version 2 from 30, while Jambot speaks version 1', () => {
-    expect([PROTOCOL_V2, FIRST_PROTOCOL_V2]).toEqual([31, 30]);
-    expect(SESSION_V2).toEqual({ protocol: 31, firstProtocol: 30 });
+describe('the session protocol, version 2', () => {
+  it('is protocol 32, minor 2, version 2 from 30; version 1 stays protocol 23', () => {
+    expect([PROTOCOL_V2, FIRST_PROTOCOL_V2]).toEqual([32, 30]);
+    expect(SESSION_V2).toEqual({ protocol: 32, firstProtocol: 30 });
     expect(SESSION_V1).toEqual({ protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL });
     expect(PROTOCOL).toBe(23);
   });
@@ -86,8 +90,41 @@ describe('the session protocol, version 2 (read, not yet spoken)', () => {
     }
     expect(sameMajor(30.5, SESSION_V2)).toBe(false);
     expect(refusal({ kind: 'join', protocol: 29, name: 'Ada' }, [], null, SESSION_V2)).toBe(
-      'This host speaks version 31 of the session protocol, which takes 30 on, and this app 29: reload it.',
+      'This host speaks version 32 of the session protocol, which takes 30 on, and this app 29: reload it.',
     );
+  });
+
+  it("reads a client's `lacked` of every why, and none with a why the contract doesn't name, a bar not whole or no text", () => {
+    for (const why of LACKED_WHYS) {
+      const lacked = { kind: 'lacked', bar: 12, why, text: `bar 12: ${why}` };
+      expect(readClientMessage(lacked), why).toBe(lacked);
+    }
+    const lacked = { kind: 'lacked', bar: 12, why: 'late', text: 'its score was still being read' };
+    for (const broken of [
+      { ...lacked, why: 'muted' },
+      { ...lacked, why: undefined },
+      { ...lacked, bar: 1.5 },
+      { ...lacked, bar: '12' },
+      { ...lacked, text: undefined },
+      { ...lacked, text: 7 },
+    ])
+      expect(readClientMessage(broken), JSON.stringify(broken)).toBeNull();
+    // A host's reader of either version drops it: it is a client's.
+    expect(readHostMessageV2(lacked)).toBeNull();
+    expect(readHostMessage(lacked)).toBeNull();
+  });
+
+  it('counts the bars each client lacked by why, every why, and the total a soak reads', () => {
+    let counts = {};
+    for (const why of LACKED_WHYS) counts = countLacked(counts, 'c0', why);
+    counts = countLacked(counts, 'c0', 'late');
+    counts = countLacked(counts, 'c1', 'digest');
+    expect(counts).toEqual({
+      c0: { silent: 1, digest: 1, lock: 1, late: 2 },
+      c1: { ...NO_LACKED, digest: 1 },
+    });
+    expect(lackedIn(counts)).toEqual({ silent: 1, digest: 2, lock: 1, late: 2, bars: 6 });
+    expect(lackedIn({})).toEqual({ ...NO_LACKED, bars: 0 });
   });
 
   it("reads version 2's score, conduct and welcome, and version 1's bar and section not", () => {

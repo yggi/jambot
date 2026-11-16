@@ -6,6 +6,7 @@ import {
   type PlayedEvent,
   PlayedLog,
   compareSession,
+  lackedBreaks,
   sessionBreaks,
 } from './played.ts';
 
@@ -124,5 +125,19 @@ describe('a host’s events against a client’s (#446)', () => {
     const left = log.since(0);
     expect(left.events).toHaveLength(PLAYED_KEPT);
     expect(left.next).toBe(12 + PLAYED_KEPT);
+  });
+});
+
+describe("a session's bound on the bars its host counts its clients lacked (#553)", () => {
+  const none = { silent: 0, digest: 0, lock: 0, late: 0, bars: 0 };
+  it('holds at none, and breaks on a bar lacked for any why, a late one named apart', () => {
+    expect(lackedBreaks(none)).toEqual([]);
+    expect(lackedBreaks({ ...none, digest: 2, bars: 2 })).toEqual([
+      'the host counts 2 bars its clients lacked (2 digest)',
+    ]);
+    expect(lackedBreaks({ ...none, silent: 1, late: 3, bars: 4 })).toEqual([
+      'the host counts 4 bars its clients lacked (1 silent, 3 late)',
+      'the host counts 3 bars its clients came to too late',
+    ]);
   });
 });

@@ -2,8 +2,8 @@
  * What a host of version 2 of the session contract writes (#553, rung 2):
  * each bar's conduct, each section's score, and the fragments a score locks
  * that a client lacks, sent to each client once by hash. Written here, and
- * spoken by the app's host only where it is switched to version 2
- * (`SESSION_SPEAKS` in the app); a client plays them (`follow-v2.ts`).
+ * spoken by the app's host, which speaks version 2 (`SESSION_SPEAKS` in the
+ * app, #553 rung 4); a client plays them (`follow-v2.ts`).
  *
  * A conduct is made from the bar the host sends at version 1 (`SentBar`), as
  * the contract's rule makes it (`conductOf` in yggi/music-commons

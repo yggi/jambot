@@ -28,9 +28,8 @@
   import { browserKept } from './session/storage.ts';
   import { type Nudged, type Part, filedFiles } from '@jambot/engine';
   import type { ParsedNote } from '@yggi/webmidi/core';
-  import { type Role, layerText, readLayerText } from '@jambot/session';
+  import { type Role, lackedIn, layerText, readLayerText } from '@jambot/session';
   import { websocketLobby } from './session/websocket.ts';
-  import { speaksIn } from './session/speaks.ts';
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
   import { WorkerAnalysis } from './tune/analysis.ts';
   import AnalysisWorker from './tune/analysis.worker.ts?worker';
@@ -66,7 +65,8 @@
    * what the outputs played, event by event, from the one numbered `from` on, and the
    * transport's counters, the steps it laid and those the clock passed (#446), and a client's
    * network pair: its round trips, the reading trusted and the skew played by (#509);
-   * and the homeostat's song, its leans and its cost (`homeostat`, #495), none where it is off.
+   * and the homeostat's song, its leans and its cost (`homeostat`, #495), none where it is off;
+   * and, hosting, the bars its clients told it they lacked, by why and in all (`lacked`, #553), which the soak's bound reads.
    */
   window.jambot = {
     get shadow() {
@@ -82,6 +82,9 @@
     get network() {
       return sessions.asClient.timing;
     },
+    get lacked() {
+      return lackedIn(sessions.asHost.lacked);
+    },
   };
   const instruments = new Instruments(player, device);
   const profile = new Profile();
@@ -91,8 +94,6 @@
     server: websocketLobby,
     address: import.meta.env.VITE_LOBBY_URL ?? '',
     kept: browserKept,
-    // The version of the session contract this page speaks: `?speaks=2` tries version 2 before it is the default (#553).
-    speaks: speaksIn(location.search),
   });
   /** The timing test (#204, H7): plays a pattern on this device's synth and keeps every run. */
   const testing = new TimingTest({
@@ -415,6 +416,7 @@
         hosting: {
           session: hostSession.session,
           guests: hostSession.guests,
+          lacked: hostSession.lacked,
           code: hostSession.code,
         },
         onadmit: (byCode: boolean) => hostSession.admitByCode(byCode),

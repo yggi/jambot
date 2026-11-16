@@ -50,7 +50,7 @@ After the cut, a guard becomes the absence of a conductor.
 
 These are what the cut has to settle, not move.
 Items 4 and 5 are settled for a client of either version (#663, #697): it counts in the meter its host's song opens in (`Song.tempoMeter`), or bar 0's once that is known, and counts down to its host's last bar.
-A client of session version 2, behind the switch (#553 rung 3), plays from the score and the conduct: items 2 and 3 go there (one compile a score, a bar no score states silent and counted), item 8 folds what cells plays of a score's harmony, its count-in reads bar 0's meter off its score, and item 6 stands: it has no loop menu yet, and keeps the last 8 bars' scores and conducts for one (#626).
+A client of session version 2, which Jambot speaks since #553's rung 4, plays from the score and the conduct: items 2 and 3 go there (one compile a score, a bar no score states silent and counted), item 8 folds what cells plays of a score's harmony, its count-in reads bar 0's meter off its score, and item 6 stands: it has no loop menu yet, and keeps the last 8 bars' scores and conducts for one (#626).
 
 1. **The player's own notes.**
    In solo and on a host, raw notes go into the transport's Muse (1541–1551): chords, the bass's register read off the keys, hands (#580), the lead's and the harmony's readings.
@@ -91,8 +91,9 @@ A client of session version 2, behind the switch (#553 rung 3), plays from the s
 
 ## The order
 
-1. **The wire first: session 2.0 (#553, yggi/music-commons#43).**
-   The client plays from the score and the conduct, and the band's bars and the gap's fallback go.
+1. **The wire first: session 2.0 (#553, yggi/music-commons#43).** Done.
+   Jambot speaks version 2, minor 2 (protocol 32): the client plays from the score and the conduct, and tells its host each bar it lacked (`lacked`), which the host counts.
+   Version 1's code, the band's bars, `SentBar.written`, `playBar` and the gap's fallback on a client, is no longer reached outside the tests that make a session speak it, and goes in a pull request of its own.
    This is the debt's largest part, and it doesn't need the cut.
 2. **The cut: `Conductor` out of `Player`**, behind the emissions above, with solo on direct calls.
    `player.svelte.ts` (1,769 lines) parts into about 750 and 700, and shadow's halves move with it.
