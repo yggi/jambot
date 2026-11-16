@@ -5,3 +5,4 @@ export * from './perform.ts';
 export * from './score.ts';
 export * from './section-play.ts';
 export * from './section-text.ts';
+export * from './score-frame.ts';

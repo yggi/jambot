@@ -29,6 +29,7 @@
   import { type Nudged, filedFiles } from '@jambot/engine';
   import { type Role, layerText, readLayerText } from '@jambot/session';
   import { websocketLobby } from './session/websocket.ts';
+  import { speaksIn } from './session/speaks.ts';
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
   import { WorkerAnalysis } from './tune/analysis.ts';
   import AnalysisWorker from './tune/analysis.worker.ts?worker';
@@ -89,6 +90,8 @@
     server: websocketLobby,
     address: import.meta.env.VITE_LOBBY_URL ?? '',
     kept: browserKept,
+    // The version of the session contract this page speaks: `?speaks=2` tries version 2 before it is the default (#553).
+    speaks: speaksIn(location.search),
   });
   /** The timing test (#204, H7): plays a pattern on this device's synth and keeps every run. */
   const testing = new TimingTest({
@@ -423,6 +426,7 @@
           role: clientSession.role,
           trip: clientSession.trip,
           lacked: player.lacked,
+          silent: player.silent,
         },
       }}
       onend={() => void leave()}

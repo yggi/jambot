@@ -13,6 +13,7 @@ const following = {
   role: 'player',
   trip: 12,
   lacked: 0,
+  silent: 0,
 } as const;
 const nobody = { session: 'Garage', guests: [] };
 
@@ -146,6 +147,15 @@ describe('the session card', () => {
       expect(screen.getByText('Bo')).toBeInTheDocument();
       expect(screen.getByText('12 ms')).toBeInTheDocument();
       expect(screen.getByText('3 bars')).toBeInTheDocument();
+    });
+
+    it('gives a client of session version 2 the bars it played silent, no score stating them (#553)', async () => {
+      const { rerender } = render(Session, props({ mode: 'client' }));
+      await unfold();
+      expect(screen.queryByText('No score stated')).toBeNull();
+      await rerender({ following: { ...following, silent: 1 } });
+      expect(screen.getByText('No score stated')).toBeInTheDocument();
+      expect(screen.getByText('1 bar')).toBeInTheDocument();
     });
 
     it('tells a listener it listens, and why, and a player nothing of it (#461)', async () => {

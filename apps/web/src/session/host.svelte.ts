@@ -27,7 +27,7 @@
  * player's nudge leans the band, weighed by the players present (`nudgeFrom`,
  * step 2 of docs/briefs/session-roles.md); a listener's is dropped.
  *
- * It speaks one version of the session contract (`HOST_SPEAKS`, or `speaks`
+ * It speaks one version of the session contract (`SESSION_SPEAKS`, or `speaks`
  * as it is made), and admits a client of that version. Version 1 sends each
  * bar the band composed (`bar`) and each section's text (`section`).
  * Version 2 (#553) sends each bar's conduct in place of the bar
@@ -90,15 +90,10 @@ import {
   nudgedLine,
 } from './log-lines.ts';
 import type { HostLink, Lobby } from './lobby.ts';
+import { SESSION_SPEAKS } from './speaks.ts';
 
 /** How long, in seconds, a client may be silent before it is taken to have gone. */
 export const SILENT = 3;
-
-/**
- * The version of the session contract a host speaks (#553): 1 until a client
- * plays version 2's scores (rung 3), and the protocol moves to it (rung 4).
- */
-export const HOST_SPEAKS: 1 | 2 = 1;
 
 export interface Guest {
   readonly id: string;
@@ -122,7 +117,7 @@ export interface HostOptions {
   readonly epoch?: () => number;
   /** A code to admit clients by, which can't be guessed but by trying (`CODE_DIGITS`). */
   readonly draw?: () => string;
-  /** The version of the session contract it speaks, `HOST_SPEAKS` unless said. */
+  /** The version of the session contract it speaks, `SESSION_SPEAKS` unless said. */
   readonly speaks?: 1 | 2;
 }
 
@@ -187,7 +182,7 @@ export class HostSession {
       keep,
       epoch = () => Date.now() / 1000,
       draw = drawCode,
-      speaks = HOST_SPEAKS,
+      speaks = SESSION_SPEAKS,
     }: HostOptions = {},
   ) {
     this.#player = player;

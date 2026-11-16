@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { band, lookAhead } from './band.ts';
 import type { BarChord } from './chords.ts';
 import recorded from './history.fixture.json';
-import { HISTORY_DECAY, NO_HISTORY, centre, foldBar, keyWeight } from './history.ts';
+import { HISTORY_DECAY, NO_HISTORY, centre, foldBar, foldHeard, keyWeight } from './history.ts';
 import { COMPOSER_MODES, type Key, keyHelix } from './key.ts';
 import { PROTOTYPE_PRESETS } from './style.ts';
 import { presetMode } from './mode-repository.ts';
@@ -46,6 +46,32 @@ describe('the harmonic history', () => {
     const silent = foldBar(one, []);
     expect(silent).toEqual(one.map((w) => w * HISTORY_DECAY));
     for (const w of silent) expect(w).toBeGreaterThanOrEqual(0);
+  });
+
+  it('folds chords as they sound in a bar of any length as the band’s chords in 4/4 (#553)', () => {
+    const before = [...NO_HISTORY];
+    before[0] = 1;
+    const decided = foldBar(before, [chordAt(0, [9, 12, 16]), chordAt(8, [4, 8, 11])]);
+    // (the same two chords heard in a bar of 6/8, 12 steps, the second from its sixth step: half the bar each)
+    const heard = foldHeard(
+      before,
+      [
+        { step: 0, notes: [9, 0, 4] },
+        { step: 6, notes: [4, 8, 11] },
+      ],
+      12,
+    );
+    expect(heard).toEqual(decided);
+    expect(
+      foldHeard(
+        before,
+        [
+          { step: 0, notes: [9, 0, 4] },
+          { step: 3, notes: [4, 8, 11] },
+        ],
+        12,
+      ),
+    ).not.toEqual(decided);
   });
 
   it('weighs a key by its scale’s pitch classes', () => {

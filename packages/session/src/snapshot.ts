@@ -8,7 +8,8 @@
  * from the lobby, who is in it and how they come back (`roster.ts`), the
  * players' names, the style, the key wish and the tempo nudge the
  * conductor had set, the meter asked for and its swing, and the lobby it opened in. A client keeps the session,
- * its name, its token and the lobby it joined through. A record older than `SAVED_MAX_AGE` is
+ * its name, its token and the lobby it joined through, and the fragments a host of session version 2 sent it, by
+ * hash, which that host doesn't send a seat again (#553): a record without them holds none. A record older than `SAVED_MAX_AGE` is
  * forgotten: a session that long gone has moved on.
  *
  * Reading checks the record's fields and their types, not the engine
@@ -30,7 +31,9 @@
 
 import { type KeyWish, type StyleTrack, type SwingTrack, SWING_LEVELS } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
+import { each } from './fields.ts';
 import { ROLES } from './protocol.ts';
+import { type FragmentText, isFragmentText } from './protocol-v2.ts';
 import type { Member } from './roster.ts';
 import { type Station, readStation } from './station.ts';
 
@@ -80,6 +83,8 @@ export interface ClientResume {
   readonly token: string;
   /** The address of the lobby it joined through, or an empty one for the tabs of the browser. */
   readonly lobby: string;
+  /** The fragments a host of session version 2 sent it, each once by hash (#553): absent in a record that holds none. */
+  readonly fragments?: readonly FragmentText[];
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -164,5 +169,7 @@ export function readClientResume(data: unknown, now: number): ClientResume | nul
   if (!isRecord(data) || data.version !== VERSION || !fresh(data.savedAt, now)) return null;
   const { session, name, token, lobby } = data;
   if (!isText(session) || !isText(name) || !isText(token) || typeof lobby !== 'string') return null;
+  const { fragments } = data;
+  if (fragments !== undefined && !each(fragments, isFragmentText)) return null;
   return data as unknown as ClientResume;
 }

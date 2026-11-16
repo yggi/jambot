@@ -16,7 +16,7 @@ import {
   type ClientMessage,
   type HostSaid,
   readClientMessage,
-  readHostMessage,
+  readHostSaid,
 } from '@jambot/session';
 import { type ClientLink, type HostLink, type Lobby, sessionKey } from './lobby.ts';
 
@@ -116,7 +116,7 @@ export function broadcastLobby(): Lobby {
       const id = newId();
       channel.onmessage = ({ data }: MessageEvent<Post>) => {
         if (data?.kind !== 'host' || (data.to !== undefined && data.to !== id)) return;
-        const message = readHostMessage(data.message);
+        const message = readHostSaid(data.message);
         if (message) hear(message);
       };
       return {
