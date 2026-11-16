@@ -31,6 +31,19 @@ import {
   type WrittenNote,
 } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
+import {
+  type FieldChecks,
+  each,
+  isEvent,
+  isForecast,
+  isMuse,
+  isObject,
+  isSong,
+  isString,
+  kindOf,
+  orNull,
+  readByKind,
+} from './fields.ts';
 import type { ForecastDelta } from './forecast.ts';
 
 /**
@@ -96,9 +109,27 @@ export type Role = (typeof ROLES)[number];
 /** The first protocol of the session contract's major version 1 (#460): every protocol from it on is one of its minors. */
 export const FIRST_PROTOCOL = 13;
 
-/** Whether a protocol is a minor of this one's major version: an integer from `FIRST_PROTOCOL` on (#460). */
-export const sameMajor = (protocol: unknown): boolean =>
-  Number.isInteger(protocol) && (protocol as number) >= FIRST_PROTOCOL;
+/**
+ * A major version of the session contract as a peer speaks it: the protocol
+ * its join or welcome carries, and the first of the version, from which a
+ * peer admits the other at any minor (#460). Version 1 is what Jambot speaks
+ * (`SESSION_V1`); version 2 is read and not yet spoken (`SESSION_V2`, #553).
+ */
+export interface SessionVersion {
+  readonly protocol: number;
+  readonly firstProtocol: number;
+}
+
+/** Version 1 of the session contract, as Jambot speaks it. */
+export const SESSION_V1: SessionVersion = { protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL };
+
+/**
+ * Whether a protocol is a minor of a version's major, version 1's unless
+ * another is named: an integer from its first protocol on (#460). A peer of
+ * the later version, whose first is above the other's numbers, so refuses it.
+ */
+export const sameMajor = (protocol: unknown, version: SessionVersion = SESSION_V1): boolean =>
+  Number.isInteger(protocol) && (protocol as number) >= version.firstProtocol;
 
 /**
  * A section's cells text, as a host's band through cells states it (#446,
@@ -373,44 +404,8 @@ function isHeard(value: unknown): boolean {
   );
 }
 
-const kindOf = (data: unknown): string | null =>
-  typeof data === 'object' && data !== null && typeof (data as { kind?: unknown }).kind === 'string'
-    ? (data as { kind: string }).kind
-    : null;
-
-/** An object, as a message's field is one: neither null nor an array. */
-const isObject = (value: unknown): value is Partial<Record<string, unknown>> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-const orNull = (value: unknown, is: (v: unknown) => boolean): boolean =>
-  value === null || is(value);
-const each = (value: unknown, is: (v: unknown) => boolean): boolean =>
-  Array.isArray(value) && value.every(is);
-const isString = (value: unknown): boolean => typeof value === 'string';
-
-const isSong = (s: unknown): s is Partial<Record<string, unknown>> =>
-  isObject(s) &&
-  Number.isInteger(s.seed) &&
-  Number.isFinite(s.start) &&
-  isObject(s.track) &&
-  isObject(s.swing) &&
-  isObject(s.tempoMeter);
 const isSent = (s: unknown): boolean =>
   isObject(s) && isObject(s.bar) && orNull(s.start, Number.isFinite);
-const isForecast = (f: unknown): boolean =>
-  isObject(f) &&
-  Number.isInteger(f.from) &&
-  Number.isInteger(f.count) &&
-  each(f.changed, (b) => isObject(b) && Number.isInteger(b.bar));
-const isMuse = (u: unknown): boolean =>
-  isObject(u) &&
-  orNull(u.offer, isObject) &&
-  Array.isArray(u.memory) &&
-  orNull(u.asOf, Number.isInteger) &&
-  orNull(u.lastPlayed, Number.isInteger) &&
-  Array.isArray(u.log) &&
-  Array.isArray(u.dropped) &&
-  isObject(u.players) &&
-  Object.values(u.players).every(isString);
 const isText = (t: unknown): boolean =>
   isObject(t) &&
   Number.isInteger(t.bar) &&
@@ -424,39 +419,37 @@ const isText = (t: unknown): boolean =>
   isObject(t.frame.key) &&
   each(t.foreseen, isString) &&
   each(t.cut, Number.isInteger);
-/** A line of the session's log: the bar it is about or none, who says it, what kind of line, and the line. */
-const isEvent = (e: unknown): boolean =>
-  isObject(e) &&
-  orNull(e.bar, Number.isInteger) &&
-  isString(e.who) &&
-  isString(e.what) &&
-  isString(e.text);
 /** A welcome's song: its bars not yet played, and its texts, absent from a host of 13. */
 const isPlaying = (s: unknown): boolean =>
   isSong(s) && each(s.bars, isSent) && (s.texts === undefined || each(s.texts, isText));
 
+/** The kinds a host sends that the contract's versions 1 and 2 read alike: all but a welcome, a bar and a section, which version 2 replaces. */
+export type KeptHostKind =
+  | 'refused'
+  | 'start'
+  | 'track'
+  | 'forecast'
+  | 'muse'
+  | 'stop'
+  | 'finale'
+  | 'pong'
+  | 'closed'
+  | 'role'
+  | 'event';
+
 /**
- * Each kind a host sends, and whether a message of it carries that kind's
- * fields, of their types (yggi/music-commons `contracts/session`, minor 1; `role`, minor 4).
- * What a track, a swing, a
- * meter or a sent bar holds is the shapes' to fix (`protocol.test.ts`), not
- * the reader's.
+ * Each kind a host sends that both versions keep, and whether a message of
+ * it carries that kind's fields, of their types (yggi/music-commons
+ * `contracts/session-v1` and `contracts/session`, whose tables agree on
+ * them). What a track, a swing, a meter or a Muse's log holds is the shapes'
+ * to fix (`protocol.test.ts`), not the reader's.
  */
-const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>) => boolean>> = {
-  welcome: (m) =>
-    Number.isInteger(m.protocol) &&
-    isString(m.session) &&
-    isString(m.resume) &&
-    (m.listening === undefined || m.listening === true) &&
-    (m.events === undefined || each(m.events, isEvent)) &&
-    orNull(m.song, isPlaying) &&
-    isForecast(m.forecast) &&
-    isMuse(m.muse),
+export const KEPT_HOST_FIELDS: Readonly<
+  Record<KeptHostKind, (m: Partial<Record<string, unknown>>) => boolean>
+> = {
   refused: (m) => isString(m.reason),
   start: (m) => isSong(m.song),
   track: (m) => isObject(m.track) && isObject(m.swing) && isObject(m.tempoMeter),
-  bar: (m) => isSent(m.sent),
-  section: isText,
   forecast: (m) => isForecast(m.forecast),
   muse: (m) => isMuse(m.muse),
   stop: () => true,
@@ -469,6 +462,28 @@ const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>)
 };
 
 /**
+ * Each kind a host of version 1 sends, and whether a message of it carries
+ * that kind's fields, of their types (yggi/music-commons
+ * `contracts/session-v1`): the kinds both versions keep, and version 1's own
+ * welcome, bar and section. What a sent bar holds is the shapes' to fix
+ * (`protocol.test.ts`), not the reader's.
+ */
+const HOST_FIELDS: FieldChecks = {
+  ...KEPT_HOST_FIELDS,
+  welcome: (m) =>
+    Number.isInteger(m.protocol) &&
+    isString(m.session) &&
+    isString(m.resume) &&
+    (m.listening === undefined || m.listening === true) &&
+    (m.events === undefined || each(m.events, isEvent)) &&
+    orNull(m.song, isPlaying) &&
+    isForecast(m.forecast) &&
+    isMuse(m.muse),
+  bar: (m) => isSent(m.sent),
+  section: isText,
+};
+
+/**
  * A message from a host, or null for anything that isn't one: its kind, and
  * the fields that kind carries, of their types, as a host reads a client's
  * (`readClientMessage`). A client checks them though it chose the host it
@@ -477,12 +492,7 @@ const HOST_FIELDS: Readonly<Record<string, (m: Partial<Record<string, unknown>>)
  * link kept, rather than thrown on while its band plays.
  */
 export function readHostMessage(data: unknown): HostMessage | null {
-  const kind = kindOf(data);
-  return kind !== null &&
-    Object.hasOwn(HOST_FIELDS, kind) &&
-    HOST_FIELDS[kind]!(data as Partial<Record<string, unknown>>)
-    ? (data as HostMessage)
-    : null;
+  return readByKind<HostMessage>(HOST_FIELDS, data);
 }
 
 /**
@@ -580,7 +590,8 @@ export function codeOf(word: () => number): string {
 
 /**
  * Why a host refuses a join, or null to admit it: another major version
- * (any minor of its own is admitted, `sameMajor`, #460), a wrong code where
+ * than the one the host speaks, version 1 unless another is named (any
+ * minor of its own is admitted, `sameMajor`, #460), a wrong code where
  * the host admits by one (`code`, #461, looked at before the name, so a join
  * refused for it learns nothing of who is in the session; a join without a
  * code is admitted, to listen, `admit`),
@@ -591,9 +602,10 @@ export function refusal(
   join: ClientMessage & { kind: 'join' },
   inUse: readonly string[] = [],
   code: string | null = null,
+  version: SessionVersion = SESSION_V1,
 ): string | null {
-  if (!sameMajor(join.protocol))
-    return `This host speaks version ${PROTOCOL} of the session protocol, which takes ${FIRST_PROTOCOL} on, and this app ${join.protocol}: reload it.`;
+  if (!sameMajor(join.protocol, version))
+    return `This host speaks version ${version.protocol} of the session protocol, which takes ${version.firstProtocol} on, and this app ${join.protocol}: reload it.`;
   if (code !== null) {
     const given = join.code?.trim() ?? '';
     if (given !== '' && given !== code) return CODE_WRONG;

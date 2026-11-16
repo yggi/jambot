@@ -1,4 +1,4 @@
-// The session package's barrel: everything in `src/` re-exported.
+// The session package's barrel: everything in `src/` re-exported, but `fields.ts`, the readers' own checks.
 export * from './clock.ts';
 export * from './ear.ts';
 export * from './faults.ts';
@@ -9,6 +9,7 @@ export * from './layer-store.ts';
 export * from './lobby.ts';
 export * from './log.ts';
 export * from './protocol.ts';
+export * from './protocol-v2.ts';
 export * from './reconnect.ts';
 export * from './nudges.ts';
 export * from './roster.ts';

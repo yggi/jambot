@@ -18,7 +18,14 @@
  * once. Pure: the host gives the token, its name and the time.
  */
 
-import { CODE_LOCKED, type ClientMessage, type Role, refusal } from './protocol.ts';
+import {
+  CODE_LOCKED,
+  type ClientMessage,
+  type Role,
+  SESSION_V1,
+  type SessionVersion,
+  refusal,
+} from './protocol.ts';
 
 /** How long, in seconds, a player whose link dropped may come back as itself. */
 export const RESUME_WINDOW = 300;
@@ -53,7 +60,9 @@ export const memberAt = (roster: Roster, link: string): Member | undefined =>
  * Admit a join that came on `link`, or say why not. `token` is minted for a
  * player that is new; `hostName` is the host's own player's name, which is
  * taken; `code` is the code the host admits by, or null for an open session;
- * `locked`, that too many wrong codes were tried (`WRONG_CODES`).
+ * `locked`, that too many wrong codes were tried (`WRONG_CODES`);
+ * `version`, the contract's version the host speaks, version 1 unless
+ * another is named, whose first protocol a join's must reach.
  */
 export function admit(
   roster: Roster,
@@ -63,13 +72,19 @@ export function admit(
   hostName: string,
   code: string | null = null,
   locked = false,
+  version: SessionVersion = SESSION_V1,
 ): Admission {
   const resumed =
     join.resume === undefined ? undefined : roster.find((m) => m.token === join.resume);
   const given = join.code?.trim() ?? '';
   if (code !== null && !resumed && given !== '' && locked) return { refusal: CODE_LOCKED };
   const others = roster.filter((m) => m !== resumed && m.link !== null && m.link !== link);
-  const refused = refusal(join, [hostName, ...others.map((m) => m.name)], resumed ? null : code);
+  const refused = refusal(
+    join,
+    [hostName, ...others.map((m) => m.name)],
+    resumed ? null : code,
+    version,
+  );
   if (refused) return { refusal: refused };
   const name = join.name.trim();
   if (resumed) {
