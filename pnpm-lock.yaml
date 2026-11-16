@@ -144,8 +144,8 @@ importers:
         specifier: workspace:*
         version: link:../theory
       '@yggi/cells':
-        specifier: github:yggi/cells#v0.26.0
-        version: https://codeload.github.com/yggi/cells/tar.gz/b2a5f90940de89294b41b768b2cc76bbfd6c2655
+        specifier: github:yggi/cells#v0.26.1
+        version: https://codeload.github.com/yggi/cells/tar.gz/1215764861bf22b0960492edd04cb0672f22c472
 
   packages/score:
     dependencies:
@@ -156,8 +156,8 @@ importers:
         specifier: workspace:*
         version: link:../theory
       '@yggi/cells':
-        specifier: github:yggi/cells#v0.26.0
-        version: https://codeload.github.com/yggi/cells/tar.gz/b2a5f90940de89294b41b768b2cc76bbfd6c2655
+        specifier: github:yggi/cells#v0.26.1
+        version: https://codeload.github.com/yggi/cells/tar.gz/1215764861bf22b0960492edd04cb0672f22c472
     devDependencies:
       '@strudel/mini':
         specifier: 1.2.5
@@ -1399,9 +1399,9 @@ packages:
   '@vitest/spy@5.0.2':
     resolution: {integrity: sha512-Ijc7T1nT9efNb5LxvjaBrEqw3f/QwUv5EE0nKqZxgqsaV/FxAAZ8baGylA8X/Z2oS4Lp+K74Jr6dTJsDKxJDeg==}
 
-  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/b2a5f90940de89294b41b768b2cc76bbfd6c2655':
-    resolution: {tarball: https://codeload.github.com/yggi/cells/tar.gz/b2a5f90940de89294b41b768b2cc76bbfd6c2655}
-    version: 0.26.0
+  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/1215764861bf22b0960492edd04cb0672f22c472':
+    resolution: {tarball: https://codeload.github.com/yggi/cells/tar.gz/1215764861bf22b0960492edd04cb0672f22c472}
+    version: 0.26.1
     engines: {node: '>=22'}
 
   '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/1d1b4f628da6048b955e96d7ad5ab28912705622':
@@ -4376,7 +4376,7 @@ snapshots:
 
   '@vitest/spy@5.0.2': {}
 
-  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/b2a5f90940de89294b41b768b2cc76bbfd6c2655': {}
+  '@yggi/cells@https://codeload.github.com/yggi/cells/tar.gz/1215764861bf22b0960492edd04cb0672f22c472': {}
 
   '@yggi/webmidi@https://codeload.github.com/yggi/webmidi/tar.gz/1d1b4f628da6048b955e96d7ad5ab28912705622(svelte@5.57.3(@typescript-eslint/types@8.70.1))':
     optionalDependencies:
