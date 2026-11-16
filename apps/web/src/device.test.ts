@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
+import {
+  fakeAccess,
+  fakeInput,
+  fakeLoop,
+  fakePort,
+  installMidi,
+  uninstallMidi,
+} from '@yggi/webmidi/testing';
 import { BUS_GAIN } from './audio/output.ts';
 import { fakeAudioContext } from './audio/fake-context.ts';
 import {
@@ -433,6 +440,113 @@ describe('the device’s MIDI ports', () => {
       changed(d, (book) => withPlays(book, 'panel:t', 'none'));
       d.panels.played('t', runtime.move('c', { x: 0 })[0]!);
       expect(heard).toHaveLength(1);
+    });
+  });
+
+  describe('the link measured (yggi/jambot#704, webmidi decision 009)', () => {
+    /** A device whose output o1 and an input are the two ends of a fake loop, the input heard and crossing a forward and a panel. */
+    async function onLoop() {
+      const loop = fakeLoop({ latency: 1.5, jitter: 0.5 });
+      installMidi(fakeAccess([loop.input as never], [loop.output as never]));
+      const { device: d } = device();
+      const heard: unknown[] = [];
+      const row = inputRow({ id: 'loop-in', name: 'Loop in' });
+      d.panels.edit({
+        id: 't',
+        name: 'T',
+        children: [{ type: 'fader', id: 'c', bind: [{ kind: 'cc', number: 119, channel: 16 }] }],
+      });
+      changed(d, (book) =>
+        withCrossing(
+          withCrossing(
+            withPlays(
+              withPlays(
+                withPanelActive(chooseDevice(book, 'o1', loop.output), 't', true),
+                row,
+                'default',
+              ),
+              'panel:t',
+              'none',
+            ),
+            BAND,
+            row,
+            panelKey('t'),
+            AS_PLAYED,
+          ),
+          BAND,
+          row,
+          'o1',
+          AS_PLAYED,
+        ),
+      );
+      await d.connect((note) => void heard.push(note));
+      return { loop, d, heard, input: { id: 'loop-in', name: 'Loop in' } };
+    }
+    const run = (input: { id: string; name: string }) => ({
+      input,
+      length: 'quick' as const,
+      signal: new AbortController().signal,
+      onprogress: () => {},
+    });
+
+    it('sends no probe until a measurement is asked for, however long it is connected', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      try {
+        const { loop, d } = await onLoop();
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(loop.output.sent).toEqual([]);
+        expect(d.linkReports).toEqual({});
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('makes a report and a tier from a quick run of 100 probes, kept by the output’s key', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      try {
+        const { loop, d, input } = await onLoop();
+        const measured = d.measureLink('o1', run(input));
+        await vi.advanceTimersByTimeAsync(6000);
+        const report = await measured;
+        expect(loop.output.sent).toHaveLength(100);
+        expect(report.n).toBe(100);
+        expect(report.method).toBe('loop');
+        expect(report.output).toBe('Loop out');
+        expect(report.input).toBe('Loop in');
+        expect(report.tier.played).not.toBeNull();
+        expect(report.tier.scheduled).not.toBeNull();
+        expect(d.linkReports).toEqual({ o1: report });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('drops the markers heard back while it runs: no forward, no note, no panel; and passes the same message once it is done', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+      try {
+        const { loop, d, heard, input } = await onLoop();
+        const measured = d.measureLink('o1', run(input));
+        await vi.advanceTimersByTimeAsync(6000);
+        await measured;
+        // (the 100 probes are all that went to the output: nothing was forwarded after them)
+        expect(loop.output.sent).toHaveLength(100);
+        expect(loop.output.sent.every((m) => m.data[0] === 0xbf && m.data[1] === 119)).toBe(true);
+        expect(heard).toEqual([]);
+        expect(d.panels.runtimeOf('t')!.value('c').x).toBe(0);
+        // (not a marker's fault: the same CC from an input, with no run on, moves the panel)
+        loop.input.onmidimessage?.({ data: new Uint8Array([0xbf, 119, 127]), timeStamp: 1 });
+        expect(d.panels.runtimeOf('t')!.value('c').x).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('says so when the output or the input is not plugged in, and measures nothing', async () => {
+      const { d, input } = await onLoop();
+      await expect(d.measureLink('o9', run(input))).rejects.toThrow('not plugged in');
+      await expect(d.measureLink('o1', run({ id: 'nowhere', name: 'x' }))).rejects.toThrow(
+        'not plugged in',
+      );
     });
   });
 

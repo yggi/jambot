@@ -29,6 +29,8 @@ import {
   type ClockOffset,
   type EstimatedClockOffset,
   type Forward,
+  type LinkLength,
+  type LinkReport,
   type MidiPort,
   type ParsedNote,
   type SetupBook,
@@ -42,9 +44,10 @@ import {
   outputNow,
   panelKey,
   parseMidiMessage,
+  probeMarker,
   portsMessage,
 } from '@yggi/webmidi/core';
-import { MidiAccess } from '@yggi/webmidi/web';
+import { MidiAccess, runLinkProbe } from '@yggi/webmidi/web';
 import {
   BAND,
   bandRoutes,
@@ -109,6 +112,13 @@ export class Device {
     send: (forwards) => this.#send(forwards),
     plays: (panel, data, book) => this.#panelPlays(panel, data, book),
   });
+  /**
+   * A link measurement is out (`measureLink`): the probes heard back on its
+   * loop's input are the measurement's, and go nowhere else.
+   */
+  #probing = false;
+  /** The latest link report of each output, by its key in the setup (yggi/webmidi#75): what the timing export carries. */
+  linkReports: Readonly<Record<string, LinkReport>> = $state.raw({});
   /** Where a note that is heard goes (`hear`, or `connect`): the one way in, for an input's notes and a panel's. */
   #onNote: ((note: ParsedNote, source: string, part: Part) => void) | null = null;
   /** The Web MIDI connection, once made. */
@@ -258,7 +268,10 @@ export class Device {
     try {
       const result = await MidiAccess.connect({
         onNote: (note, source) => this.#heard(note, source),
-        onMessage: (data, source) => this.panels.heard(source, data),
+        onMessage: (data, source) => {
+          if (this.#probing && probeMarker(data) !== null) return;
+          this.panels.heard(source, data);
+        },
         onChange: () => this.#changed(),
       });
       if (typeof result === 'string') {
@@ -389,6 +402,45 @@ export class Device {
       new MidiOut(port).sweep(0, () => 0);
     } catch (error) {
       this.report('All notes off couldn’t be sent', error);
+    }
+  }
+
+  /**
+   * The link to an output measured (yggi/webmidi#75, decision 009), by its
+   * key, over the input of its loop: probes go out only as this is called,
+   * which the page does when the person presses the button. While it runs the
+   * probes heard back on an input (CC 119 on channel 16) are dropped here:
+   * not forwarded, not played, not given to the panels or the Muse. The
+   * latest report of each output is kept (`linkReports`).
+   */
+  async measureLink(
+    key: string,
+    run: {
+      readonly input: PortOption;
+      readonly length: LinkLength;
+      readonly signal: AbortSignal;
+      readonly onprogress: (progress: { sent: number; of: number }) => void;
+    },
+  ): Promise<LinkReport> {
+    const output = this.#portOf(key);
+    const input = this.access?.access.inputs.get(run.input.id);
+    if (!output || !input) throw new Error('That port is not plugged in.');
+    const name = this.settings.setup.outputs.find((o) => o.key === key)?.name || key;
+    this.#probing = true;
+    try {
+      const report = await runLinkProbe({
+        output,
+        input,
+        outputName: name,
+        inputName: run.input.name,
+        length: run.length,
+        signal: run.signal,
+        onprogress: run.onprogress,
+      });
+      this.linkReports = { ...this.linkReports, [key]: report };
+      return report;
+    } finally {
+      this.#probing = false;
     }
   }
 

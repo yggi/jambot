@@ -1,5 +1,6 @@
 import { EMPTY_SPREAD, TRANSPORT_TIMING, spreadWith } from '@jambot/session';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import type { LinkReport } from '@yggi/webmidi/core';
 import { describe, expect, it, vi } from 'vitest';
 import { timingReport } from '../timing.ts';
 import TimingPanel from './TimingPanel.svelte';
@@ -54,5 +55,31 @@ describe('the timing panel (#27)', () => {
     expect(value('Host clock: jumps, skew')).toBe('0, –');
     expect(value('Bars too late')).toBe('4');
     expect(value('Output: buffers dropped, bound')).toBe('not started');
+  });
+
+  it('shows each measured MIDI link’s two tiers and why, marked speculative, and nothing before one is measured', () => {
+    const base = {
+      mode: 'solo' as const,
+      transport: TRANSPORT_TIMING,
+      output: null,
+      network: null,
+      lacked: 0,
+    };
+    render(TimingPanel, { report: timingReport(base, place), onexport: () => {} });
+    expect(screen.queryByText(/MIDI link/)).toBeNull();
+    cleanup();
+    const link = {
+      report: 'webmidi link',
+      output: 'Juno',
+      tier: { scheduled: 'good', played: 'tight' },
+      reasons: ['jitter 2 ms', 'loss 0%'],
+    } as unknown as LinkReport;
+    render(TimingPanel, {
+      report: timingReport({ ...base, links: { o1: link } }, place),
+      onexport: () => {},
+    });
+    expect(screen.getByText('MIDI link to Juno').nextElementSibling?.textContent).toBe(
+      'scheduled good, played tight (speculative: jitter 2 ms; loss 0%)',
+    );
   });
 });

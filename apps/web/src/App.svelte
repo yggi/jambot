@@ -141,6 +141,7 @@
         output: device.offsetEstimate,
         network: clientSession.timing,
         lacked: player.lacked,
+        links: device.linkReports,
       },
       { taken: new Date().toISOString(), userAgent: navigator.userAgent },
     );
@@ -384,6 +385,7 @@
       }}
       ontest={(key, channel) => device.testNote(key, channel)}
       onpanicoutput={(key) => device.panicOutput(key)}
+      onmeasure={(key, run) => device.measureLink(key, run)}
       deck={device.panels}
       volume={device.volume}
       onvolume={(volume) => (device.volume = volume)}
