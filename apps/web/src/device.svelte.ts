@@ -13,6 +13,8 @@
  * band goes to each of its outputs, a note from an input is passed on where
  * its row crosses an output whether or not it is heard, and only a heard
  * input's notes reach the Muse and the instruments (`connect`'s `onNote`).
+ * An input's messages also reach the control panels its row crosses, and a
+ * panel's touches go out where its row does (`panels`).
  *
  * Nothing MIDI does may stop the page: a port that throws, a permission the
  * browser never answers, a note that a part can't take. Each is caught where
@@ -40,6 +42,7 @@ import {
 } from '@yggi/webmidi/core';
 import { MidiAccess } from '@yggi/webmidi/web';
 import { BAND, bandRoutes, partPlayed, synthPlays, wantsInputs } from './midi/patch.ts';
+import { PanelDeck } from './midi/panels.svelte.ts';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
 import type { DeviceClocks } from './session/clocks.ts';
@@ -83,7 +86,17 @@ export const described = (error: unknown): string =>
       : 'unknown error';
 
 export class Device {
-  readonly settings: MidiSettings = new MidiSettings({ onchange: () => this.#listen() });
+  readonly settings: MidiSettings = new MidiSettings({
+    onchange: () => {
+      this.#listen();
+      this.panels.adopt();
+    },
+  });
+  /** The control panels the setup has active, and the library (`midi/panels.svelte.ts`): their touches go out through the setup's outputs. */
+  readonly panels: PanelDeck = new PanelDeck({
+    settings: this.settings,
+    send: (forwards) => this.#send(forwards),
+  });
   /** The Web MIDI connection, once made. */
   access: MidiAccess | null = $state(null);
   /** Asking for Web MIDI: Connect waits. */
@@ -230,6 +243,7 @@ export class Device {
     try {
       const result = await MidiAccess.connect({
         onNote: (note, source) => this.#heard(note, source, onNote),
+        onMessage: (data, source) => this.panels.heard(source, data),
         onChange: () => this.#changed(),
       });
       if (typeof result === 'string') {

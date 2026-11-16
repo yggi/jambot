@@ -4,7 +4,8 @@
   (`MidiStatus`), what went wrong lately, the setups (`SetupPicker`), the
   patch (`PatchMatrix`: the clock, the five parts, the keys, then the inputs with what each plays and the
   preset that assigns them, down; the built-in synth first, then the setup's
-  MIDI outputs, across), the whole width of the sheet, and a column's
+  MIDI outputs, across; with the control panels (below) as rows and columns
+  too), the whole width of the sheet, and a column's
   settings in a dialog over it, opened from its head: an output's device (the
   matrix's own `DeviceDialog`, webmidi v0.5.0, which we feed `ontest` and
   `onpanic` by output key), or the synth's own (Jambot's: its volume, the
@@ -13,6 +14,14 @@
   it plays a part where the part's row crosses it (`synthPlays`). A change is
   a new book (`MidiSettings.book`), applied at once: `band-output.ts`
   silences what an old route held before adopting the new.
+
+  Control panels (`PanelDeck`, `midi/panels.svelte.ts`; webmidi decisions 005
+  and 007): the library's panels are chips over the patch that add them to the
+  setup; an active panel is a row (what it sends, routed to outputs like an
+  input's) and a column (what an input's or another panel's row sends it). It
+  is played, edited, made and deleted under the patch (`PanelView`,
+  `PanelEditor`). The band's own rows are no panel's to cross, and a panel is
+  not heard on the built-in synth, only on the MIDI outputs it is routed to.
 
   MIDI sits in a boundary: whatever throws there (a setup kept by an older
   version, a port the browser lists oddly) is shown with its error and a way
@@ -31,6 +40,9 @@
     withCrossing,
   } from '@yggi/webmidi/core';
   import { MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
+  import { PanelEditor, PanelView } from '@yggi/webmidi/ui/panels';
+  import { panelOf } from '@yggi/webmidi/panels';
+  import type { PanelDeck } from '../midi/panels.svelte.ts';
   import {
     BAND,
     BAND_PARTS,
@@ -68,6 +80,8 @@
     /** The synth's volume, a fader position 0–1: the Sound card's. */
     volume?: number;
     onvolume?: (volume: number) => void;
+    /** The control panels: the library and the ones playing. None: no panels here. */
+    deck?: PanelDeck;
   }
 
   let {
@@ -85,6 +99,7 @@
     onpanicoutput,
     volume = 1,
     onvolume,
+    deck,
   }: Props = $props();
 
   const setup = $derived(settings.setup);
@@ -114,6 +129,13 @@
       book = withCrossing(book, BAND, part, BUILT_IN.key, on ? HEARD : undefined);
     change(book);
   };
+
+  /** Whether the panel shown is being edited, not played. */
+  let editing = $state(false);
+  const shown = $derived(deck?.shown ?? null);
+  const runtime = $derived(deck?.runtimeOf(shown));
+  const shownPanel = $derived(deck && shown !== null ? panelOf(deck.library, shown) : undefined);
+  const activePanels = $derived(deck?.active ?? []);
 
   let dialog: HTMLDialogElement | undefined = $state();
   // The dialog follows what is inspected: shown modal (over everything, Escape closes it), or closed.
@@ -181,12 +203,70 @@
           heardBy="the Muse"
           preset={DEFAULT_PRESET}
           builtIn={{ label: SYNTH }}
+          {...deck ? { panels: deck.library.panels } : {}}
+          onpanel={(id) => deck && (deck.shown = id)}
           onchange={change}
           {...ontest && connected ? { ontest: testOn } : {}}
           {...onpanicoutput && connected ? { onpanic: onpanicoutput } : {}}
           onbuiltin={() => (inspecting = true)}
         />
       </div>
+      {#if deck}
+        <section class="panels" aria-label="Control panels">
+          <div class="bar">
+            <span class="hint">Panels</span>
+            <div class="tabs" role="tablist" aria-label="The panels in this setup">
+              {#each activePanels as p (p.id)}
+                <button
+                  type="button"
+                  class="device"
+                  role="tab"
+                  aria-selected={shown === p.id}
+                  onclick={() => (deck.shown = p.id)}>{p.name}</button
+                >
+              {/each}
+            </div>
+            <button
+              type="button"
+              class="device"
+              aria-pressed={editing}
+              disabled={!shownPanel}
+              onclick={() => (editing = !editing)}>{editing ? 'Done editing' : 'Edit'}</button
+            >
+            <button
+              type="button"
+              class="device"
+              onclick={() => {
+                deck.create();
+                editing = true;
+              }}>New panel</button
+            >
+          </div>
+          {#if editing && shownPanel}
+            <PanelEditor panel={shownPanel} onchange={(edited) => deck.edit(edited)} />
+            <div class="bar">
+              <button
+                type="button"
+                class="device danger"
+                onclick={() => {
+                  deck.remove(shownPanel.id);
+                  editing = false;
+                }}>Delete this panel</button
+              >
+            </div>
+          {:else if runtime && shown !== null}
+            {@const id = shown}
+            {#key runtime}
+              <PanelView {runtime} onsend={(data) => deck.played(id, data)} />
+            {/key}
+          {:else}
+            <p class="hint">
+              No panel in this setup yet: add one from the chips over the patch, then route its row
+              to an output. A panel plays on MIDI outputs, not on the built-in synth.
+            </p>
+          {/if}
+        </section>
+      {/if}
       {#if output}
         <div class="devices" role="group" aria-label="Device settings">
           <span class="hint">Device settings</span>
@@ -347,6 +427,26 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 8px;
+  }
+  .panels {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .bar,
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+  }
+  .tabs [aria-selected='true'],
+  .device[aria-pressed='true'] {
+    border-color: var(--teal);
+    background: var(--teal-bg);
   }
   .hint {
     color: var(--muted);

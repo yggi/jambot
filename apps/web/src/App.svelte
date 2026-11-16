@@ -376,9 +376,13 @@
       ondismiss={() => device.dismissProblems()}
       onconnect={connectMidi}
       onrefresh={() => device.refresh()}
-      onpanic={() => player.panicMidi()}
+      onpanic={() => {
+        player.panicMidi();
+        device.panels.silence();
+      }}
       ontest={(key, channel) => device.testNote(key, channel)}
       onpanicoutput={(key) => device.panicOutput(key)}
+      deck={device.panels}
       volume={device.volume}
       onvolume={(volume) => (device.volume = volume)}
     />

@@ -46,6 +46,17 @@ Facts about MIDI in and out of the app.
   What is played on the on-screen and computer keys is passed on where the keys' row crosses an output (`Instruments`, `Device.forwardKeys`), on the crossing's channel; this is what the store before the book called thru.
 - The device listens to the inputs the setup hears or routes and to no other (webmidi's `listenOf`, each by its name): none is opened that isn't wanted, and one not plugged in is found by name when the ports change; every input when every input is heard or routed.
 
+## Panels
+
+- Control panels (webmidi decisions 005 and 007) are rows and columns of the matrix beside the inputs: the library is kept under `jambot:midi-panels` (`PanelDeck`, `apps/web/src/midi/panels.svelte.ts`, webmidi's `localPanelStore`), a setup names the panels it has active (`Setup.panels`, webmidi's `withPanelActive`), and the library's others are chips over the matrix that add them.
+  A first visit's library holds webmidi's two examples (`EXAMPLE_MIXER`, `EXAMPLE_PLAY`), none active; a library a person emptied stays empty.
+- A panel is played, edited, made and deleted under the patch (`SoundPanel`: `PanelView`, `PanelEditor`).
+  Its touches go out through the outputs its row crosses, on the channel the crossing says (`forwardsOf` on `panel:<id>`, through `Device`'s sender), and to the panels its row crosses (`panelForwardsOf`).
+  An input's raw messages (`MidiAccess`'s `onMessage`) go to the panels its row crosses, so a panel follows a controller whether or not a view shows it.
+  The panels' notes are released on All notes off (`PanelDeck.silence`), and where a panel is taken out or edited, by the book of before the change.
+- Jambot's own rows (the parts, the keys) are sent from notes, not bytes, so no panel's column crosses them (decision 007); and the built-in synth is no `direct` column (`PatchMatrix`'s `builtIn.direct` is not passed), so a panel is not heard on it: it plays on MIDI outputs only.
+  Playing a panel on the synth would take a map from MIDI bytes to the synth's notes, which Jambot has none of; it is left open.
+
 ## Ports
 
 - A setup remembered with a device or an input is reconnected on load without a click (`App.svelte`, `Device.remembersPorts`), since a Web MIDI permission already granted needs no gesture; a first visit, with nothing chosen yet, asks for none.

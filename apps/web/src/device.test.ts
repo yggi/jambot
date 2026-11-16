@@ -11,6 +11,9 @@ import {
   withCrossing,
   ANY_INPUT,
   withPlays,
+  inputRow,
+  panelKey,
+  withPanelActive,
 } from '@yggi/webmidi/core';
 import { CONNECT_WAIT, Device, FADE_IN, FADE_OUT, VOLUME_KEY, taper } from './device.svelte.ts';
 import { BAND } from './midi/patch.ts';
@@ -267,6 +270,42 @@ describe('the device’s MIDI ports', () => {
     );
     d.panicOutput('nowhere');
     expect(synth.sent).toHaveLength(16);
+  });
+
+  it('hands an input’s messages to the control panels its row crosses, and a panel’s touch out through the setup’s outputs', async () => {
+    const { keys, synth } = midi();
+    const { device: d } = device();
+    const row = inputRow({ id: 'in-1', name: 'Keys' });
+    changed(d, (book) =>
+      withCrossing(
+        withCrossing(
+          withCrossing(
+            withPanelActive(
+              chooseDevice(book, 'o1', { id: 'out-1', name: 'Synth' }),
+              'mixer',
+              true,
+            ),
+            BAND,
+            row,
+            panelKey('mixer'),
+            AS_PLAYED,
+          ),
+          BAND,
+          panelKey('mixer'),
+          'o1',
+          2,
+        ),
+        BAND,
+        row,
+        'o1',
+        AS_PLAYED,
+      ),
+    );
+    await d.connect(() => {});
+    keys.play([0xb0, 40, 127]);
+    expect(d.panels.runtimeOf('mixer')!.value('main').x).toBe(1);
+    d.panels.played('mixer', [0xb0, 40, 64]);
+    expect(synth.sent.map((m) => m.data)).toEqual([[0xb1, 40, 64]]);
   });
 
   it('leaves out a port the browser keeps listed as disconnected', async () => {

@@ -8,11 +8,15 @@ import {
   addOutput,
   chooseDevice,
   inputRow,
+  panelKey,
   withCrossing,
+  withPanelActive,
 } from '@yggi/webmidi/core';
+import { EXAMPLE_MIXER, EXAMPLE_PLAY, memoryPanelStore } from '@yggi/webmidi/panels';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BAND } from '../midi/patch.ts';
 import { MidiSettings } from '../midi/settings.svelte.ts';
+import { PanelDeck } from '../midi/panels.svelte.ts';
 import SoundPanel from './SoundPanel.svelte';
 
 beforeEach(() => localStorage.clear());
@@ -299,5 +303,66 @@ describe('SoundPanel', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(settings.book).toEqual(book);
     error.mockRestore();
+  });
+
+  describe('control panels', () => {
+    /** Settings with the Juno, and a deck over them whose sends are recorded. */
+    function withPanels() {
+      const made: { deck?: PanelDeck } = {};
+      const settings = new MidiSettings({ onchange: () => made.deck?.adopt() });
+      settings.book = chooseDevice(settings.book, 'o1', PORTS.outputs[0]!);
+      const sent: { output: string; data: readonly number[] }[] = [];
+      const deck = (made.deck = new PanelDeck({
+        settings,
+        store: memoryPanelStore(),
+        send: (f) => void sent.push(...f),
+      }));
+      return { settings, deck, sent };
+    }
+
+    it('offers the library’s panels as chips over the patch, and adds one as a row and a column', async () => {
+      const { settings, deck } = withPanels();
+      panel({ settings, deck });
+      await fireEvent.click(screen.getByRole('button', { name: /DM-8 mixer/ }));
+      expect(settings.setup.panels).toEqual([EXAMPLE_MIXER.id]);
+      expect(deck.shown).toBe(EXAMPLE_MIXER.id);
+      const rows = within(screen.getByRole('table'))
+        .getAllByRole('rowheader')
+        .map((h) => h.querySelector('.label')?.textContent);
+      expect(rows).toContain('DM-8 mixer');
+    });
+
+    it('plays the shown panel, its touches going out through the setup’s outputs', async () => {
+      const { settings, deck, sent } = withPanels();
+      settings.book = withCrossing(
+        withPanelActive(settings.book, EXAMPLE_MIXER.id, true),
+        BAND,
+        panelKey(EXAMPLE_MIXER.id),
+        'o1',
+        3,
+      );
+      panel({ settings, deck });
+      const main = screen.getByRole('slider', { name: /Main/ });
+      await fireEvent.keyDown(main, { key: 'End' });
+      expect(sent.length).toBeGreaterThan(0);
+      expect(sent.every((f) => f.output === 'o1' && (f.data[0]! & 0x0f) === 2)).toBe(true);
+    });
+
+    it('edits the shown panel, makes a new one and deletes it', async () => {
+      const { settings, deck } = withPanels();
+      panel({ settings, deck });
+      await fireEvent.click(screen.getByRole('button', { name: 'New panel' }));
+      expect(deck.library.panels.map((p) => p.id)).toContain('p3');
+      expect(deck.shown).toBe('p3');
+      expect(screen.getByRole('button', { name: 'Done editing' })).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole('button', { name: 'Delete this panel' }));
+      expect(deck.library.panels.map((p) => p.id)).toEqual([EXAMPLE_MIXER.id, EXAMPLE_PLAY.id]);
+      expect(settings.setup.panels ?? []).toEqual([]);
+    });
+
+    it('shows no panels where none is given', () => {
+      panel({ settings: onJuno() });
+      expect(screen.queryByRole('button', { name: 'New panel' })).toBeNull();
+    });
   });
 });
