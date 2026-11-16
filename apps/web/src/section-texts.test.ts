@@ -150,7 +150,9 @@ describe('a section’s text on the wire, host to client (#446)', () => {
       const client = playText(given);
       expect(client.error).toBeNull();
       expect(client.played!.diagnostics).toEqual([]);
-      expect(timeless(client)).toEqual(timeless(host));
+      // (the lock is what a host states of its own text for session version 2, #553: a text given carries none)
+      expect(timeless(client)).toEqual({ ...timeless(host), lock: [], filed: [] });
+      expect(host.lock.length).toBeGreaterThan(0);
       // One frame stands for every bar of a text: each bar's own reads the same.
       expect(client.played).toEqual(playSection(host.source, bars));
     },

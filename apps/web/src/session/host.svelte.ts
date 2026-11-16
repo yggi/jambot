@@ -26,17 +26,32 @@
  * player or a listener at any time (`cast`, #567), and tells it so. A
  * player's nudge leans the band, weighed by the players present (`nudgeFrom`,
  * step 2 of docs/briefs/session-roles.md); a listener's is dropped.
+ *
+ * It speaks one version of the session contract (`HOST_SPEAKS`, or `speaks`
+ * as it is made), and admits a client of that version. Version 1 sends each
+ * bar the band composed (`bar`) and each section's text (`section`).
+ * Version 2 (#553) sends each bar's conduct in place of the bar
+ * (`conductOf`) and each section's score in place of its text, its band's
+ * bars asked for in runs that each state one key and meter (the shadow's
+ * `split`), so a looped bar is never unstated; with a score go the
+ * fragments it locks that a client lacks, each sent to a client once, by
+ * hash (`fragmentsLacked`), the ledger kept by the client's seat, so a
+ * client back with its token is not sent again what it was sent.
  */
 
-import { type ForecastBar, SECTION_BARS } from '@jambot/engine';
+import { type BandBar, type ForecastBar, SECTION_BARS } from '@jambot/engine';
+import { DEFAULT_BAND } from '@jambot/score';
 import {
   CODE_WRONG,
   type ClientMessage,
+  type FragmentLedger,
   HOST_PLAYER,
-  type HostMessage,
+  type HostSaid,
+  type HostScore,
   type HostSnapshot,
   type MuseState,
   PROTOCOL,
+  PROTOCOL_V2,
   type Role,
   type Roster,
   admit,
@@ -50,13 +65,21 @@ import {
   playerSource,
   present,
   recast,
+  SESSION_V1,
+  SESSION_V2,
   said,
   type SessionEvent,
+  type SentBar,
+  conductOf,
+  fragmentsLacked,
+  ledgerOf,
+  scoreFor,
   tailOf,
   WRONG_CODES,
   wrongCodesWithin,
 } from '@jambot/session';
 import type { Hosting, Player } from '../player.svelte.ts';
+import { foreseenOf } from '../section-texts.ts';
 import type { DeviceClocks } from './clocks.ts';
 import {
   castLine,
@@ -70,6 +93,12 @@ import type { HostLink, Lobby } from './lobby.ts';
 
 /** How long, in seconds, a client may be silent before it is taken to have gone. */
 export const SILENT = 3;
+
+/**
+ * The version of the session contract a host speaks (#553): 1 until a client
+ * plays version 2's scores (rung 3), and the protocol moves to it (rung 4).
+ */
+export const HOST_SPEAKS: 1 | 2 = 1;
 
 export interface Guest {
   readonly id: string;
@@ -93,6 +122,8 @@ export interface HostOptions {
   readonly epoch?: () => number;
   /** A code to admit clients by, which can't be guessed but by trying (`CODE_DIGITS`). */
   readonly draw?: () => string;
+  /** The version of the session contract it speaks, `HOST_SPEAKS` unless said. */
+  readonly speaks?: 1 | 2;
 }
 
 /** A code drawn from the browser's randomness, as a resume token is. */
@@ -123,6 +154,9 @@ export class HostSession {
   #keep: HostKeep | null;
   #epoch: () => number;
   #draw: () => string;
+  #speaks: 1 | 2;
+  /** Which fragment hashes each client was sent, by its seat's id (version 2). */
+  #ledger: FragmentLedger = {};
   #forecast: readonly ForecastBar[] = [];
   #muse: MuseState = {
     offer: null,
@@ -153,6 +187,7 @@ export class HostSession {
       keep,
       epoch = () => Date.now() / 1000,
       draw = drawCode,
+      speaks = HOST_SPEAKS,
     }: HostOptions = {},
   ) {
     this.#player = player;
@@ -162,6 +197,7 @@ export class HostSession {
     this.#keep = keep ?? null;
     this.#epoch = epoch;
     this.#draw = draw;
+    this.#speaks = speaks;
   }
 
   /**
@@ -197,6 +233,8 @@ export class HostSession {
     this.session = (restore?.session ?? session).trim();
     this.code = restore ? (restore.code ?? null) : byCode ? this.#draw() : null;
     this.#player.mode = 'host';
+    // Version 2 states every bar a score states, in runs where a section's key or meter moves (#553).
+    this.#player.shadow.split = this.#speaks === 2;
     this.#player.playerId = HOST_PLAYER;
     this.#player.players = {};
     this.#forecast = this.#player.ahead;
@@ -330,23 +368,49 @@ export class HostSession {
     this.#player.playerId = null;
     this.#player.players = {};
     this.#player.mode = 'solo';
+    this.#player.shadow.split = false;
     this.session = null;
     this.code = null;
     this.guests = [];
     this.log = [];
     this.#roster = [];
+    this.#ledger = {};
     this.#wrongCodes = [];
     this.#lastHeard = {};
   }
 
   #seat(roster: Roster) {
     this.#roster = roster;
+    this.#ledger = ledgerOf(
+      this.#ledger,
+      roster.map((m) => m.id),
+    );
     this.guests = present(roster).map(({ id, name, role }) => ({ id, name, role }));
     this.persist();
   }
 
-  #send(message: HostMessage, to?: string) {
+  #send(message: HostSaid, to?: string) {
     this.#link?.send(message, to);
+  }
+
+  /** A bar's conduct, from the bar sent at version 1 and the bar as the band composed it. */
+  #conduct(sent: SentBar, composed: BandBar) {
+    return conductOf(sent, foreseenOf(composed));
+  }
+
+  /**
+   * A section's score (version 2): to every client alike where it carries no
+   * fragment the seed library lacks, else to each seated client with a link,
+   * with the fragments it lacks.
+   */
+  #score(score: HostScore) {
+    if (score.filed.length === 0) return this.#send({ kind: 'score', ...scoreFor(score, []) });
+    for (const member of this.#roster) {
+      if (member.link === null) continue;
+      const { fragments, ledger } = fragmentsLacked(this.#ledger, member.id, score.filed);
+      this.#ledger = ledger;
+      this.#send({ kind: 'score', ...scoreFor(score, fragments) }, member.link);
+    }
   }
 
   #hosting(): Hosting {
@@ -360,9 +424,15 @@ export class HostSession {
       },
       stopped: () => this.#send({ kind: 'stop' }),
       finale: (bar) => this.#send({ kind: 'finale', bar }),
-      section: (text) => this.#send({ kind: 'section', ...text }),
-      composed: (bars) => {
-        for (const sent of bars) this.#send({ kind: 'bar', sent });
+      section: (text, score) =>
+        this.#speaks === 2 ? this.#score(score) : this.#send({ kind: 'section', ...text }),
+      composed: (bars, composed) => {
+        for (const [i, sent] of bars.entries())
+          this.#send(
+            this.#speaks === 2
+              ? { kind: 'conduct', ...this.#conduct(sent, composed[i]!) }
+              : { kind: 'bar', sent },
+          );
         this.#composed(this.#forecast);
       },
       decided: (bars) => {
@@ -456,6 +526,7 @@ export class HostSession {
       this.#player.players[HOST_PLAYER] ?? '',
       this.code,
       wrongCodesWithin(this.#wrongCodes, this.#wallNow()).length >= WRONG_CODES.count,
+      this.#speaks === 2 ? SESSION_V2 : SESSION_V1,
     );
     if ('refusal' in admitted) {
       if (admitted.refusal === CODE_WRONG)
@@ -471,29 +542,61 @@ export class HostSession {
     this.#name(member.id, member.name, false);
     this.#seat(roster);
     this.#lastHeard[from] = this.#wallNow();
-    this.#send(
-      {
-        kind: 'welcome',
-        protocol: PROTOCOL,
-        session: this.session ?? '',
-        resume: member.token,
-        song: this.#player.hosted
-          ? {
-              ...this.#player.hosted.song,
-              bars: this.#player.hosted.bars,
-              texts: this.#player.hosted.texts,
-            }
-          : null,
-        forecast: forecastDelta([], this.#forecast),
-        muse: this.#muse,
-        ...(member.role === 'listener' ? { listening: true as const } : {}),
-        events: tailOf(this.log),
-      },
-      from,
-    );
+    this.#send(this.#speaks === 2 ? this.#welcomeV2(member) : this.#welcome(member), from);
     // Everyone else learns the new player's name, and everyone, the newcomer too, reads it joined.
     this.#send({ kind: 'muse', muse: this.#muse });
     this.#say(joinedLine(this.#bar(), member.id, member.name, member.role, back));
+  }
+
+  /** Version 1's welcome: the song with the bars composed and not yet played, and the texts that state them. */
+  #welcome(member: { token: string; role: Role }): HostSaid {
+    const hosted = this.#player.hosted;
+    return {
+      kind: 'welcome',
+      protocol: PROTOCOL,
+      session: this.session ?? '',
+      resume: member.token,
+      song: hosted ? { ...hosted.song, bars: hosted.bars, texts: hosted.texts } : null,
+      forecast: forecastDelta([], this.#forecast),
+      muse: this.#muse,
+      ...(member.role === 'listener' ? { listening: true as const } : {}),
+      events: tailOf(this.log),
+    };
+  }
+
+  /**
+   * Version 2's welcome (#553): the song with the conducts of the bars
+   * composed and not yet played and the scores in force, the fragments those
+   * lock that the client lacks, and the default band, which it never plays.
+   */
+  #welcomeV2(member: { id: string; token: string; role: Role }): HostSaid {
+    const hosted = this.#player.hosted;
+    const scores = hosted?.scores ?? [];
+    const lacked = fragmentsLacked(
+      this.#ledger,
+      member.id,
+      scores.flatMap((s) => s.filed),
+    );
+    this.#ledger = lacked.ledger;
+    return {
+      kind: 'welcome',
+      protocol: PROTOCOL_V2,
+      session: this.session ?? '',
+      resume: member.token,
+      song: hosted
+        ? {
+            ...hosted.song,
+            conducts: hosted.bars.map((sent, i) => this.#conduct(sent, hosted.composed[i]!)),
+            scores: scores.map((s) => scoreFor(s, [])),
+          }
+        : null,
+      forecast: forecastDelta([], this.#forecast),
+      muse: this.#muse,
+      fragments: lacked.fragments,
+      band: DEFAULT_BAND,
+      ...(member.role === 'listener' ? { listening: true as const } : {}),
+      events: tailOf(this.log),
+    };
   }
 
   /**

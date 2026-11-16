@@ -161,6 +161,7 @@ import {
   type LayerStore,
   type MuseState,
   type PlayedBar,
+  type HostScore,
   type SectionText,
   type SentBar,
   type Song,
@@ -266,8 +267,11 @@ export type Mode = 'solo' | 'host' | 'client';
 export interface Hosting {
   started(song: Song): void;
   stopped(): void;
-  /** Bars composed, each with where it starts on this clock. */
-  composed(bars: readonly SentBar[]): void;
+  /**
+   * Bars composed, each with where it starts on this clock, and as the band composed them (`composed`, in the same
+   * order), what a host of session version 2 digests each bar's conduct from (#553).
+   */
+  composed(bars: readonly SentBar[], composed: readonly BandBar[]): void;
   /** The bars ahead, whenever they are decided again. */
   decided(bars: readonly ForecastBar[]): void;
   /**
@@ -282,8 +286,8 @@ export interface Hosting {
   muse(muse: MuseState): void;
   /** The song ends on this bar, its last, composed. */
   finale(bar: number): void;
-  /** A section's cells text, as the band through cells states it (#446). */
-  section(text: SectionText): void;
+  /** A section's cells text, as the band through cells states it (#446), and the same as a score (session version 2, #553). */
+  section(text: SectionText, score: HostScore): void;
   /** A line of the session's log the band says itself: the conductor's, at a section line (step 3). */
   said(line: SessionEvent): void;
 }
@@ -676,7 +680,7 @@ export class Player {
     this.#metronome = metronome;
     this.shadow = new Shadow(() => surroundings.page() * 1000, surroundings.texts?.());
     // A host's band through cells tells its session each section's text as it takes it (#446).
-    this.shadow.told = (text) => this.hosting?.section(text);
+    this.shadow.told = (text, score) => this.hosting?.section(text, score);
     const ear = surroundings.ear?.();
     this.hearing = ear ? new Hearing(ear, () => surroundings.page() * 1000) : null;
     // A lean moved changes the bars ahead from the section it leans.
@@ -1290,9 +1294,17 @@ export class Player {
 
   /**
    * Where the song and the bars composed stand, for a client joining mid-song,
-   * and the section texts that state the bars not yet played (#446).
+   * and the section texts that state the bars not yet played (#446); and for
+   * a client of session version 2 (#553), the bars composed as the band
+   * composed them (`composed`, in the order of `bars`) and the scores in force.
    */
-  get hosted(): { song: Song; bars: SentBar[]; texts: readonly SectionText[] } | null {
+  get hosted(): {
+    song: Song;
+    bars: SentBar[];
+    texts: readonly SectionText[];
+    composed: readonly BandBar[];
+    scores: readonly HostScore[];
+  } | null {
     const carried = this.#carried;
     if (this.status !== 'playing' || !carried) return null;
     return {
@@ -1312,6 +1324,8 @@ export class Player {
         this.tempoMeter,
       ),
       texts: this.shadow.toldFrom(clockOfTransport(carried).barAt(carried.head.step)),
+      composed: carried.bars,
+      scores: this.shadow.scoredFrom(clockOfTransport(carried).barAt(carried.head.step)),
     };
   }
 
@@ -1629,6 +1643,7 @@ export class Player {
             clockOfTransport(carried),
             this.tempoMeter,
           ),
+          scheduled.composed,
         );
       if (
         logged.length > 0 ||

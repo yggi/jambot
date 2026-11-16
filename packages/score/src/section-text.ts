@@ -628,17 +628,8 @@ export function hostOf(
   key: string;
   melodic: MelodicScale;
 } {
-  const each = bars.map((bar) => ({
-    meter: barMeterName(bar),
-    bpm: bar.style.bpm,
-    swing: swingText(bar.meter, bar.swing),
-    key: keyText(bar.plan.key),
-    melodic: bar.plan.melodic,
-  }));
-  const fields: readonly HostField[] =
-    tempo === 'held'
-      ? ['meter', 'bpm', 'swing', 'key', 'melodic']
-      : ['meter', 'swing', 'key', 'melodic'];
+  const each = bars.map(hostFieldsOf);
+  const fields = hostFields(tempo);
   for (const [i, h] of each.entries())
     for (const field of fields)
       if (h[field] !== each[0]![field])
@@ -646,6 +637,46 @@ export function hostOf(
           `a section's ${field} changes at its bar ${i} (${each[0]![field]} to ${h[field]}): one text holds one`,
         );
   return each[0]!;
+}
+
+/** What a bar states at a text's top, field by field (`hostOf`). */
+const hostFieldsOf = (bar: BandBar) => ({
+  meter: barMeterName(bar),
+  bpm: bar.style.bpm,
+  swing: swingText(bar.meter, bar.swing),
+  key: keyText(bar.plan.key),
+  melodic: bar.plan.melodic,
+});
+
+/** The fields a text's bars must share: all of them, or all but the tempo. */
+const hostFields = (tempo: 'held' | 'first'): readonly HostField[] =>
+  tempo === 'held'
+    ? ['meter', 'bpm', 'swing', 'key', 'melodic']
+    : ['meter', 'swing', 'key', 'melodic'];
+
+/**
+ * A section's bars as runs that one text each can state (`hostOf`): split at
+ * each bar that parts from the one before on what a text states once at its
+ * top (its meter, swing, key and melodic scale, and its tempo unless `tempo`
+ * is `'first'`), in order, every bar in one run. A section that holds them
+ * all is one run. A looper over two plans whose keys part mixes them in a
+ * section (#648), and a host of session version 2 states each run as a
+ * score of its own, since a bar no score states plays silent (#553, #626).
+ */
+export function sectionRuns(
+  bars: readonly BandBar[],
+  { tempo = 'held' }: { readonly tempo?: 'held' | 'first' } = {},
+): BandBar[][] {
+  const fields = hostFields(tempo);
+  const runs: BandBar[][] = [];
+  let before: ReturnType<typeof hostFieldsOf> | null = null;
+  for (const bar of bars) {
+    const h = hostFieldsOf(bar);
+    if (before === null || fields.some((f) => h[f] !== before![f])) runs.push([]);
+    runs.at(-1)!.push(bar);
+    before = h;
+  }
+  return runs;
 }
 
 /** The melodic scale as degrees of the key, each with its accidental (the key's own scale is every degree). */

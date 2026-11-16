@@ -1,9 +1,10 @@
 /**
  * What a host says to its clients in version 2 of the session contract
  * (yggi/music-commons `contracts/session`, minor 1: protocol 31), as a client
- * reads it: read here, and spoken nowhere yet (#553: the host writes it at
- * rung 2, the client plays it at rung 3, and the protocol moves to it at
- * rung 4; Jambot speaks version 1, `PROTOCOL`).
+ * reads it: read here, written by the app's host behind a switch
+ * (`host-v2.ts`, `HOST_SPEAKS` in the app: #553's rung 2), played by the
+ * client at rung 3, and spoken once the protocol moves to it at rung 4;
+ * Jambot speaks version 1, `PROTOCOL`.
  *
  * Version 2 sends a section's **score** (`score`) in place of its text
  * (`section`), and each bar's **conduct** (`conduct`) in place of the bar
@@ -144,6 +145,9 @@ export type HostMessageV2 =
     }
   | ({ readonly kind: 'conduct' } & BarConduct)
   | ({ readonly kind: 'score' } & SectionScore);
+
+/** What a host of either version says: version 1's messages, or version 2's (a host speaks one, `HOST_SPEAKS` in the app). */
+export type HostSaid = HostMessage | HostMessageV2;
 
 const SECTION_NAMES: ReadonlySet<unknown> = new Set(SECTION_TYPES);
 

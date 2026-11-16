@@ -58,6 +58,12 @@
  * from (`foreseen`, a digest), as a host checks the bar it composes: a bar
  * sent otherwise than foreseen waits for the host's text again, and plays
  * the band's own if it hasn't come, counted late.
+ *
+ * Each text told goes as a score too (`HostScore`, session version 2, #553),
+ * with its section's type, each bar's energy and what it locks. A host of
+ * version 2 asks for a section's bars in runs that each hold one meter,
+ * swing, key and melodic scale (`split`), so no bar a looper mixes from two
+ * keys goes unstated, which would play silent on its clients.
  */
 
 import {
@@ -88,8 +94,9 @@ import {
   asCellsGives,
   levelSwings,
   performCells,
+  sectionRuns,
 } from '@jambot/score';
-import type { SectionText } from '@jambot/session';
+import { type HostScore, type SectionText, hostScoreOf, scoresInForce } from '@jambot/session';
 import { type SectionStated, type SectionTexts, foreseenOf, inlineTexts } from './section-texts.ts';
 
 /** Where a song's texts come from: asked for from the band's own bars (alone or hosting), or given by a host (a client, #446). */
@@ -287,6 +294,12 @@ const JOINING = 'the text came with the welcome and was on its way when its bar 
 /** How many texts told a host keeps for a client's welcome: those of the section playing and the next, and more. */
 const TOLD_KEPT = 8;
 
+/**
+ * How many scores told a host of session version 2 keeps for a client's welcome: twice the texts, as a section stated
+ * in runs is told as more than one (`split`).
+ */
+const SCORES_KEPT_TOLD = 2 * TOLD_KEPT;
+
 /** How many scores taken are kept for the Cells view: the section heard and those built ahead of it. */
 const SCORES_KEPT = 4;
 
@@ -315,9 +328,21 @@ export class Shadow {
   #digests = new Map<number, string>();
   /** The texts told lately, latest last: a client's welcome gives those of bars not yet played. */
   #told: SectionText[] = [];
+  /** The same as scores, as a host of session version 2 sends them (#553), latest last. */
+  #scored: HostScore[] = [];
   #wire: number[] = [];
-  /** Hears each text the band's own bars state as it is taken: a host sends it to its clients (#446). */
-  told: ((text: SectionText) => void) | null = null;
+  /**
+   * Hears each text the band's own bars state as it is taken, and the same as a score: a host sends one or the other
+   * to its clients, by the version of the session it speaks (#446, #553).
+   */
+  told: ((text: SectionText, score: HostScore) => void) | null = null;
+  /**
+   * Whether the bars asked for as one text are asked for in runs, split where the key, the meter, the swing or the
+   * melodic scale moves (`sectionRuns`), each run a text of its own: what a host of session version 2 does, since a
+   * bar no score states plays silent on its clients (#553, #626). Off, a section whose bars part on any of them is
+   * unstated, and plays the band's own events (a looper over two plans whose keys part, #648).
+   */
+  split = false;
   #played = { cells: 0, band: 0 };
   #gaps: Record<string, { bars: number; events: number }> = {};
   #errors: string[] = [];
@@ -369,6 +394,7 @@ export class Shadow {
     this.#asked.clear();
     this.#pending.clear();
     this.#told = [];
+    this.#scored = [];
     this.#scores = [];
     this.#lastTick = null;
     this.#texts.begin();
@@ -466,6 +492,11 @@ export class Shadow {
   /** The texts told that state a bar from `bar` on, in the order told: what a client's welcome gives (#446). */
   toldFrom(bar: number): readonly SectionText[] {
     return this.#told.filter((t) => t.bar + t.foreseen.length > bar);
+  }
+
+  /** The scores told in force from `bar` on, in the order told: what a welcome of session version 2 gives (#553). */
+  scoredFrom(bar: number): readonly HostScore[] {
+    return scoresInForce(this.#scored, bar);
   }
 
   /** A step of a bar laid in a gap: its band's events counted under the reason, and the bar the first time it is laid for it. */
@@ -579,19 +610,24 @@ export class Shadow {
       : null;
   }
 
-  /** Ask for bars as one text, compiled and played through cells (`SectionTexts`), each bar then holding what it plays. */
+  /**
+   * Ask for bars as one text, or as a text a run where they are asked for in runs (`split`), compiled and played
+   * through cells (`SectionTexts`), each bar then holding what it plays.
+   */
   #state(bars: readonly BandBar[], carried: TransportCarried, asked: Asked) {
     const clock = clockOf(
       bars.reduce((meters, b) => withMeter(meters, b.bar, b.meter), carried.meters),
     );
-    const pending: Pending = {
-      asked,
-      bars: bars.map((b) => b.bar),
-      forecast: bars,
-      textStart: clock.barStart(bars[0]!.bar),
-      main: null,
-    };
-    this.#ask(pending, (answer) => this.#texts.ask(bars, answer));
+    for (const run of this.split ? sectionRuns(bars, { tempo: 'first' }) : [bars]) {
+      const pending: Pending = {
+        asked,
+        bars: run.map((b) => b.bar),
+        forecast: run,
+        textStart: clock.barStart(run[0]!.bar),
+        main: null,
+      };
+      this.#ask(pending, (answer) => this.#texts.ask(run, answer));
+    }
   }
 
   /** A text asked for, or given, timed on the page: its bars then wait for its answer. */
@@ -666,24 +702,27 @@ export class Shadow {
       });
     }
     const first = bars[0]!;
-    if (took && this.#from === 'asked') this.#tell(first, textStart, stated);
+    if (took && this.#from === 'asked') this.#tell(first, textStart, stated, pending.forecast);
     for (const key of this.#bars.keys()) if (key < first - 2 * SECTION_BARS) this.#bars.delete(key);
     for (const key of this.#asked.keys())
       if (key < first - 2 * SECTION_BARS) this.#asked.delete(key);
   }
 
   /**
-   * A text the band's own bars state, taken: told, as a host sends it (#446),
-   * kept for a client's welcome, and its size on the wire counted.
+   * A text the band's own `bars` state, taken: told, as a host sends it (#446),
+   * and as a score (#553), each kept for a client's welcome, and the text's size
+   * on the wire counted.
    */
-  #tell(bar: number, step: number, stated: SectionStated) {
-    const { source: text, unstated, frame, foreseen, cut } = stated;
+  #tell(bar: number, step: number, stated: SectionStated, bars: readonly BandBar[]) {
+    const { source: text, unstated, frame, foreseen, cut, lock, filed } = stated;
     const told: SectionText = { bar, step, text, unstated, frame, foreseen, cut };
+    const score = hostScoreOf(bar, step, { text, unstated, lock, filed, foreseen, cut }, bars);
     this.#counted.told++;
     this.#told = [...this.#told, told].slice(-TOLD_KEPT);
+    this.#scored = [...this.#scored, score].slice(-SCORES_KEPT_TOLD);
     this.#wire.push(new TextEncoder().encode(JSON.stringify({ kind: 'section', ...told })).length);
     if (this.#wire.length > SAMPLES_KEPT) this.#wire.shift();
-    this.told?.(told);
+    this.told?.(told, score);
   }
 
   /**
