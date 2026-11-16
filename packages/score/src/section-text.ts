@@ -38,7 +38,11 @@
  * - the lead as its notes (yggi/cells#47): degrees over the plan's melodic
  *   scale from its register, C4, over the key where the scale is the key's own,
  *   else over the scale stated as a stack of the key's degrees (`&melo`);
- * - each part's velocities, a line of levels or one level (`&bassLevel`);
+ * - the section's intensity (yggi/cells decision 096, #645): its song's, the style's energy, plus its kind's offset,
+ *   `&song .75` and `&intensity [&song + -.15 + &rise * .45]` (Jambot's `barEnergy` as cells' sum), which the band's
+ *   drums, bass and stabs play at;
+ * - each part's velocities, a line of levels or one level (`&bassLevel`), each driven part's level the one cells
+ *   strikes at its velocity once the band's drive is read (`drivenLevel`), so a build's levels repeat bar to bar;
  * - each line says its part (`&bassline part=bass …`, feel v3, #615), a word
  *   about the line that sounds nothing, which a performer takes since cells
  *   v0.25.0 (yggi/cells#708);
@@ -46,7 +50,7 @@
  *   (`&leadline part=lead step=1m ~`, decision 063 §4: a line with no clock
  *   starts nothing, an error);
  * - and last the band, `* from band(…)`, passed what the score writes
- *   (cells' `bandLine`): each part and its levels, and the style.
+ *   (cells' `bandLine`): each part and its levels, the style and the intensity.
  *
  * The band is the client's own, resolved where the score is played and never
  * sent (`compileSection`, cells' `resolveBand`): cells' default `band` plays
@@ -88,6 +92,8 @@ import {
   STRAIGHT,
   baseLengthOf,
   composedLevel,
+  energyOffset,
+  SECTION_BARS,
   chordNumeral,
   keyHelix,
   melodicHelix,
@@ -687,11 +693,88 @@ export function scoreLevel(velocity: number): string {
   }
 }
 
-/** A hit's own level after its voice, none at full velocity. */
-const hitLevel = (velocity: number) => (velocity >= 127 ? '' : `:0:${scoreLevel(velocity)}`);
+/**
+ * The drive the default band plays a part at, on the velocity's scale, by the bar's intensity: Jambot's dynamics, which
+ * cells' band reads from the score's `&intensity` (yggi/cells `fragments/bands/01-band.md` @ v0.26.1, decision 096). The
+ * pad and the lead have none.
+ */
+const DRIVES: Partial<Record<PitchedName | 'drums', readonly [number, number]>> = {
+  drums: [0.35, 0.65],
+  bass: [0.25, 0.75],
+  stab: [0.2222, 0.7778],
+};
+/** A part's drive at an intensity, summed as cells sums it (`[&intensity * a + b]`: the constant, then the term). */
+export const driveOf = (line: PitchedName | 'drums', intensity: number): number => {
+  const d = DRIVES[line];
+  return d ? d[1] + d[0] * intensity : 1;
+};
 
-/** A section's note, at its step in the section. */
-type AtStep = ComposedNote & { readonly at: number };
+/**
+ * A velocity as the score writes its level where the band drives it (decision 096): a level cells strikes at that
+ * velocity once the drive is read twice, `round(127 · √level · drive)`, kept off the ends of the interval as
+ * `scoreLevel` keeps it: the shortest decimal there, or the level of the velocity the drive scales up from,
+ * `round(velocity / drive)`, where it falls there and is no longer, so a part's levels repeat as its accents do. With no
+ * drive, `scoreLevel`.
+ */
+export function drivenLevel(velocity: number, drive: number): string {
+  if (drive === 1) return scoreLevel(velocity);
+  const square = (v: number) => (Math.max(0, v) / (127 * drive)) * (Math.max(0, v) / (127 * drive));
+  const [lo, hi] = [square(velocity - 0.5), square(velocity + 0.5)];
+  const margin = (hi - lo) / 1000;
+  const inside = (x: number) => x > lo + margin && x < hi - margin;
+  const mid = (lo + hi) / 2;
+  let shortest = '';
+  for (let digits = 1, scale = 10; !shortest; digits++, scale *= 10) {
+    const near = Math.round(mid * scale) / scale;
+    if (inside(near)) shortest = String(Number(near.toFixed(digits))).replace(/^0\./, '.');
+  }
+  const base = scoreLevel(Math.max(1, Math.round(velocity / drive)));
+  return inside(Number(base)) && base.length <= shortest.length ? base : shortest;
+}
+
+/** A hit's own level after its voice, none at full velocity. */
+const hitLevel = (level: string) => (level === '1' ? '' : `:0:${level}`);
+
+/** A section's note, at its step in the section, and its level as the score writes it (`drivenLevel`). */
+type AtStep = ComposedNote & { readonly at: number; readonly level: string };
+
+/**
+ * The section's intensity (yggi/cells decision 096): its song's, the style's energy, plus its kind's offset, a sum the
+ * band's drives read (`&song .55`, `&intensity [&song + -.45]`; a build's ramp a line by its weight). Where that sum
+ * wouldn't play each bar's energy (a style that moves within the section), a line of the bars' intensities. Each bar's
+ * intensity as cells reads what is written.
+ */
+function intensityOf(bars: readonly BandBar[]): { lines: string[]; at: number[] } {
+  const kind = bars[0]!.plan.section.type;
+  const word = (x: number) => String(Number(x.toFixed(6))).replace(/^(-?)0\./, '$1.');
+  const songs = new Set(bars.map((b) => word(b.style.energy)));
+  const inSection = bars.map((b) => b.bar % SECTION_BARS);
+  const held = (x: number) => Math.max(0, Math.min(1, x));
+  if (songs.size === 1 && bars.every((b) => b.plan.section.type === kind)) {
+    const song = Number([...songs][0]!);
+    if (kind === 'build') {
+      const rise = inSection.map((k) => Number(word(k / (SECTION_BARS - 1))));
+      // (cells' sum: its constant, the song's number folded in, then the rise by its weight)
+      const at = rise.map((r) => held(-0.15 + song + 0.45 * r));
+      if (at.every((e, i) => Math.abs(e - bars[i]!.barEnergy) < 1e-5))
+        return {
+          lines: [
+            `&song ${word(song)}`,
+            `&rise step=1m ${rise.map(word).join(' ')}`,
+            '&intensity [&song + -.15 + &rise * .45]',
+          ],
+          at,
+        };
+    } else {
+      const offset = energyOffset(kind, 0);
+      const at = bars.map(() => held(song + offset));
+      if (at.every((e, i) => Math.abs(e - bars[i]!.barEnergy) < 1e-5))
+        return { lines: [`&song ${word(song)}`, `&intensity [&song + ${word(offset)}]`], at };
+    }
+  }
+  const at = bars.map((b) => Number(word(b.barEnergy)));
+  return { lines: [`&intensity step=1m ${at.map(word).join(' ')}`], at };
+}
 
 /**
  * The drums: a line a role on 16ths over the section, the rim a Euclid token
@@ -725,23 +808,23 @@ function drumLines(
         : null;
     if (rims && rims.every((r) => r !== null)) {
       lines.push(`&${role} role=${role} step=1m ${rims.join(' ')}`);
-      const velocities = new Set(hits.map((h) => h.velocity));
+      const levelSet = new Set(hits.map((h) => h.level));
       const perBar = Array.from({ length: bars }, (_, i) => [
-        ...new Set(ofBar(i).map((h) => h.velocity)),
+        ...new Set(ofBar(i).map((h) => h.level)),
       ]);
-      if (velocities.size === 1) {
-        const v = hits[0]!.velocity;
-        terms.push(v >= 127 ? `&${role}` : `&${role} * ${scoreLevel(v)}`);
+      if (levelSet.size === 1) {
+        const l = hits[0]!.level;
+        terms.push(l === '1' ? `&${role}` : `&${role} * ${l}`);
       } else if (perBar.every((v) => v.length <= 1)) {
         lines.push(
-          `&${role}Level map=amp step=1m ${perBar.map((v) => (v.length ? scoreLevel(v[0]!) : '0')).join(' ')}`,
+          `&${role}Level map=amp step=1m ${perBar.map((v) => (v.length ? v[0]! : '0')).join(' ')}`,
         );
         terms.push(`&${role} * &${role}Level`);
       } else {
-        const level = (s: number) => hits.find((h) => h.at === s)?.velocity;
+        const level = (s: number) => hits.find((h) => h.at === s)?.level;
         const levels = barred(
           `${role}Level`,
-          eachStep(bars * steps, (s) => (level(s) ? scoreLevel(level(s)!) : '0')),
+          eachStep(bars * steps, (s) => level(s) ?? '0'),
           steps,
         );
         lines.push(...levels.cells, `&${role}Level map=amp step=16n ${levels.words}`);
@@ -749,13 +832,13 @@ function drumLines(
       }
       continue;
     }
-    const braidOf = (level: (velocity: number) => string) =>
+    const braidOf = (level: (level: string) => string) =>
       barred(
         role,
         eachStep(bars * steps, (s) => {
           const words = hits
             .filter((h) => h.at === s)
-            .map((h) => `&${VOICE_OF_NOTE.get(h.note)!}${level(h.velocity)}`);
+            .map((h) => `&${VOICE_OF_NOTE.get(h.note)!}${level(h.level)}`);
           return words.length === 0 ? '~' : words.length === 1 ? words[0]! : `[${words.join(',')}]`;
         }),
         steps,
@@ -764,11 +847,11 @@ function drumLines(
     const each = [...own.cells, `&${role} role=${role} step=16n ${own.words}`];
     // A hit is a step long, so where a role's level is its step's in the bar, one bar of levels states them all, looped:
     // cells levels each lap's first hit of a looped line of levels (yggi/cells#460), so it needn't be a section long.
-    const atStep = new Map<number, number>();
+    const atStep = new Map<number, string>();
     const placed = hits.every((h) => {
       const step = h.at % steps;
-      if ((atStep.get(step) ?? h.velocity) !== h.velocity) return false;
-      atStep.set(step, h.velocity);
+      if ((atStep.get(step) ?? h.level) !== h.level) return false;
+      atStep.set(step, h.level);
       return true;
     });
     if (placed) {
@@ -778,7 +861,7 @@ function drumLines(
         `&${role} role=${role} step=16n ${bare.words}`,
         `&${role}LevelA ${barred(
           `${role}Level`,
-          eachStep(steps, (s) => (atStep.has(s) ? scoreLevel(atStep.get(s)!) : '~')),
+          eachStep(steps, (s) => atStep.get(s) ?? '~'),
           steps,
         ).words.replace(/~/g, '0')}`,
         `&${role}Level map=amp step=16n &${role}LevelA`,
@@ -864,13 +947,13 @@ function pitchedLine(
         }),
       ),
     );
-    levels.push({ at: step, length, text: scoreLevel(here[0]!.velocity) });
+    levels.push({ at: step, length, text: here[0]!.level });
     shares.push({ at: step, length, text: numberText(here[0]!.length / here[0]!.written) });
     at = step + length;
   }
   if (at < total) rest(total - at);
   const over: PitchTable = asked !== 'key' && unreached.length === 0 ? asked : 'key';
-  const one = new Set(notes.map((n) => n.velocity)).size === 1;
+  const one = new Set(notes.map((n) => n.level)).size === 1;
   const shareSet = [...new Set(notes.map((n) => numberText(n.length / n.written)))];
   const legato =
     shareSet.length > 1
@@ -887,7 +970,7 @@ function pitchedLine(
       `&${name}line part=${name} over=&${over} step=16n${legato} ${line.words}`,
       ...(shareSet.length > 1 ? [...share.cells, `&${name}Share step=16n ${share.words}`] : []),
       ...(one ? [] : level.cells),
-      `&${name}Level map=amp ${one ? scoreLevel(notes[0]!.velocity) : `step=16n ${level.words}`}`,
+      `&${name}Level map=amp ${one ? notes[0]!.level : `step=16n ${level.words}`}`,
     ],
     pitched: {
       part: name,
@@ -917,7 +1000,7 @@ function takenClave(
   const read = text === null ? null : readRhythm(text, bars[0]!.meter);
   if (!read || read.hits.some((h) => h.role !== 'clave')) return null;
   const hits = notes.filter((n) => n.part === 'drums' && n.role === 'clave');
-  const levels = new Set(hits.map((h) => h.velocity));
+  const levels = new Set(hits.map((h) => h.level));
   if (levels.size !== 1) return null;
   const expected = bars.flatMap((_, b) =>
     read.hits
@@ -928,10 +1011,10 @@ function takenClave(
   const same = (a: readonly string[], b: readonly string[]) =>
     a.length === b.length && [...a].sort().join() === [...b].sort().join();
   if (!same(expected, written)) return null;
-  const v = hits[0]!.velocity;
+  const l = hits[0]!.level;
   return {
     line: fromLine({ names: ['&clave'], id }),
-    term: v >= 127 ? '&clave' : `&clave * ${scoreLevel(v)}`,
+    term: l === '1' ? '&clave' : `&clave * ${l}`,
   };
 }
 
@@ -968,8 +1051,13 @@ export function sectionAsCells(
   const key = bars[0]!.plan.key;
   const steps = stepsOf(bars[0]!.meter);
   const total = bars.length * steps;
+  const intensity = intensityOf(bars);
   const notes: AtStep[] = bars.flatMap((bar, i) =>
-    writtenNotes(bar).map((n) => ({ ...n, at: i * steps + n.step })),
+    writtenNotes(bar).map((n) => ({
+      ...n,
+      at: i * steps + n.step,
+      level: drivenLevel(n.velocity, driveOf(n.line, intensity.at[i]!)),
+    })),
   );
   const cuts: SectionCut[] = [];
   const pitched: PitchedLine[] = [];
@@ -991,6 +1079,8 @@ export function sectionAsCells(
       part: 'harmony',
       text: `&harm over=&key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,
     },
+    // (the section's intensity, which the band's drums, bass and stabs play at: yggi/cells decision 096, #645)
+    ...intensity.lines.map((text) => ({ part: 'meter' as const, text })),
   ];
   const inForce = (at: number) => {
     const c = chords.findLast((x) => x.step <= at);

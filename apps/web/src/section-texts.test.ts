@@ -164,7 +164,7 @@ describe('a section’s text on the wire, host to client (#446)', () => {
   // playing 6.44 times its text and Electro swing 28.8; since #531 the section is a score, its performers and cards the
   // band's and its levels the shortest decimals: Chiptune 3,126, Ambient the shortest, 1,644, playing 6.93 times its
   // text, and Electro swing 35.4)
-  it('sends the text, 1.6 to 3.1 KB a section as JSON, under 3.2 KB, where what cells plays from it is 6.9 to 35 times that', () => {
+  it('sends the text, 1.6 to 3.1 KB a section as JSON, under 3.2 KB, where what cells plays from it is 6.9 to 34.6 times that', () => {
     const sizes = PRESETS.map((p) => {
       const bars = section(p.name, SECTION_BARS);
       const stated = stateSection(bars);
@@ -178,7 +178,8 @@ describe('a section’s text on the wire, host to client (#446)', () => {
       expect(events / text).toBeGreaterThan(6.9);
     }
     expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.6 * 1024);
-    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(35);
+    // (35 before #645, whose section writes its intensity: a line or two more of text)
+    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(34.6);
   });
 
   it('says where no text states the bars, and a client given that plays nothing, for the same reason', () => {

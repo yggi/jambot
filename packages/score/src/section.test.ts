@@ -60,6 +60,8 @@ import {
   PIN_VOICES,
   type SectionNote,
   barred,
+  driveOf,
+  drivenLevel,
   hostOf,
   keyLine,
   keyText,
@@ -178,7 +180,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(text.split('\n').slice(-3)).toEqual([
       '&padline part=pad step=1m ~',
       '&leadline part=lead step=1m ~',
-      '* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, stabLevel=&stabLevel, style=&style)',
+      '* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, stabLevel=&stabLevel, style=&style, intensity=&intensity)',
     ]);
     for (const part of BAND_PARTS) expect(text).toMatch(new RegExp(`^&${part} `, 'm'));
     // The band, resolved where the score is played, plays each part through its seed performer.
@@ -835,6 +837,48 @@ describe('a section as a score holds what the band plays (#531’s bounds)', () 
       expect(level.length).toBeLessThanOrEqual(levelOf(v).length);
     }
     expect([scoreLevel(127), scoreLevel(64), scoreLevel(8)]).toEqual(['1', '.254', '.004']);
+  });
+
+  it('writes a driven part’s level so cells strikes it at its velocity once the drive is read twice, every velocity at every intensity by the hundredth (yggi/cells decision 096, #645)', () => {
+    for (const line of ['drums', 'bass', 'stab'] as const)
+      for (let k = 0; k <= 100; k++) {
+        const drive = driveOf(line, k / 100);
+        for (let v = 1; v <= 127; v++) {
+          const level = Number(drivenLevel(v, drive));
+          // (cells' velocityOf over the gate's level, the score's times the drive twice: yggi/cells decision 096)
+          expect(
+            Math.min(127, Math.round(127 * Math.sqrt(level * drive * drive))),
+            `${line} ${k / 100} ${v}`,
+          ).toBe(v);
+        }
+      }
+    // (no drive, the plain level; the pad and the lead have none)
+    expect([driveOf('pad', 0.2), driveOf('lead', 0.9)]).toEqual([1, 1]);
+    expect(drivenLevel(64, 1)).toBe(scoreLevel(64));
+    // (a velocity the drive scales up from, its own level where it is no longer: the drums' 112 at an intensity of .75)
+    expect(drivenLevel(Math.round(112 * driveOf('drums', 0.75)), driveOf('drums', 0.75))).toBe(
+      scoreLevel(112),
+    );
+  });
+
+  it('writes a section’s intensity, its song’s plus its kind’s offset, and a build’s levels repeat bar to bar once the band drives them: Funk’s build from bar 17 (seed 1), 2,619 characters of levels where they took 3,312 (#645)', () => {
+    const bars = section('Funk', undefined, 1, 24).slice(16, 24);
+    expect(bars[0]!.plan.section.type).toBe('build');
+    const text = sectionTextOf(sectionAsCells(bars));
+    expect(text.split('\n').filter((l) => /^&(song|rise|intensity) /.test(l))).toEqual([
+      '&song .75',
+      '&rise step=1m 0 .142857 .285714 .428571 .571429 .714286 .857143 1',
+      '&intensity [&song + -.15 + &rise * .45]',
+    ]);
+    const levels = text
+      .split('\n')
+      .filter((l) => !l.startsWith('* from') && /Level|:0:|\* \.|\* [0-9]/.test(l));
+    expect(levels.join('\n').length).toBe(2619);
+    // (and it plays as the band writes it, each velocity)
+    const played = playSection(text, bars);
+    bars.forEach((bar, i) =>
+      expect(mismatches(writtenNotes(bar), played.bars[i]!.notes), `bar ${i}`).toEqual([]),
+    );
   });
 });
 

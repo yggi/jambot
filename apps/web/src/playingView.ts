@@ -77,9 +77,25 @@ export function playingRows(
   const band = parts.find((p) => p.id === 'band' && p.within === null);
   const inBand = (p: OutlinePart) => band !== undefined && (p === band || p.within === band.key);
 
-  // (who reads each part, within the score)
+  // (who reads each part, within the score: the outline's reads, and a written line that names another's head in its
+  // text, as a sum names a number it reads, which cells writes in as the number: `&intensity [&song + -.3]`, decision 088)
   const readers = new Map(parts.map((p) => [p.key, [] as string[]]));
   for (const p of parts) for (const r of p.reads) readers.get(r)?.push(p.key);
+  const texts = score.split('\n');
+  for (const p of parts) {
+    if (p.id !== null || inBand(p)) continue;
+    const named = new Set((texts[p.line - 1] ?? '').match(/&[A-Za-z_][A-Za-z0-9_]*/g) ?? []);
+    for (const q of parts)
+      if (
+        q !== p &&
+        !inBand(q) &&
+        q.id === null &&
+        q.heads.some((h) => named.has(h)) &&
+        !p.heads.some((h) => q.heads.includes(h))
+      )
+        if (!readers.get(q.key)!.includes(p.key) && !p.reads.includes(q.key))
+          readers.get(q.key)!.push(p.key);
+  }
 
   // The rows: each band argument's line, each fragment taken outside the band, then each written line read by more
   // than one row; every other written line folds into the one row it feeds.

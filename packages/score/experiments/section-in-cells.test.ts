@@ -218,18 +218,18 @@ describe('the band writes a whole section as one cells text, every part, the lea
   // (since cells v0.24.0 each drum line writes its role, `role=kick`, decision 075; since v0.25.0 each pitched line says
   // its part, `part=bass`, yggi/cells#708; since #531 the section is a score: no performer, voice or card, the parts
   // passed to the band, `* from band(…)`, and each level the shortest decimal cells strikes at its velocity, `scoreLevel`)
-  it('states the host’s lines and the harmony once a section: 2,535 characters a section, 2,267 without the lead, against E33’s 7,792 for the same 8 bars, 71 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,490 characters a section, 2,223 without the lead, against E33’s 7,792 for the same 8 bars, 71 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     expect(e35).toEqual({
-      total: 162214,
-      meter: 5688,
+      total: 159356,
+      meter: 9136,
       key: 2204,
       harmony: 8285,
-      drums: 67280,
-      bass: 24243,
-      comp: 24959,
+      drums: 60238,
+      bass: 23974,
+      comp: 24556,
       lead: 17097,
-      band: 12458,
+      band: 13866,
     });
     // E33 states every bar alone: its meter, key, harmony, voices, mix and card every bar, and no lead.
     const e33 = barCharacters(
@@ -246,21 +246,21 @@ describe('the band writes a whole section as one cells text, every part, the lea
       card: 24066,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2535);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2267);
+    expect(Math.round(e35.total / 64)).toBe(2490);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(2223);
     expect(Math.round(e33.total / 64)).toBe(7792);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(71);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [20222, 18075],
-      Techno: [19882, 17399],
-      'Deep house': [23475, 20948],
-      Ambient: [12965, 11790],
-      'Lo-fi hip hop': [21635, 19303],
-      Funk: [23173, 21347],
-      'Bossa nova': [22284, 20172],
-      'Swing jazz': [18578, 16083],
+      'Synth-pop': [20367, 18220],
+      Techno: [19902, 17419],
+      'Deep house': [22508, 19981],
+      Ambient: [13397, 12222],
+      'Lo-fi hip hop': [20902, 18570],
+      Funk: [22320, 20494],
+      'Bossa nova': [22308, 20196],
+      'Swing jazz': [17652, 15157],
     });
   });
 
@@ -574,7 +574,7 @@ describe.runIf(process.env.E35_FULL)(
       }
     });
 
-    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,134 characters a section, 1,915 without the lead, against E33’s 6,806', () => {
+    it('reads the chord in force in 682 of 727 bass, pad and stab lines, the lead over the key in 216; 2,132 characters a section, 1,914 without the lead, against E33’s 6,806', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -592,12 +592,13 @@ describe.runIf(process.env.E35_FULL)(
       ]);
       const e35 = characters(sections.map((s) => s.text));
       // (797,294 before #531, whose section is a score passed to the band, its levels each the shortest decimal; 782,673
-      // before cells v0.24.0, whose drum lines write their roles, `role=kick`)
-      expect([e35.total, e35.lead]).toEqual([682778, 69844]);
+      // before cells v0.24.0, whose drum lines write their roles, `role=kick`; 682,778 before #645, whose levels the band
+      // drives by the section's intensity)
+      expect([e35.total, e35.lead]).toEqual([682321, 69844]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
       expect(e33).toBe(2178078);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        2134, 1915, 6806,
+        2132, 1914, 6806,
       ]);
     });
   },
