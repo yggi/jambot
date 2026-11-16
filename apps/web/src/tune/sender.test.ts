@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Part } from '@jambot/engine';
-import type { MidiPort } from '../audio/midi-out.ts';
+import type { MidiPort } from '@yggi/webmidi/core';
 import { HOLD_SECONDS, SYNTH, ToneSender, VELOCITY } from './sender.svelte.ts';
 
 /** Two MIDI ports and a synth, each keeping what it is sent. */

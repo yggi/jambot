@@ -1,27 +1,27 @@
 // @vitest-environment node
-import { DRUM_NOTES, LOOKAHEAD, STRAIGHT, type Part, type Timbre } from '@jambot/engine';
+import { DRUM_NOTES, LOOKAHEAD, STRAIGHT, type Timbre } from '@jambot/engine';
 import {
   DRUM_PRESETS,
-  type ClockOffset,
+  type MidiPort,
   clockOffset,
   fromJambot,
   withCrossing,
 } from '@yggi/webmidi/core';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BAND, type BandRoute, bandRoutes, nameByPorts } from '../midi/patch.ts';
 import { bandOutput, type BandOutputSettings } from './band-output.ts';
 import {
   DEFAULT_CHANNELS,
   DEFAULT_DRUM_NOTES,
-  MidiOut,
-  type Channels,
   type DrumNotes,
-  type MidiPort,
   type PartChannels,
-} from './midi-out.ts';
+} from '../midi/channels.ts';
 import type { Output } from './output.ts';
 
 const NOTE_ON = 0x90;
+/** The minute of a band, as recorded: one message a line, its bytes in hex and its timestamp in ms (`RECORD_MINUTE=1` records it anew). */
+const MINUTE = new URL('./band-output.minute.txt', import.meta.url);
 
 // (every field a pitched voice reads, so any part may be played with it, #341)
 const timbre: Required<Omit<Timbre, 'sound'>> = {
@@ -222,12 +222,11 @@ describe('bandOutput', () => {
     expect(sent.filter((m) => m.data[0] === 0xf8)).toHaveLength(6);
   });
 
-  it('sends MIDI start only through the starting hook, and only with the clock on', () => {
+  it('sends MIDI Start 2 ms before the first tick of a run, and only with the clock on', () => {
     const base = fakeBase();
     const { settings, state } = fakeSettings();
     const { port, sent } = fakePort();
     state.port = port;
-    state.clock = true;
     const output = bandOutput(
       settings,
       base.output,
@@ -235,7 +234,14 @@ describe('bandOutput', () => {
     );
     void output.currentTime;
     output.starting?.(2);
-    expect(sent).toEqual([{ data: [0xfa], timestamp: 1998 }]);
+    output.tick?.([step(2, 0.5)]);
+    expect(sent).toEqual([]); // the clock is off
+    state.clock = true;
+    void output.currentTime;
+    output.starting?.(2);
+    output.tick?.([step(2, 0.5)]);
+    expect(sent[0]).toEqual({ data: [0xfa], timestamp: 1998 });
+    expect(sent.slice(1).map((m) => m.data)).toEqual(Array(6).fill([0xf8]));
   });
 
   it('panics MIDI alone, without touching the built-in synth or stopping playback', () => {
@@ -252,17 +258,69 @@ describe('bandOutput', () => {
     expect(sent.some((m) => m.data[1] === 123)).toBe(true); // all notes off (CC 123)
   });
 
-  it('silences the built-in synth and stops MIDI together', () => {
+  it('silences the built-in synth and stops MIDI together: Stop after the last tick, and no clock message after it', () => {
     const base = fakeBase();
     const { settings, state } = fakeSettings();
     const { port, sent } = fakePort();
     state.port = port;
     state.clock = true;
-    const output = bandOutput(settings, base.output);
+    const output = bandOutput(
+      settings,
+      base.output,
+      clockOffset(base.output, () => 0),
+    );
     void output.currentTime;
+    output.starting?.(1);
+    output.tick?.([step(1, 0.5)]);
     output.silence();
     expect(base.silenced).toBe(1);
-    expect(sent.some((m) => m.data[0] === 0xfc)).toBe(true);
+    const realtime = sent.filter((m) => m.data[0]! >= 0xf8);
+    expect(realtime.at(-1)!.data).toEqual([0xfc]);
+    expect(realtime.filter((m) => m.data[0] === 0xfc)).toHaveLength(1);
+    const lastTick = Math.max(
+      ...realtime.filter((m) => m.data[0] === 0xf8).map((m) => m.timestamp),
+    );
+    expect(realtime.at(-1)!.timestamp).toBeGreaterThan(lastTick);
+    // a stop with no run going stops nothing
+    sent.length = 0;
+    output.silence();
+    expect(sent.some((m) => m.data[0] === 0xfc)).toBe(false);
+  });
+
+  it('lets notes sent ahead sound on to their ends within the lookahead on a stop, each released exactly, and cuts the rest then', () => {
+    const base = fakeBase();
+    const { settings, state } = fakeSettings();
+    const { port, sent } = fakePort();
+    state.port = port;
+    const output = bandOutput(
+      settings,
+      base.output,
+      clockOffset(base.output, () => 0),
+    );
+    void output.currentTime;
+    output.play('lead', 60, 100, 0.05, 0.05, timbre); // ends inside the tail: sounds out
+    output.play('bass', 40, 100, 0.05, 10, timbre); // held far longer: cut at the tail's end
+    sent.length = 0;
+    output.silence();
+    expect(sent.map((m) => [m.data, m.timestamp])).toEqual([
+      [[0x80 | 0, 60, 0], 100],
+      [[0x80 | 1, 40, 0], (LOOKAHEAD + 0.4) * 1000],
+    ]);
+  });
+
+  it('sweeps every channel on the panic button, whatever was sent: All notes off, All sound off, sustain off', () => {
+    const base = fakeBase();
+    const { settings, state } = fakeSettings();
+    const { port, sent } = fakePort();
+    state.port = port;
+    const output = bandOutput(settings, base.output);
+    void output.currentTime;
+    output.panic?.(); // nothing played yet: a reload left hardware sounding
+    const swept = sent.map((m) => m.data);
+    for (let ch = 0; ch < 16; ch++)
+      for (const controller of [123, 120, 64])
+        expect(swept).toContainEqual([0xb0 | ch, controller, 0]);
+    expect(swept).toHaveLength(48);
   });
 
   it('sends a part to every output it is routed to, each on its channel and with its device’s drum notes', () => {
@@ -355,8 +413,8 @@ describe('bandOutput', () => {
 });
 
 /** A step of the transport, as `tick` takes it: only its time and length are read here. */
-const step = (seconds: number, length: number) => ({
-  step: 0,
+const step = (seconds: number, length: number, index = 0) => ({
+  step: index,
   section: {} as never,
   key: {} as never,
   chord: {} as never,
@@ -365,52 +423,6 @@ const step = (seconds: number, length: number) => ({
   swing: STRAIGHT,
   pulse: { start: 0, length: 4 },
 });
-
-/**
- * The band's output as it was before the book of setups (7113d55,
- * `audio/band-output.ts`), its MIDI half as a literal: one port, the
- * channels, the drum notes and the clock, each read live.
- */
-function oldBandOutput(
-  settings: {
-    port(): MidiPort | null;
-    channels(): Channels;
-    drumNotes(): DrumNotes;
-    clock(): boolean;
-  },
-  base: Output,
-  offset: ClockOffset,
-) {
-  const midi = new MidiOut(settings.channels(), settings.clock(), settings.drumNotes());
-  return {
-    get currentTime() {
-      midi.setClock(settings.clock());
-      midi.setChannels(settings.channels(), base.currentTime, offset.toDeviceMs);
-      midi.setDrumNotes(settings.drumNotes());
-      midi.setPort(settings.port(), base.currentTime, offset.toDeviceMs);
-      return base.currentTime;
-    },
-    play(part: Part, note: number, velocity: number, seconds: number, duration: number) {
-      midi.play(part, note, velocity, seconds, duration, offset.toDeviceMs);
-    },
-    silence() {
-      midi.stop(base.currentTime, offset.toDeviceMs);
-    },
-    panic() {
-      midi.panic(base.currentTime, offset.toDeviceMs);
-    },
-    starting(seconds: number) {
-      midi.start(seconds, offset.toDeviceMs);
-    },
-    tick(steps: { seconds: number; length: number }[]) {
-      offset.update();
-      midi.advance(base.currentTime + LOOKAHEAD, offset.toDeviceMs);
-      for (const s of steps)
-        for (let tick = 0; tick < 6; tick++)
-          midi.clockTick(s.seconds + (tick * s.length) / 6, offset.toDeviceMs);
-    },
-  };
-}
 
 describe('a store from before the book, migrated', () => {
   const PORTS = {
@@ -433,38 +445,35 @@ describe('a store from before the book, migrated', () => {
 
   /**
    * A minute of a band, as the player drives an output: the clock read,
-   * Start, steps ticked, every part played (the pad and the stab on one
-   * channel and pitch, overlapping), a drum of every sound, a channel moved
-   * while playing, a panic, and the stop.
+   * Start, steps ticked (each with its own index, as the transport counts
+   * them), every part played (the pad and the stab on one channel and
+   * pitch, overlapping), a drum of every sound, a channel moved while
+   * playing, a panic, and the stop. The audio clock and the page's run
+   * together, so the offset between them holds, as a device's does.
    */
-  function play(
-    output: {
-      readonly currentTime: number;
-      play(
-        part: Part,
-        note: number,
-        velocity: number,
-        seconds: number,
-        duration: number,
-        timbre: Timbre,
-      ): void;
-      silence(): void;
-      panic?(): void;
-      starting?(seconds: number): void;
-      tick?(steps: ReturnType<typeof step>[]): void;
-    },
-    base: { currentTime: number },
-    moveLead: () => void,
-  ) {
+  function minute() {
+    const base = fakeBase();
+    const { port, sent } = fakePort();
+    const clock = base.output as { currentTime: number };
+    // migrated with no ports seen, then named once they are, as the device does
+    let book = nameByPorts(fromJambot(PREFS, { inputs: [], outputs: [] }), PORTS);
+    const output = bandOutput(
+      {
+        internal: () => true,
+        outputs: () => bandRoutes(book, (o) => (o.id === 'out-1' ? port : null)),
+      },
+      base.output,
+      clockOffset(base.output, () => clock.currentTime * 1000),
+    );
     void output.currentTime;
     output.starting?.(0.1);
     const length = 60 / 120 / 4;
     for (let i = 0; i < 64; i++) {
       const seconds = 0.1 + i * length;
-      base.currentTime = Math.max(0, seconds - LOOKAHEAD);
-      if (i === 40) moveLead();
+      clock.currentTime = Math.max(0, seconds - LOOKAHEAD);
+      if (i === 40) book = withCrossing(book, BAND, 'lead', 'o1', 7);
       void output.currentTime;
-      output.tick?.([step(seconds, length)]);
+      output.tick?.([step(seconds, length, i)]);
       const drum = Object.values(DRUM_NOTES)[i % Object.keys(DRUM_NOTES).length]!;
       output.play('drums', drum, 90 + (i % 30), seconds, length / 2, timbre);
       if (i % 4 === 0) output.play('bass', 40 + (i % 12), 100, seconds, length * 3, timbre);
@@ -473,49 +482,38 @@ describe('a store from before the book, migrated', () => {
       if (i % 2 === 0) output.play('lead', 72 + (i % 7), 95, seconds, length * 1.5, timbre);
       if (i === 50) output.panic?.();
     }
-    base.currentTime += 1;
+    clock.currentTime += 1;
     output.silence();
+    return sent;
   }
 
-  it('sends the same bytes at the same times as the band’s output did before', () => {
-    const before = (() => {
-      const base = fakeBase();
-      const { port, sent } = fakePort();
-      let channels: Channels = PREFS.channels;
-      const old = oldBandOutput(
-        {
-          port: () => port,
-          channels: () => channels,
-          drumNotes: () => bandRoutes(fromJambot(PREFS, PORTS), () => null)[0]!.drumNotes,
-          clock: () => PREFS.clock,
-        },
-        base.output,
-        clockOffset(base.output, () => 0),
-      );
-      play(old, base.output, () => (channels = { ...channels, lead: 7 }));
-      return sent;
-    })();
+  const text = (sent: { data: number[]; timestamp: number }[]) =>
+    sent.map((m) => `${m.data.map((b) => b.toString(16)).join(' ')} @${m.timestamp.toFixed(3)}`);
 
-    const after = (() => {
-      const base = fakeBase();
-      const { port, sent } = fakePort();
-      // migrated with no ports seen, then named once they are, as the device does
-      let book = nameByPorts(fromJambot(PREFS, { inputs: [], outputs: [] }), PORTS);
-      const output = bandOutput(
-        {
-          internal: () => true,
-          outputs: () => bandRoutes(book, (o) => (o.id === 'out-1' ? port : null)),
-        },
-        base.output,
-        clockOffset(base.output, () => 0),
-      );
-      play(output, base.output, () => (book = withCrossing(book, BAND, 'lead', 'o1', 7)));
-      return sent;
-    })();
+  it('sends the same bytes at the same times as recorded (decision 008: its panic and stop are webmidi’s)', () => {
+    const sent = text(minute()).join('\n');
+    if (process.env.RECORD_MINUTE) writeFileSync(MINUTE, sent);
+    expect(sent).toBe(readFileSync(MINUTE, 'utf8'));
+  });
 
-    expect(before.length).toBeGreaterThan(300);
-    expect(before.some((m) => m.data[0] === 0xf8)).toBe(true);
-    expect(before.some((m) => m.data[0] === (0x90 | 9) && m.data[1] === 60)).toBe(true);
-    expect(after).toEqual(before);
+  it('plays the minute within the device’s bounds: every note off once, nothing sounding after the stop, no clock message after Stop, ticks evenly spaced', () => {
+    const sent = minute();
+    const held = new Map<string, number>();
+    for (const { data } of sent) {
+      const [status, note] = [data[0]! & 0xf0, data[1]!];
+      const key = `${data[0]! & 15}:${note}`;
+      if (status === 0x90) held.set(key, (held.get(key) ?? 0) + 1);
+      if (status === 0x80) held.set(key, Math.max(0, (held.get(key) ?? 0) - 1));
+    }
+    // (a retrigger is an off then an on, so each key ends at 0 held)
+    expect([...held.values()].filter((n) => n > 0)).toEqual([]);
+    const stop = sent.findIndex((m) => m.data[0] === 0xfc);
+    expect(stop).toBeGreaterThan(0);
+    const ticks = sent.filter((m) => m.data[0] === 0xf8).map((m) => m.timestamp);
+    expect(Math.max(...ticks)).toBeLessThan(sent[stop]!.timestamp);
+    expect(sent.slice(stop + 1).filter((m) => m.data[0]! >= 0xf8)).toEqual([]);
+    const gaps = ticks.slice(1).map((t, i) => t - ticks[i]!);
+    // (62.5 ms a step of 125 ms, 6 ticks: one tick every 20.833 ms)
+    expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThan(0.12);
   });
 });

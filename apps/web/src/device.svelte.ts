@@ -31,6 +31,7 @@ import {
   type Forward,
   type MidiPort,
   type ParsedNote,
+  MidiOut,
   type PortOption,
   clockOffset,
   forwardsOf,
@@ -345,12 +346,12 @@ export class Device {
     }
   }
 
-  /** All notes off on every channel of one output, by its key (the matrix's device dialog). */
+  /** All notes off, All sound off and sustain off on every channel of one output, by its key (webmidi's `sweep`): the matrix's device dialog. */
   panicOutput(key: string) {
     const port = this.#portOf(key);
     if (!port) return;
     try {
-      for (let ch = 0; ch < 16; ch++) port.send([0xb0 | ch, 123, 0]);
+      new MidiOut(port).sweep(0, () => 0);
     } catch (error) {
       this.report('All notes off couldn’t be sent', error);
     }

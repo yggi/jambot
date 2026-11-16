@@ -36,12 +36,7 @@ import {
   loadBook,
 } from '@yggi/webmidi/core';
 import { localBookStore } from '@yggi/webmidi/web';
-import {
-  DEFAULT_CHANNELS,
-  DEFAULT_DRUM_NOTES,
-  type Channels,
-  type DrumNotes,
-} from '../audio/midi-out.ts';
+import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES, type Channels, type DrumNotes } from './channels.ts';
 import { drumMapOf } from './drums.ts';
 import type { Part } from '@jambot/engine';
 import { nameByPorts, synthParts, withSynth } from './patch.ts';

@@ -21,7 +21,7 @@ import {
   type SetupBook,
 } from '@yggi/webmidi/core';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES } from '../audio/midi-out.ts';
+import { DEFAULT_CHANNELS, DEFAULT_DRUM_NOTES } from './channels.ts';
 import { drumNotesOf } from './drums.ts';
 import {
   BAND,
