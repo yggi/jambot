@@ -16,7 +16,10 @@ import {
   inputRow,
   panelKey,
   withPanelActive,
+  type ParsedNote,
+  type PlaysChoice,
 } from '@yggi/webmidi/core';
+import { BINDING_KINDS } from '@yggi/webmidi/panels';
 import { CONNECT_WAIT, Device, FADE_IN, FADE_OUT, VOLUME_KEY, taper } from './device.svelte.ts';
 import { BAND } from './midi/patch.ts';
 
@@ -330,6 +333,107 @@ describe('the device’s MIDI ports', () => {
     expect(d.panels.runtimeOf('mixer')!.value('main').x).toBe(1);
     d.panels.played('mixer', [0xb0, 40, 64]);
     expect(synth.sent.map((m) => m.data)).toEqual([[0xb1, 40, 64]]);
+  });
+
+  describe('what a panel plays (yggi/jambot#703)', () => {
+    const NUMBERS: Record<string, number | undefined> = {
+      cc: 7,
+      cc14: 1,
+      note: 60,
+      nrpn: 300,
+      rpn: 5,
+    };
+    /** What the handler heard, by source: a note's own fields and the part it went to. */
+    type Heard = {
+      source: string;
+      on: boolean;
+      note: number;
+      velocity: number;
+      channel: number;
+      part: string;
+    };
+
+    /** A device with a panel `t` of one fader bound as `kind`, playing `choice`, and what it hears. */
+    function withPanel(kind: (typeof BINDING_KINDS)[number], choice: PlaysChoice) {
+      const { keys } = midi();
+      const { device: d } = device();
+      const heard: Heard[] = [];
+      const record = (n: ParsedNote, source: string, part: string) =>
+        void heard.push({
+          source,
+          on: n.on,
+          note: n.note,
+          velocity: n.velocity,
+          channel: n.channel,
+          part,
+        });
+      d.hear(record);
+      d.panels.edit({
+        id: 't',
+        name: 'T',
+        children: [
+          {
+            type: 'fader',
+            id: 'c',
+            bind: [
+              {
+                kind,
+                ...(NUMBERS[kind] === undefined ? {} : { number: NUMBERS[kind] }),
+                channel: 2,
+              },
+            ],
+          },
+        ],
+      });
+      changed(d, (book) =>
+        withPlays(
+          withPlays(withPanelActive(book, 't', true), 'panel:t', choice),
+          'in:Keys',
+          choice,
+        ),
+      );
+      return { keys, d, heard, record };
+    }
+
+    it.each(BINDING_KINDS)(
+      'a %s binding’s message does what the same bytes from an input with that Plays do, among the parts played and on none',
+      async (kind) => {
+        for (const choice of ['default', { row: 'bass', role: 'bass' }, 'none'] as PlaysChoice[]) {
+          const { keys, d, heard, record } = withPanel(kind, choice);
+          await d.connect(record);
+          const sent = [
+            ...d.panels.runtimeOf('t')!.move('c', { x: 1 }),
+            ...d.panels.runtimeOf('t')!.move('c', { x: 0 }),
+          ];
+          expect(sent.length).toBeGreaterThan(0);
+          for (const message of sent) {
+            d.panels.played('t', message);
+            keys.play(message);
+          }
+          const bySource = (source: string) =>
+            heard
+              .filter((h) => h.source === source)
+              .map((h) => [h.on, h.note, h.velocity, h.channel, h.part]);
+          expect(bySource('panel:t')).toEqual(bySource('Keys'));
+          // (a note is heard, by the part chosen; every other kind is no note, on an input or a panel)
+          expect(bySource('panel:t').length).toBe(kind === 'note' && choice !== 'none' ? 2 : 0);
+          if (kind === 'note' && choice !== 'none')
+            expect(bySource('panel:t').map((h) => h[4])).toEqual(
+              Array(2).fill(choice === 'default' ? 'lead' : 'bass'),
+            );
+        }
+      },
+    );
+
+    it('is heard with no MIDI connected, and on none does nothing', () => {
+      const { d, heard } = withPanel('note', 'default');
+      const runtime = d.panels.runtimeOf('t')!;
+      d.panels.played('t', runtime.move('c', { x: 1 })[0]!);
+      expect(heard.map((h) => [h.source, h.note, h.on])).toEqual([['panel:t', 60, true]]);
+      changed(d, (book) => withPlays(book, 'panel:t', 'none'));
+      d.panels.played('t', runtime.move('c', { x: 0 })[0]!);
+      expect(heard).toHaveLength(1);
+    });
   });
 
   it('leaves out a port the browser keeps listed as disconnected', async () => {

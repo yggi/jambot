@@ -26,7 +26,8 @@
   import { broadcastLobby } from './session/broadcast.ts';
   import { type Found, Sessions, type Where } from './session/sessions.svelte.ts';
   import { browserKept } from './session/storage.ts';
-  import { type Nudged, filedFiles } from '@jambot/engine';
+  import { type Nudged, type Part, filedFiles } from '@jambot/engine';
+  import type { ParsedNote } from '@yggi/webmidi/core';
   import { type Role, layerText, readLayerText } from '@jambot/session';
   import { websocketLobby } from './session/websocket.ts';
   import { MeterPlayer } from './meter/meter-player.svelte.ts';
@@ -182,12 +183,13 @@
    * MIDI notes in play along with the band, on the instruments, or, at the
    * timing test, taps timed by the message's own timestamp.
    */
-  const connectMidi = () =>
-    device.connect((note, source, part) =>
-      extra === 'timing'
-        ? testing.midi(note, source, note.timeStamp)
-        : instruments.onMidiNote(note, source, part),
-    );
+  const heardNote = (note: ParsedNote, source: string, part: Part) =>
+    extra === 'timing'
+      ? testing.midi(note, source, note.timeStamp)
+      : instruments.onMidiNote(note, source, part);
+  // (a panel's notes are heard with no MIDI connected, by the same handler)
+  device.hear(heardNote);
+  const connectMidi = () => device.connect(heardNote);
 
   // A port chosen before is remembered (`MidiSettings`, the setup in use); reconnect to it without
   // waiting for a click, since a granted Web MIDI permission needs no gesture.

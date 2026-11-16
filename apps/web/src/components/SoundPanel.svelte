@@ -20,8 +20,9 @@
   setup; an active panel is a row (what it sends, routed to outputs like an
   input's) and a column (what an input's or another panel's row sends it). It
   is played, edited, made and deleted under the patch (`PanelView`,
-  `PanelEditor`). The band's own rows are no panel's to cross, and a panel is
-  not heard on the built-in synth, only on the MIDI outputs it is routed to.
+  `PanelEditor`). The band's own rows are no panel's to cross. A panel's row
+  has the Plays choice an input's has: what it plays, the keys and the Muse
+  hear as an input's notes (`Device`), none by default.
 
   MIDI sits in a boundary: whatever throws there (a setup kept by an older
   version, a port the browser lists oddly) is shown with its error and a way

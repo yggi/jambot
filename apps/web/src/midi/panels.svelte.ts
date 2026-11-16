@@ -9,9 +9,9 @@
  * to the panels whose column it crosses (`panelForwardsOf`); an input's
  * message (raw, from `heard`) goes to the panels its row crosses. Jambot's
  * own rows (the parts, the keys) are sent from notes, not bytes, so no panel
- * crosses them (decision 007), and the built-in synth is no `direct` column
- * (`PatchMatrix`'s `builtIn.direct`): a panel is not heard on it, only on
- * hardware.
+ * crosses them (decision 007). What a panel plays (its row's Plays choice,
+ * the amendment to 007) is `plays`'s: `Device` sends a note a panel's choice
+ * hears the way an input's note goes.
  *
  * A panel taken out of the setup, or edited, is silenced first, its note-offs
  * sent by the book of before the change, so a held note ends where it began.
@@ -53,6 +53,11 @@ export interface PanelDeckOptions {
   readonly settings: { book: SetupBook };
   /** Send each message to its output, by key. */
   readonly send: (forwards: readonly Forward[]) => void;
+  /**
+   * What a panel's message plays (`Device`: the path an input's note takes to the keys and the instruments, by
+   * `panelPartPlayed`), given with the book it is routed by: the panel's own choice decides, none by default.
+   */
+  readonly plays?: (panel: string, data: ArrayLike<number>, book: SetupBook) => void;
   /** Where the library is kept: `localStorage` under `PANELS_KEY` by default. */
   readonly store?: PanelStore;
 }
@@ -69,10 +74,12 @@ export class PanelDeck {
   readonly #store: PanelStore;
   readonly #settings: { book: SetupBook };
   readonly #send: (forwards: readonly Forward[]) => void;
+  readonly #plays: PanelDeckOptions['plays'];
 
-  constructor({ settings, send, store = localPanelStore(PANELS_KEY) }: PanelDeckOptions) {
+  constructor({ settings, send, plays, store = localPanelStore(PANELS_KEY) }: PanelDeckOptions) {
     this.#settings = settings;
     this.#send = send;
+    this.#plays = plays;
     this.#store = store;
     this.#synced = settings.book;
     const kept = loadLibrary(store);
@@ -102,22 +109,24 @@ export class PanelDeck {
     const book = this.#settings.book;
     const ids = panelsOf(activeSetup(book));
     for (const released of this.#rack.sync(ids, this.library))
-      this.#route(panelKey(released.panel), released.data, this.#synced);
+      this.#route(released.panel, released.data, this.#synced);
     this.#synced = book;
     this.#racked++;
     if (this.shown !== null && !ids.includes(this.shown)) this.shown = null;
     this.shown ??= ids.find((id) => panelOf(this.library, id)) ?? null;
   }
 
-  /** A message on a row, sent where the row is crossed in `book`: to outputs, and to panels. */
-  #route(row: string, data: ArrayLike<number>, book: SetupBook = this.#settings.book): void {
+  /** A message a panel made, sent where its row is crossed in `book` (to outputs, and to panels) and played where its choice says. */
+  #route(panel: string, data: ArrayLike<number>, book: SetupBook = this.#settings.book): void {
+    const row = panelKey(panel);
     this.#send(forwardsOf(book, BAND, row, data));
     this.#rack.receive(panelForwardsOf(book, BAND, row, data));
+    this.#plays?.(panel, data, book);
   }
 
   /** A message a panel made, by a touch: sent on its row. */
   played(id: string, data: ArrayLike<number>): void {
-    this.#route(panelKey(id), data);
+    this.#route(id, data);
   }
 
   /** A raw message from an input, by its port's name: handed to the panels its row crosses. */

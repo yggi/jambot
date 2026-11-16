@@ -332,6 +332,18 @@ describe('SoundPanel', () => {
       expect(rows).toContain('DM-8 mixer');
     });
 
+    it('gives a panel’s row the Plays choice an input’s has, none by default, and keeps what is chosen with the panel', async () => {
+      const { settings, deck } = withPanels();
+      panel({ settings, deck });
+      await fireEvent.click(screen.getByRole('button', { name: /DM-8 mixer/ }));
+      const plays = screen.getByRole('combobox', {
+        name: 'What DM-8 mixer plays, heard by the Muse',
+      });
+      expect(plays).toHaveValue('none');
+      await fireEvent.change(plays, { target: { value: 'bass' } });
+      expect(settings.setup.plays).toEqual({ 'panel:mixer': { row: 'bass', role: 'bass' } });
+    });
+
     it('plays the shown panel, its touches going out through the setup’s outputs', async () => {
       const { settings, deck, sent } = withPanels();
       settings.book = withCrossing(
