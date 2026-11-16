@@ -6,6 +6,7 @@
 import { type ClientMessage, type HostMessage } from '@jambot/session';
 import type { Output } from '../audio/output.ts';
 import type { Ear } from '../ear.ts';
+import { Metronome } from '../metronome.svelte.ts';
 import { Player, type Surroundings } from '../player.svelte.ts';
 import type { SectionTexts } from '../section-texts.ts';
 import { type HostLink, type Lobby, sessionKey } from './lobby.ts';
@@ -34,6 +35,8 @@ export function device(clockAt: number, texts?: () => SectionTexts, ear?: () => 
       duration: number;
     }[],
     tickers: [] as (() => void)[],
+    /** The count-in's clicks, as the output was told them (#663). */
+    clicks: [] as { weight: string; seconds: number }[],
   };
   const output: Output = {
     get currentTime() {
@@ -47,6 +50,7 @@ export function device(clockAt: number, texts?: () => SectionTexts, ear?: () => 
     play: (part, note, velocity, seconds, duration) =>
       void world.plays.push({ part, note, velocity, seconds, duration }),
     silence: () => {},
+    click: (weight, seconds) => void world.clicks.push({ weight, seconds }),
   };
   const surroundings: Surroundings = {
     output: () => output,
@@ -62,7 +66,7 @@ export function device(clockAt: number, texts?: () => SectionTexts, ear?: () => 
   };
   return {
     world,
-    player: new Player(surroundings),
+    player: new Player(surroundings, new Metronome()),
     clocks: { page: () => world.currentTime, heardOffset: () => world.heardOffset },
   };
 }

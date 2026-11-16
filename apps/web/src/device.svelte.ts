@@ -313,7 +313,7 @@ export class Device {
     }
   }
 
-  /** Send each message passed on to its output, at once. */
+  /** Send each message passed on to its output, at once and unstamped: an output's latency (`MidiOut.setLatency`) shifts the band's notes, not these, which can't go before they are played (#565). */
   #send(forwards: readonly Forward[]) {
     for (const { output, data } of forwards) {
       try {

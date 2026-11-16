@@ -214,6 +214,15 @@ export interface DroppedJudgement extends BarJudgement {
   readonly why: 'late' | 'ahead' | 'inadmissible';
 }
 
+/**
+ * A bar of drums, as one source played it, that reached the Muse after it heard the bar (#426): the transport's next
+ * `listen` filters its notes out, and this says so, once a source and bar on the tick it arrived, as a late judgement is.
+ */
+export interface DroppedDrums {
+  readonly bar: number;
+  readonly source: string;
+}
+
 export interface TransportInput<Arrived = never> {
   /** The clock now. Nothing is scheduled before it. */
   readonly now: number;
@@ -461,6 +470,8 @@ export interface TransportOutput {
   readonly judged: readonly MuseOutput[];
   /** The bars judged elsewhere that arrived on this tick and were dropped. */
   readonly dropped: readonly DroppedJudgement[];
+  /** The bars of drums that arrived on this tick after the Muse heard them: what the band never hears as a groove. */
+  readonly droppedDrums: readonly DroppedDrums[];
 }
 
 /** A transport's swing track: straight where its environment has none. */
@@ -819,6 +830,13 @@ export function transportOver<Source, Arrived = never>(
         if (why) dropped.push({ ...r, why });
         return why === null;
       });
+      // (a drum note of a bar the Muse has heard is read by no one: said, once a source and bar)
+      const droppedDrums: DroppedDrums[] = [];
+      for (const n of drums) {
+        const bar = song.barAt(heardStep(n));
+        if (bar < unheard && !droppedDrums.some((d) => d.bar === bar && d.source === n.source))
+          droppedDrums.push({ bar, source: n.source });
+      }
       if (
         heard.length > 0 ||
         drums.length > 0 ||
@@ -999,7 +1017,17 @@ export function transportOver<Source, Arrived = never>(
       }
       return {
         carried: { head, source: playing, bars, nextBar, beat, listening, finale, meters },
-        output: { steps, events, lateEvents, passedSteps, composed, missed, judged, dropped },
+        output: {
+          steps,
+          events,
+          lateEvents,
+          passedSteps,
+          composed,
+          missed,
+          judged,
+          dropped,
+          droppedDrums,
+        },
       };
     },
   };

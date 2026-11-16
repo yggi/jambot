@@ -73,6 +73,32 @@ describe('the cells card', () => {
     expect(screen.getByRole('region', { name: 'bass' })).toHaveTextContent('&bassline part=bass');
     await fireEvent.click(screen.getByRole('radio', { name: 'From the outputs' }));
     expect(rows()).toContain('band');
+    // (folded, the card counts what plays; each row says beneath it what it is taken from, for a phone)
+    expect(screen.getByText('8 parts playing')).toBeInTheDocument();
+    expect(screen.getByText('2 from fragments · 6 written')).toBeInTheDocument();
+  });
+
+  it('shows the next section, as built ahead, in a tab of its own (#642)', async () => {
+    const at = (tonic: string) => {
+      const text = [
+        '&bar from meter 120bpm',
+        `&key from diatonic(mode=aeolian) ${tonic}`,
+        '&leadline part=lead over=&key step=4n 0 2 4 2',
+        '* from band(leadline=&leadline)',
+      ].join('\n');
+      return { text, outline: sectionOutline(compileSection(text)) };
+    };
+    render(Cells, props({ score: at('A'), next: null }));
+    await fireEvent.click(screen.getByRole('radio', { name: 'Next section' }));
+    expect(screen.getByText(/the tree shows the next section once/)).toBeInTheDocument();
+    render(Cells, props({ score: at('A'), next: at('C') }));
+    const tabs = screen.getAllByRole('radio', { name: 'Next section' });
+    await fireEvent.click(tabs.at(-1)!);
+    const table = screen.getByRole('table', { name: 'Next section' });
+    await fireEvent.click(within(table).getByRole('button', { name: 'key' }));
+    expect(screen.getByRole('region', { name: 'key' })).toHaveTextContent(
+      'diatonic(mode=aeolian) C',
+    );
   });
 
   it("filters what the composer has in mind, and opens a rhythm's weight and boredom (#443)", async () => {

@@ -29,6 +29,7 @@ import {
   type ForecastBar,
   type Judgement,
   type Key,
+  type DroppedDrums,
   type DroppedJudgement,
   type MelodicScale,
   type MuseOutput,
@@ -272,6 +273,8 @@ export interface HudInput {
     readonly offer: Offer | null;
     readonly log: readonly MuseOutput[];
     readonly dropped?: readonly DroppedJudgement[];
+    /** The bars of drums that came after she heard them (#426), as this machine's transport said. */
+    readonly droppedDrums?: readonly DroppedDrums[];
     readonly players?: Readonly<Record<string, string>>;
     /** The motifs she remembers, weighed as of the bar `asOf` (`memoryAt`). */
     readonly memory?: readonly Remembered[];
@@ -460,6 +463,11 @@ function museView(
     log: [
       ...(muse?.log ?? []).flatMap((j) => museLines(j, named)),
       ...(muse?.dropped ?? []).map((d) => droppedLine(d, named)),
+      ...(muse?.droppedDrums ?? []).map(({ bar, source }) => ({
+        bar,
+        text: `What ${named(source)} played on the drums came too late to be heard.`,
+        taken: false,
+      })),
     ]
       .sort((a, b) => a.bar - b.bar)
       .reverse(),

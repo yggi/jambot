@@ -79,6 +79,7 @@
 
 import {
   type BarJudgement,
+  type DroppedDrums,
   type DroppedJudgement,
   type ForecastBar,
   type HarmonicWeights,
@@ -310,6 +311,8 @@ interface Follow {
   keys: readonly { readonly bar: number; readonly key: Key }[];
   /** The host's last bar, once it has said which. */
   ends: number | undefined;
+  /** The meter the host's song counts in and opens in: the song's `tempoMeter`, which a bar 0 not yet arrived leaves the count-in (#663). */
+  opening: Meter;
   told: Following;
 }
 
@@ -435,6 +438,8 @@ export class Player {
    * alone's as built, a client's as given. None before a section's score is taken, or where none states it.
    */
   heardScore: Score | null = $state.raw(null);
+  /** The score of the section after the one heard, as built ahead, and its outline: the Cells view's Next § (#642). */
+  nextScore: Score | null = $state.raw(null);
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
   /**
@@ -510,6 +515,8 @@ export class Player {
   lastPlayed: number | null = $state.raw(null);
   /** The latest bars judged on clients that the Muse dropped: late, ahead, or inadmissible. */
   dropped: readonly DroppedJudgement[] = $state.raw([]);
+  /** The latest bars of drums that came after the Muse heard them (#426): this machine's log only, as no message of the wire carries them. */
+  droppedDrums: readonly DroppedDrums[] = $state.raw([]);
   /** The band's own notes heard sounding right now, one entry per performer. */
   sounding: SoundingNotes = $state(SILENT);
   /** The band's last bars, each track's notes in each, and whose motif the lead played in it (`Pattern`). */
@@ -635,6 +642,7 @@ export class Player {
         offer: this.offer,
         log: this.museLog,
         dropped: this.dropped,
+        droppedDrums: this.droppedDrums,
         players: this.players,
         memory: this.memory,
         asOf: this.museBar,
@@ -1175,6 +1183,7 @@ export class Player {
     this.offer = null;
     this.#forgetMemory();
     this.dropped = [];
+    this.droppedDrums = [];
     this.#stopTicker = this.#surroundings.ticker(() => this.#tick());
     this.#stopFrames = this.#surroundings.frame(() => this.#followHeard());
   }
@@ -1197,11 +1206,12 @@ export class Player {
    * The meter the song opens in, which its count-in is a bar of: the meter
    * asked for, or with none the one the repository finds at the style the
    * song opens with (#375); as a client the one its host's first bar is in
-   * once that has arrived, else the song's.
+   * once that has arrived, else the one the host's song told it opens in
+   * (`Song.tempoMeter`), which bar 0 follows a beat after a live start (#663).
    */
   #opening(): Meter {
     const first = this.#follow?.arrived.find((sent) => sent.bar.bar === 0);
-    if (this.#follow) return first?.bar.plan.meter ?? SONG_METER;
+    if (this.#follow) return first?.bar.plan.meter ?? this.#follow.opening;
     return sectionMeter(
       {
         meter: this.meter ?? undefined,
@@ -1319,6 +1329,7 @@ export class Player {
       ear: EAR,
       keys: [],
       ends: undefined,
+      opening: SONG_METER,
       told,
     };
     this.#bars = [];
@@ -1340,6 +1351,7 @@ export class Player {
       ear: EAR,
       keys: [],
       ends: undefined,
+      opening: song.tempoMeter,
     });
     this.status = 'starting';
     const output = await this.prepare();
@@ -1410,6 +1422,7 @@ export class Player {
     this.offer = null;
     this.#forgetMemory();
     this.dropped = [];
+    this.droppedDrums = [];
     this.players = {};
     this.#decide();
   }
@@ -1595,6 +1608,12 @@ export class Player {
     }
     if (scheduled.dropped.length > 0)
       this.dropped = [...this.dropped, ...scheduled.dropped].slice(-MUSE_LOG);
+    // (a bar of drums is said once a source and bar, over the ticks its notes arrive in)
+    const newlyLate = scheduled.droppedDrums.filter(
+      (d) => !this.droppedDrums.some((k) => k.bar === d.bar && k.source === d.source),
+    );
+    if (newlyLate.length > 0)
+      this.droppedDrums = [...this.droppedDrums, ...newlyLate].slice(-MUSE_LOG);
     if (this.hosting) {
       if (carried!.finale.bar !== null && !this.#finaleTold) {
         this.#finaleTold = true;
@@ -1692,6 +1711,8 @@ export class Player {
       ends: follow.ends,
     });
     follow.carried = carried;
+    // The bar the song ends on, as the host's (#663): the count down to it.
+    if (carried!.finale.bar !== this.lastBar) this.lastBar = carried!.finale.bar;
     // The host's texts play through cells, the performer's feel on them, as at the host (#446).
     const scheduled = this.shadow.follow({ env, carried: carried!, output: laid, now });
     if (scheduled.composed.length > 0)
@@ -1784,8 +1805,11 @@ export class Player {
     const latest = this.#heard.take(heard);
     if (latest !== undefined) {
       this.heard = latest;
-      const score = this.shadow.scoreAt(this.clock.barAt(latest));
+      const bar = this.clock.barAt(latest);
+      const score = this.shadow.scoreAt(bar);
       if (score !== this.heardScore) this.heardScore = score;
+      const next = this.shadow.scoreAfter(bar);
+      if (next !== this.nextScore) this.nextScore = next;
     }
     if (latest !== undefined && this.rhythmPlays && this.rhythm.length > 0) this.#logRhythm(latest);
     else if (latest !== undefined) this.#rhythmLogged = latest;

@@ -561,6 +561,23 @@ describe('the view of the Muse', () => {
       },
     ]);
   });
+
+  it("says a bar of drums that came too late to be heard, by its player's name (#426)", () => {
+    const droppedDrums = [{ bar: 6, source: '@ada/the drum pads' }];
+    const { log } = hudOf({
+      heard: 0,
+      bars,
+      track,
+      muse: { offer: null, log: [], droppedDrums, players: { ada: 'Ada' } },
+    }).muse;
+    expect(log).toEqual([
+      {
+        bar: 6,
+        text: "What Ada's drum pads played on the drums came too late to be heard.",
+        taken: false,
+      },
+    ]);
+  });
 });
 
 describe('how near each preset glows (`presetGlow`)', () => {
