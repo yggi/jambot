@@ -101,11 +101,16 @@ const ENERGY_OFFSET: Record<SectionType, number> = {
 };
 
 /**
+ * How far a section moves a bar's energy from its style's: its kind's offset, a build ramping from −0.15 to +0.30 over
+ * its bars. A section text writes it as cells' sum of the song's and the kind's (yggi/cells decision 096).
+ */
+export const energyOffset = (type: SectionType, barInSection: number): number =>
+  type === 'build' ? -0.15 + (0.45 * barInSection) / (SECTION_BARS - 1) : ENERGY_OFFSET[type];
+
+/**
  * The energy a bar plays at: the style's energy shaped by its section, and
  * ramping up through a build from −0.15 to +0.30.
  */
 export function barEnergy(energy: number, type: SectionType, barInSection: number): number {
-  const offset =
-    type === 'build' ? -0.15 + (0.45 * barInSection) / (SECTION_BARS - 1) : ENERGY_OFFSET[type];
-  return Math.max(0, Math.min(1, energy + offset));
+  return Math.max(0, Math.min(1, energy + energyOffset(type, barInSection)));
 }

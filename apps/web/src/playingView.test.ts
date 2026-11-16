@@ -69,6 +69,8 @@ describe('the Playing tree (#642)', () => {
       '    stab -',
       'funk styles',
       'style -',
+      // (the section's intensity, its song folded in: #645)
+      'intensity -',
     ]);
   });
 
@@ -85,7 +87,7 @@ describe('the Playing tree (#642)', () => {
   });
 
   it('reads it from the outputs: the band, each instrument and performer, the line it plays and what that reads', () => {
-    expect(drawn(playingRows(funk.text, funk.outline, 'outputs')).slice(2, 13)).toEqual([
+    expect(drawn(playingRows(funk.text, funk.outline, 'outputs')).slice(3, 14)).toEqual([
       'band band',
       '  drums_performer drums_performer',
       '    drums -',
@@ -111,8 +113,8 @@ describe('the Playing tree (#642)', () => {
 
   it('sums up, folded, how many parts play and how many of them are fragments', () => {
     expect(playingSummary(playingRows(funk.text, funk.outline, 'ground'))).toEqual({
-      main: '11 parts playing',
-      sub: '4 from fragments · 7 written',
+      main: '12 parts playing',
+      sub: '4 from fragments · 8 written',
     });
     expect(playingSummary(playingRows(funk.text, funk.outline, 'ground').slice(0, 1)).main).toBe(
       '1 part playing',
