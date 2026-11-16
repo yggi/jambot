@@ -167,6 +167,7 @@ describe("the transport's counters (#27)", () => {
         judgement: { kind: 'too few', source: 'x', count: 1 },
         why,
       })),
+      droppedDrums: [],
     };
     const timing = timedTick(TRANSPORT_TIMING, { at: 0, now: 0, scheduled });
     expect(timing.dropped).toEqual({ late: 2, ahead: 1, inadmissible: 1 });
