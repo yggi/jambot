@@ -31,6 +31,7 @@ import {
   type Forward,
   type MidiPort,
   type ParsedNote,
+  type SetupBook,
   MidiOut,
   type PortOption,
   clockOffset,
@@ -39,10 +40,19 @@ import {
   hardwareOutputs,
   listenOf,
   outputNow,
+  panelKey,
+  parseMidiMessage,
   portsMessage,
 } from '@yggi/webmidi/core';
 import { MidiAccess } from '@yggi/webmidi/web';
-import { BAND, bandRoutes, partPlayed, synthPlays, wantsInputs } from './midi/patch.ts';
+import {
+  BAND,
+  bandRoutes,
+  panelPartPlayed,
+  partPlayed,
+  synthPlays,
+  wantsInputs,
+} from './midi/patch.ts';
 import { PanelDeck } from './midi/panels.svelte.ts';
 import { MidiSettings } from './midi/settings.svelte.ts';
 import { type Surroundings, browserSurroundings } from './player.svelte.ts';
@@ -97,7 +107,10 @@ export class Device {
   readonly panels: PanelDeck = new PanelDeck({
     settings: this.settings,
     send: (forwards) => this.#send(forwards),
+    plays: (panel, data, book) => this.#panelPlays(panel, data, book),
   });
+  /** Where a note that is heard goes (`hear`, or `connect`): the one way in, for an input's notes and a panel's. */
+  #onNote: ((note: ParsedNote, source: string, part: Part) => void) | null = null;
   /** The Web MIDI connection, once made. */
   access: MidiAccess | null = $state(null);
   /** Asking for Web MIDI: Connect waits. */
@@ -233,6 +246,7 @@ export class Device {
    * hidden, or one a tablet never shows), and Connect can be pressed again.
    */
   async connect(onNote: (note: ParsedNote, source: string, part: Part) => void) {
+    this.hear(onNote);
     if (this.access) return;
     this.connecting = true;
     const waiting = setTimeout(() => {
@@ -243,7 +257,7 @@ export class Device {
     }, CONNECT_WAIT);
     try {
       const result = await MidiAccess.connect({
-        onNote: (note, source) => this.#heard(note, source, onNote),
+        onNote: (note, source) => this.#heard(note, source),
         onMessage: (data, source) => this.panels.heard(source, data),
         onChange: () => this.#changed(),
       });
@@ -262,12 +276,33 @@ export class Device {
     }
   }
 
+  /**
+   * Where the notes that are heard go (`connect` says it too): a panel's
+   * notes play with no MIDI connected, so the page says it before.
+   */
+  hear(onNote: (note: ParsedNote, source: string, part: Part) => void) {
+    this.#onNote = onNote;
+  }
+
+  /**
+   * A message a panel made that its Plays choice hears (`panelPartPlayed`):
+   * the note it is goes where an input's does, by the same handler, with the
+   * panel's row as its source. Nothing for what is no note, or not heard.
+   */
+  #panelPlays(panel: string, data: ArrayLike<number>, book: SetupBook) {
+    const onNote = this.#onNote;
+    if (!onNote) return;
+    try {
+      const part = panelPartPlayed(book, panel, data);
+      const note = part && parseMidiMessage(data, performance.now());
+      if (part && note) onNote(note, panelKey(panel), part);
+    } catch (error) {
+      this.report('A note from a panel couldn’t be played', error);
+    }
+  }
+
   /** A note from an input: passed on where its row is patched, then to `onNote` if the setup hears it. */
-  #heard(
-    note: ParsedNote,
-    source: string,
-    onNote: (note: ParsedNote, source: string, part: Part) => void,
-  ) {
+  #heard(note: ParsedNote, source: string) {
     try {
       const book = this.settings.book;
       this.#send(
@@ -279,7 +314,7 @@ export class Device {
         ),
       );
       const part = partPlayed(book, source, note.channel);
-      if (part) onNote(note, source, part);
+      if (part) this.#onNote?.(note, source, part);
     } catch (error) {
       this.report(`A note from ${source} couldn’t be played`, error);
     }

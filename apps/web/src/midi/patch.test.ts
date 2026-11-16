@@ -36,6 +36,7 @@ import {
   withSynth,
   nameByPorts,
   partPlayed,
+  panelPartPlayed,
   withOutputProfile,
 } from './patch.ts';
 
@@ -298,5 +299,23 @@ describe('the built-in synth, a column of the setup (yggi/webmidi decision 004)'
     expect(on.routes[BAND]!.lead).toEqual({ o1: 1, builtin: HEARD });
     expect(on.routes[BAND]![KEYS]).toBeUndefined();
     expect([withSynth(setup, false), withSynth(on, true)]).toEqual([setup, on]);
+  });
+
+  it('a panel plays what the same bytes from an input with that choice play: nothing by default, then the default by its channel, then the part chosen', () => {
+    const book = fromJambot(stored(), NONE);
+    const on = (channel: number) => [0x90 | channel, 60, 100];
+    expect(panelPartPlayed(book, 'p', on(0))).toBeNull();
+    const asDefault = withPlays(book, 'panel:p', 'default');
+    expect([
+      panelPartPlayed(asDefault, 'p', on(0)),
+      panelPartPlayed(asDefault, 'p', on(9)),
+    ]).toEqual([partPlayed(withPlays(book, 'in:K', 'default'), 'K', 0), 'drums']);
+    const bass = withPlays(book, 'panel:p', { row: 'bass', role: 'bass' });
+    expect(panelPartPlayed(bass, 'p', on(9))).toBe('bass');
+    expect(panelPartPlayed(withPlays(bass, 'panel:p', 'none'), 'p', on(0))).toBeNull();
+    // (only channel voice messages play: the clock is none)
+    expect(panelPartPlayed(bass, 'p', [0xf8])).toBeNull();
+    // (what every input plays is not a panel's to follow)
+    expect(panelPartPlayed(withPlays(book, 'in:*', 'default'), 'p', on(0))).toBeNull();
   });
 });

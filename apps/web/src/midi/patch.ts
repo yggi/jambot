@@ -32,6 +32,7 @@ import {
   isBuiltIn,
   listenOf,
   namePorts,
+  panelPlays,
   playsOf,
   profileOf,
   withProfile,
@@ -115,9 +116,26 @@ const ALONG: readonly { id: AlongPart; role: AlongPart }[] = BAND_PARTS.map((par
  * not heard, null, so neither the Muse nor the instruments take it.
  */
 export function partPlayed(book: SetupBook, source: string, channel: number): AlongPart | null {
-  const plays = playsOf(book, `in:${source}`, ALONG);
-  if (plays === null) return null;
-  return plays === 'default' ? partOf(channel) : (plays as AlongPart);
+  return partFor(playsOf(book, `in:${source}`, ALONG), channel);
+}
+
+/** The part a play lands on: the part chosen, the default's by its channel, or null for not heard. */
+const partFor = (plays: string | null, channel: number): AlongPart | null =>
+  plays === null ? null : plays === 'default' ? partOf(channel) : (plays as AlongPart);
+
+/**
+ * The part a message a panel sent plays (yggi/webmidi decision 007's
+ * amendment): what the same bytes from an input with the panel's choice would
+ * (`panelPlays`, webmidi's one rule for both), so none by default; null too
+ * for what is no channel voice message.
+ */
+export function panelPartPlayed(
+  book: SetupBook,
+  panel: string,
+  data: ArrayLike<number>,
+): AlongPart | null {
+  const played = panelPlays(book, panel, ALONG, data);
+  return played && partFor(played.plays, (data[0] ?? 0) & 15);
 }
 
 /** A value kept under a key of its own (a row named `__proto__` is none). */

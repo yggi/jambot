@@ -60,8 +60,11 @@ Facts about MIDI in and out of the app.
   Its touches go out through the outputs its row crosses, on the channel the crossing says (`forwardsOf` on `panel:<id>`, through `Device`'s sender), and to the panels its row crosses (`panelForwardsOf`).
   An input's raw messages (`MidiAccess`'s `onMessage`) go to the panels its row crosses, so a panel follows a controller whether or not a view shows it.
   The panels' notes are released on All notes off (`PanelDeck.silence`), and where a panel is taken out or edited, by the book of before the change.
-- Jambot's own rows (the parts, the keys) are sent from notes, not bytes, so no panel's column crosses them (decision 007); and the built-in synth is no `direct` column (`PatchMatrix`'s `builtIn.direct` is not passed), so a panel is not heard on it: it plays on MIDI outputs only.
-  Playing a panel on the synth would take a map from MIDI bytes to the synth's notes, which Jambot has none of; it is left open.
+- Jambot's own rows (the parts, the keys) are sent from notes, not bytes, so no panel's column crosses them (decision 007).
+- A panel's row takes a Plays choice as an input's does (`Setup.plays` under `panel:<id>`, webmidi decision 007's amendment; the matrix shows it where `heardBy` is passed), none by default and not following what every input plays.
+  A message a panel makes that its choice hears (`panelPartPlayed`, over webmidi's `panelPlays`, the one rule an input's `partPlayed` shares) goes down the path an input's note takes: `Device`'s one handler (`hear`, `connect`) to the keys and the instruments, the Muse listening, with `panel:<id>` as its source; no other way into the Muse.
+  Only a `note` binding's messages are notes, as only an input's notes are; every other kind plays nothing, on a panel or an input.
+  So a panel is heard on the built-in synth through the part it plays, and is heard with no MIDI connected (`Device.hear`); it is no direct column of the synth (`PatchMatrix`'s `builtIn.direct` is not passed).
 
 ## Ports
 

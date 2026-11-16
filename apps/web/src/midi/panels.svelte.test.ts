@@ -185,4 +185,21 @@ describe('the panels of the MIDI page', () => {
     d.panels.silence();
     expect(d.sent.every((f) => (f.data[0]! & 0xf0) === 0x80)).toBe(true);
   });
+
+  it('hands each message a panel makes to `plays` as well, with the book it is routed by, and none a panel is sent', () => {
+    const played: { id: string; data: readonly number[] }[] = [];
+    const d = deck();
+    const again = new PanelDeck({
+      settings: d.settings,
+      store: memoryPanelStore(),
+      send: () => {},
+      plays: (id, data) => void played.push({ id, data: Array.from(data) }),
+    });
+    routed(d, EXAMPLE_MIXER.id);
+    again.adopt();
+    again.played(EXAMPLE_MIXER.id, [0xb0, 40, 9]);
+    expect(played).toEqual([{ id: EXAMPLE_MIXER.id, data: [0xb0, 40, 9] }]);
+    again.heard('Keys', new Uint8Array([0xb0, 40, 1]));
+    expect(played).toHaveLength(1);
+  });
 });
