@@ -10,11 +10,11 @@
  * (`docs/briefs/host-mode.md`).
  */
 
-import type { ClientMessage, HostMessage, OpenSession } from '@jambot/session';
+import type { ClientMessage, HostMessage, HostSaid, OpenSession } from '@jambot/session';
 
-/** A host's end: to one client by its id, or to every client. */
+/** A host's end: to one client by its id, or to every client, in the version of the session the host speaks. */
 export interface HostLink {
-  send(message: HostMessage, to?: string): void;
+  send(message: HostSaid, to?: string): void;
   close(): void;
   /**
    * What takes the session back from the lobby if this link drops and

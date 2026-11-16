@@ -110,7 +110,8 @@ export function memoryLobby(): Lobby & {
         reclaim: null,
         send(message, to) {
           for (const [id, { hear }] of clients.get(key)!)
-            if (to === undefined || to === id) hear(structuredClone(message));
+            // (a client's hear reads version 1; a test of a host of version 2 reads what it hears with version 2's reader)
+            if (to === undefined || to === id) hear(structuredClone(message) as HostMessage);
         },
         close: () => void hosts.delete(key),
       } satisfies HostLink;

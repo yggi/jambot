@@ -14,7 +14,7 @@
 
 import {
   type ClientMessage,
-  type HostMessage,
+  type HostSaid,
   readClientMessage,
   readHostMessage,
 } from '@jambot/session';
@@ -23,7 +23,7 @@ import { type ClientLink, type HostLink, type Lobby, sessionKey } from './lobby.
 type Post =
   | { readonly kind: 'claim'; readonly id: string }
   | { readonly kind: 'held' }
-  | { readonly kind: 'host'; readonly to?: string; readonly message: HostMessage }
+  | { readonly kind: 'host'; readonly to?: string; readonly message: HostSaid }
   | { readonly kind: 'client'; readonly from: string; readonly message: ClientMessage };
 
 /** How long, in milliseconds, a host waits to hear whether a name is held, and a list for answers. */

@@ -67,6 +67,7 @@ import {
   meterLine,
   scoreLevel,
   sectionAsCells,
+  sectionRuns,
   sectionTextOf,
   swingText,
   writtenNotes,
@@ -136,6 +137,40 @@ function sections(name: string, seed: number, count: number, found = false): Ban
 /** The bars with a tempo that glides through them, a bpm higher each bar. */
 const gliding = (bars: readonly BandBar[]) =>
   bars.map((bar, i) => ({ ...bar, style: { ...bar.style, bpm: bar.style.bpm + i } }));
+
+describe("a section's bars as runs one text each states (session version 2, #553)", () => {
+  /** Two sections' halves as one section of eight bars, numbered on, as a looper over two plans plays them (#648). */
+  const mixed = (a: readonly BandBar[], b: readonly BandBar[]): BandBar[] =>
+    [...a.slice(0, 4), ...b.slice(4)].map((bar, i) => ({ ...bar, bar: 8 + i }));
+
+  it('keeps a section that holds its meter, swing, key and scale one run, every preset', () => {
+    for (const preset of PRESETS) {
+      const bars = section(preset.name);
+      expect(sectionRuns(bars, { tempo: 'first' }), preset.name).toEqual([bars]);
+    }
+  });
+
+  it('splits where the key, the meter or the swing moves, every bar in one run, and each run states', () => {
+    const funk = section('Funk');
+    for (const other of PRESETS.filter((p) => p.name !== 'Funk')) {
+      const bars = mixed(funk, section(other.name));
+      const runs = sectionRuns(bars, { tempo: 'first' });
+      expect(runs.flat(), other.name).toEqual(bars);
+      const parts = (['meter', 'swing', 'key', 'melodic'] as const).some(
+        (f) => hostOf([bars[0]!])[f] !== hostOf([bars[4]!])[f],
+      );
+      expect(runs.length, other.name).toBe(parts ? 2 : 1);
+      if (parts) expect(() => hostOf(bars, { tempo: 'first' }), other.name).toThrow();
+      for (const run of runs) expect(() => sectionAsCells(run, { tempo: 'first' })).not.toThrow();
+    }
+  });
+
+  it('splits where the tempo moves only when the tempo is held', () => {
+    const bars = gliding(section('Synth-pop'));
+    expect(sectionRuns(bars, { tempo: 'first' })).toEqual([bars]);
+    expect(sectionRuns(bars)).toEqual(bars.map((b) => [b]));
+  });
+});
 
 describe('a section as one cells text, for the app (#399)', () => {
   it('holds one tempo a text, unless asked to state the first bar’s while the bars’ tempos glide', () => {

@@ -15,7 +15,8 @@
  * one, or it joins one.
  */
 
-import type { ClientMessage, HostMessage } from './protocol.ts';
+import type { ClientMessage } from './protocol.ts';
+import type { HostSaid } from './protocol-v2.ts';
 
 /** The longest session name a lobby takes. */
 export const SESSION_NAME_MAX = 40;
@@ -53,7 +54,7 @@ export type ToLobby =
   | { readonly op: 'host'; readonly session: string; readonly reclaim?: string }
   | { readonly op: 'join'; readonly session: string }
   /** From a host: to one client by its id, or to every client. */
-  | { readonly op: 'send'; readonly to?: string; readonly message: HostMessage }
+  | { readonly op: 'send'; readonly to?: string; readonly message: HostSaid }
   /** From a client: to its host. */
   | { readonly op: 'tell'; readonly message: ClientMessage }
   /** From a host: the session is over, its name free at once, its clients told. */
@@ -69,8 +70,8 @@ export type FromLobby =
   | { readonly op: 'heard'; readonly from: string; readonly message: ClientMessage }
   /** To a host: a client's link closed. */
   | { readonly op: 'left'; readonly from: string }
-  /** To a client: its host's message. */
-  | { readonly op: 'said'; readonly message: HostMessage }
+  /** To a client: its host's message, of the version the host speaks, which the client's reader reads or drops. */
+  | { readonly op: 'said'; readonly message: HostSaid }
   /** To a client: its host's link closed for good. */
   | { readonly op: 'gone' }
   /** To a client: its host's link dropped, and the lobby holds the session for a while. */

@@ -17,8 +17,8 @@
  * worker use.
  *
  * The answer also says what of each bar the text is checked by (`foreseenOf`),
- * which costs a millisecond or two over a section, so that is worked out
- * where the text is.
+ * which costs a millisecond or two over a section, and what the text locks
+ * (`scoreLock`, cells' `textLockfile`), so both are worked out where the text is.
  */
 
 import type { BandBar } from '@jambot/engine';
@@ -33,6 +33,8 @@ import {
   sectionAsCells,
   sectionOutline,
   type Outline,
+  type ScoreLock,
+  scoreLock,
   sectionTextOf,
   statedChords,
   swingText,
@@ -109,6 +111,12 @@ export interface SectionStated {
   readonly outline: Outline | null;
   /** The bars, by their place in the section, a note was cut in (it runs past its line's next onset or the text's end). */
   readonly cut: readonly number[];
+  /**
+   * Every fragment the text takes `from` but the band, and of them those not in the seed library, with their texts
+   * (`scoreLock`): what a host of session version 2 sends with the score (#553); none for a text a host gave.
+   */
+  readonly lock: ScoreLock['lock'];
+  readonly filed: ScoreLock['filed'];
   /** What cells threw. */
   readonly error: string | null;
   /** Where it ran, in ms: building the text, compiling it, and playing it. */
@@ -141,15 +149,26 @@ export function stateSection(
       /^a section's (\w+) changes at its bar.*$/,
       "the section's $1 moves between its bars: one text states one",
     );
-    const none = { source: '', frame, foreseen, played: null, outline: null, cut: [], error: null };
+    const none = {
+      source: '',
+      frame,
+      foreseen,
+      played: null,
+      outline: null,
+      cut: [],
+      lock: [],
+      filed: [],
+      error: null,
+    };
     return { ...none, unstated: reason, cost: { build: clock() - t0, compile: 0, play: 0 } };
   }
+  const { lock, filed } = scoreLock(source);
   const built = clock() - t0;
   const played = playText(
     { bar: bars[0]!.bar, step: 0, text: source, unstated: null, frame, foreseen, cut },
     clock,
   );
-  return { ...played, cost: { ...played.cost, build: built } };
+  return { ...played, lock, filed, cost: { ...played.cost, build: built } };
 }
 
 /**
@@ -163,7 +182,18 @@ export function playText(
   clock: () => number = () => performance.now(),
 ): SectionStated {
   const { text: source, frame, foreseen, cut, unstated } = given;
-  const none = { source, frame, foreseen, unstated, played: null, outline: null, cut, error: null };
+  const none = {
+    source,
+    frame,
+    foreseen,
+    unstated,
+    played: null,
+    outline: null,
+    cut,
+    lock: [],
+    filed: [],
+    error: null,
+  };
   if (unstated !== null) return { ...none, cost: { build: 0, compile: 0, play: 0 } };
   const t1 = clock();
   try {
