@@ -435,6 +435,8 @@ export class Player {
    * alone's as built, a client's as given. None before a section's score is taken, or where none states it.
    */
   heardScore: Score | null = $state.raw(null);
+  /** The score of the section after the one heard, as built ahead, and its outline: the Cells view's Next § (#642). */
+  nextScore: Score | null = $state.raw(null);
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
   /**
@@ -1784,8 +1786,11 @@ export class Player {
     const latest = this.#heard.take(heard);
     if (latest !== undefined) {
       this.heard = latest;
-      const score = this.shadow.scoreAt(this.clock.barAt(latest));
+      const bar = this.clock.barAt(latest);
+      const score = this.shadow.scoreAt(bar);
       if (score !== this.heardScore) this.heardScore = score;
+      const next = this.shadow.scoreAfter(bar);
+      if (next !== this.nextScore) this.nextScore = next;
     }
     if (latest !== undefined && this.rhythmPlays && this.rhythm.length > 0) this.#logRhythm(latest);
     else if (latest !== undefined) this.#rhythmLogged = latest;

@@ -451,6 +451,18 @@ export class Shadow {
     return this.#scores.findLast((s) => bar >= s.bar && bar < s.bar + s.bars)?.score ?? null;
   }
 
+  /**
+   * The score of the section after the one that states `bar`, the soonest built ahead, and its outline; none where none
+   * is built yet (#642's Next §).
+   */
+  scoreAfter(bar: number): Score | null {
+    const at = this.#scores.findLast((s) => bar >= s.bar && bar < s.bar + s.bars);
+    const from = at ? at.bar + at.bars : bar + 1;
+    return (
+      this.#scores.filter((s) => s.bar >= from).sort((a, b) => a.bar - b.bar)[0]?.score ?? null
+    );
+  }
+
   /** The texts told that state a bar from `bar` on, in the order told: what a client's welcome gives (#446). */
   toldFrom(bar: number): readonly SectionText[] {
     return this.#told.filter((t) => t.bar + t.foreseen.length > bar);

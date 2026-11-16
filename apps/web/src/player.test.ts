@@ -427,6 +427,10 @@ describe('the player', () => {
     expect(score.text.split('\n')[0]).toBe('&harm, &key from');
     expect(score.text.split('\n').at(-1)).toMatch(/^\* from band\(/);
     expect(score.outline.parts.map((p) => p.id)).toContain('band');
+    // (and the section built ahead of it, a score of its own: Next §)
+    const next = player.nextScore!;
+    expect(next).not.toBe(score);
+    expect(next.text.split('\n').at(-1)).toMatch(/^\* from band\(/);
   });
 
   it('opens in a key picked while stopped, and shows it heading there', () => {
