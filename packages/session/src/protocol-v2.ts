@@ -1,10 +1,9 @@
 /**
  * What a host says to its clients in version 2 of the session contract
- * (yggi/music-commons `contracts/session`, minor 1: protocol 31), as a client
- * reads it: read here, written by the app's host and played by its client
- * behind one switch (`host-v2.ts`, `follow-v2.ts`, `SESSION_SPEAKS` in the
- * app: #553's rungs 2 and 3), and spoken once the protocol moves to it at
- * rung 4; Jambot speaks version 1, `PROTOCOL`.
+ * (yggi/music-commons `contracts/session`, minor 2: protocol 32), as a client
+ * reads it: the version Jambot speaks (`SESSION_SPEAKS` in the app, #553),
+ * written by the app's host (`host-v2.ts`) and played by its client
+ * (`follow-v2.ts`).
  *
  * Version 2 sends a section's **score** (`score`) in place of its text
  * (`section`), and each bar's **conduct** (`conduct`) in place of the bar
@@ -19,8 +18,9 @@
  * The other kinds a host sends are version 1's as they are
  * (`KEPT_HOST_FIELDS`), with what version 1's minors 6 to 9 added, which
  * version 2's minor 1 takes up. A client's messages are version 1's at
- * minor 9 too (`readClientMessage`), and a lobby's, which reads no version
- * (`lobby.ts`).
+ * minor 9 too (`readClientMessage`), with minor 2's `lacked`: a bar the
+ * client didn't play, and why, which a host counts by client (`countLacked`).
+ * A lobby reads no version (`lobby.ts`).
  */
 
 import type { Offer, SectionType } from '@jambot/engine';
@@ -41,6 +41,8 @@ import {
   type HostMessage,
   KEPT_HOST_FIELDS,
   type KeptHostKind,
+  LACKED_WHYS,
+  type LackedWhy,
   type MuseState,
   type SessionEvent,
   type SessionVersion,
@@ -49,13 +51,16 @@ import {
 } from './protocol.ts';
 import type { ForecastDelta } from './forecast.ts';
 
-/** The protocol a peer of version 2, minor 1, carries in its join or welcome: the minor that takes up version 1's minors 6 to 9. */
-export const PROTOCOL_V2 = 31;
+/**
+ * The protocol a peer of version 2, minor 2, carries in its join or welcome: minor 1 (31) takes up version 1's minors
+ * 6 to 9, and minor 2 (32) adds a client's `lacked` (yggi/music-commons#74).
+ */
+export const PROTOCOL_V2 = 32;
 
 /** The first protocol of version 2 (the owner's ruling of 2026-11-06): version 1 keeps 13 to 29 for its minors. */
 export const FIRST_PROTOCOL_V2 = 30;
 
-/** Version 2 of the session contract, read and not yet spoken: what a host or client of it admits by (`sameMajor`, `admit`). */
+/** Version 2 of the session contract, the one Jambot speaks: what a host or client of it admits by (`sameMajor`, `admit`). */
 export const SESSION_V2: SessionVersion = {
   protocol: PROTOCOL_V2,
   firstProtocol: FIRST_PROTOCOL_V2,
@@ -147,7 +152,7 @@ export type HostMessageV2 =
   | ({ readonly kind: 'conduct' } & BarConduct)
   | ({ readonly kind: 'score' } & SectionScore);
 
-/** What a host of either version says: version 1's messages, or version 2's (a host speaks one, `HOST_SPEAKS` in the app). */
+/** What a host of either version says: version 1's messages, or version 2's (a host speaks one, `SESSION_SPEAKS` in the app). */
 export type HostSaid = HostMessage | HostMessageV2;
 
 const SECTION_NAMES: ReadonlySet<unknown> = new Set(SECTION_TYPES);
@@ -230,4 +235,29 @@ export const versionOf = (protocol: number): 1 | 2 => (protocol >= FIRST_PROTOCO
  */
 export function readHostSaid(data: unknown): HostSaid | null {
   return readHostMessage(data) ?? readHostMessageV2(data);
+}
+
+/** How many bars a client told its host it didn't play (`lacked`), by why. */
+export type LackedCount = Readonly<Record<LackedWhy, number>>;
+
+/** No bar lacked, for any reason. */
+export const NO_LACKED: LackedCount = { silent: 0, digest: 0, lock: 0, late: 0 };
+
+/** The bars each client lacked, by its seat's id: what a host counts and its Session card shows. */
+export type LackedBy = Readonly<Record<string, LackedCount>>;
+
+/** The counts with one more bar a client lacked, for why. */
+export function countLacked(counts: LackedBy, id: string, why: LackedWhy): LackedBy {
+  const was = counts[id] ?? NO_LACKED;
+  return { ...counts, [id]: { ...was, [why]: was[why] + 1 } };
+}
+
+/** The bars lacked over every client, by why and in all (`bars`): what a soak's bound reads (#553). */
+export function lackedIn(counts: LackedBy): LackedCount & { readonly bars: number } {
+  const sum = (why: LackedWhy) => Object.values(counts).reduce((n, c) => n + c[why], 0);
+  const by = Object.fromEntries(LACKED_WHYS.map((why) => [why, sum(why)])) as Record<
+    LackedWhy,
+    number
+  >;
+  return { ...by, bars: LACKED_WHYS.reduce((n, why) => n + by[why], 0) };
 }

@@ -11,12 +11,19 @@
   the host asks for a code (#461): the code then shows here, for the host to
   read out, and another can be drawn. Each player the host lists has its
   role, and a button that seats it as the other: a listener let in plays,
-  and a player made to listen reaches no Muse (#567). Ending a session that others are in asks first, in place,
+  and a player made to listen reaches no Muse (#567), and the bars it told
+  the host it didn't play, with why on hover (`lacked`, #553). Ending a session that others are in asks first, in place,
   so a stray tap can't end a jam for everyone: a host is told how many are
   playing in its session. Solo shares nothing, so it goes back at once.
 -->
 <script lang="ts">
-  import { CODE_LISTENS, type Role, type SessionEvent } from '@jambot/session';
+  import {
+    CODE_LISTENS,
+    LACKED_WHYS,
+    type LackedCount,
+    type Role,
+    type SessionEvent,
+  } from '@jambot/session';
   import { VOICE_NAMES, speakerOf } from '../session/log-lines.ts';
   import type { Mode } from '../player.svelte.ts';
   import {
@@ -81,6 +88,13 @@
 
   const others = (n: number) => (n === 1 ? '1 other is' : `${n} others are`);
 
+  /** A player's bars lacked, in all, and by each why it lacked any for. */
+  const lackedOf = (count: LackedCount | undefined) => {
+    const whys = LACKED_WHYS.filter((why) => (count?.[why] ?? 0) > 0);
+    const bars = whys.reduce((n, why) => n + count![why], 0);
+    return { bars, why: whys.map((why) => `${count![why]} ${why}`).join(', ') };
+  };
+
   const closing = $derived(
     hosting.guests.length === 0
       ? `Close ${hosting.session}? Nobody else is in it.`
@@ -110,9 +124,15 @@
         <li><i style:background="var(--source-0)"></i>You (host)</li>
         {#each hosting.guests as guest, i (guest.id)}
           {@const listens = guest.role === 'listener'}
+          {@const lacked = lackedOf(hosting.lacked?.[guest.id])}
           <li>
             <i style:background="var(--source-{colours[i + 1] ?? 0})"></i>{guest.name}
             {#if listens}<span class="role">listening</span>{/if}
+            {#if lacked.bars > 0}
+              <span class="lacked" title={lacked.why}
+                >lacked {lacked.bars} {lacked.bars === 1 ? 'bar' : 'bars'}</span
+              >
+            {/if}
             {#if oncast}
               <button
                 type="button"
@@ -240,7 +260,8 @@
     align-items: center;
     gap: 8px;
   }
-  .role {
+  .role,
+  .lacked {
     font-size: 12.5px;
     color: var(--muted);
   }

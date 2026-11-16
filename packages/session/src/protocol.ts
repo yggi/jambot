@@ -112,15 +112,16 @@ export const FIRST_PROTOCOL = 13;
 /**
  * A major version of the session contract as a peer speaks it: the protocol
  * its join or welcome carries, and the first of the version, from which a
- * peer admits the other at any minor (#460). Version 1 is what Jambot speaks
- * (`SESSION_V1`); version 2 is read and not yet spoken (`SESSION_V2`, #553).
+ * peer admits the other at any minor (#460). Version 2 is what Jambot speaks
+ * (`SESSION_V2`, #553); version 1 (`SESSION_V1`) is what it spoke before, and
+ * its code stays until it is removed.
  */
 export interface SessionVersion {
   readonly protocol: number;
   readonly firstProtocol: number;
 }
 
-/** Version 1 of the session contract, as Jambot speaks it. */
+/** Version 1 of the session contract, as Jambot spoke it before version 2 (#553). */
 export const SESSION_V1: SessionVersion = { protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL };
 
 /**
@@ -373,9 +374,27 @@ export type ClientMessage =
   | { readonly kind: 'nudge'; readonly target: Nudged; readonly by: 1 | -1 }
   /** A ping, stamped with the client's page clock as it was sent, in seconds. */
   | { readonly kind: 'ping'; readonly sent: number }
+  /**
+   * A bar the client didn't play, and why (version 2's minor 2, protocol 32, yggi/music-commons#74): one a bar, which
+   * a host counts by client (`countLacked`); a host of version 1 has no use for it and ignores it.
+   */
+  | {
+      readonly kind: 'lacked';
+      readonly bar: number;
+      readonly why: LackedWhy;
+      readonly text: string;
+    }
   | { readonly kind: 'leave' }
   /** Said by a lobby, never by a client: its link dropped without a `leave`. */
   | { readonly kind: 'lost' };
+
+/**
+ * Why a client didn't play a bar, as the session contract's `lacked` names it (version 2, minor 2): no score stated it
+ * (`silent`), its conduct's digest is not the one its score foresaw (`digest`), its score locks a fragment the client
+ * lacks (`lock`), or the client came to it too late to play it (`late`).
+ */
+export const LACKED_WHYS = ['silent', 'digest', 'lock', 'late'] as const;
+export type LackedWhy = (typeof LACKED_WHYS)[number];
 
 const CLIENT_KINDS: ReadonlySet<string> = new Set([
   'join',
@@ -385,6 +404,7 @@ const CLIENT_KINDS: ReadonlySet<string> = new Set([
   'nudge',
   'ping',
   'leave',
+  'lacked',
 ]);
 const PART_NAMES: ReadonlySet<unknown> = new Set(PARTS);
 
@@ -529,7 +549,11 @@ export function readClientMessage(data: unknown): ClientMessage | null {
             ? Number.isFinite(m.sent)
             : kind === 'nudge'
               ? (NUDGED as readonly unknown[]).includes(m.target) && (m.by === 1 || m.by === -1)
-              : true;
+              : kind === 'lacked'
+                ? Number.isInteger(m.bar) &&
+                  (LACKED_WHYS as readonly unknown[]).includes(m.why) &&
+                  typeof m.text === 'string'
+                : true;
   return fits ? (data as ClientMessage) : null;
 }
 

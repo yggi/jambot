@@ -1,7 +1,7 @@
 /**
  * The family's session contract (yggi/music-commons `contracts/session-v1`,
  * version 1, minor 9: protocol 22; and `contracts/session`, version 2,
- * minor 1: protocol 31) run against this package's readers, as yggi/webmidi
+ * minor 2: protocol 32, the version Jambot speaks) run against this package's readers, as yggi/webmidi
  * and yggi/cells run theirs: each version's hub `vectors.json` is copied into
  * `fixtures/contracts/` (`session.json` for version 1, `session-v2.json` for
  * version 2) with a first field, `lifted`, naming the hub's path and the
@@ -11,7 +11,7 @@
  *
  * Each vector names its reader: `host` reads a client's message
  * (`readClientMessage`, which version 2 shares, its client messages being
- * version 1's at minor 9), `client` a host's (`readHostMessage`, or
+ * version 1's at minor 9 with minor 2's `lacked`), `client` a host's (`readHostMessage`, or
  * `readHostMessageV2` for version 2), `lobby` a page's request
  * (`readToLobby`) and `page` what a lobby says (`readFromLobby`), both
  * versions' alike, as a lobby reads no version. A reader gives a message it
@@ -213,7 +213,7 @@ const named = (run: Run, name: string) => run.contract.vectors.find((v) => v.nam
 
 describe.each([
   [1, V1, 'session-v1', 9, 360],
-  [2, V2, 'session', 1, 365],
+  [2, V2, 'session', 2, 376],
 ] as const)(
   'the session contract, version %i (yggi/music-commons contracts/%s, minor %i)',
   (version, run, path, minor, count) => {
@@ -223,7 +223,7 @@ describe.each([
     it('is lifted with its source named, each vector named once, every record of a vector', () => {
       expect(contract.lifted).toMatch(
         new RegExp(
-          `^Lifted from yggi/music-commons contracts/${path}/vectors\\.json @ [0-9a-f]{7,40}$`,
+          `^Lifted from yggi/music-commons contracts/${path}/vectors\\.json @ [0-9a-f]{7,40}( \\(.+\\))?$`,
         ),
       );
       expect([contract.contract, contract.version, contract.minor]).toEqual([
@@ -281,8 +281,8 @@ describe.each([
   },
 );
 
-describe('the session contract, version 1, as Jambot speaks it', () => {
-  it('is the version Jambot speaks, a minor on from the copy', () => {
+describe('the session contract, version 1, as Jambot spoke it before version 2', () => {
+  it('is the version Jambot spoke, a minor on from the copy', () => {
     // (Jambot speaks minor 10, protocol 23: a drum hit's role may be `ostinato`, #651, a value the hub records at its
     // next lift; minor 9's vectors still hold, a minor only adding)
     expect([V1.contract.protocol + 1, V1.contract.firstProtocol]).toEqual([
@@ -324,7 +324,7 @@ describe('the session contract, version 1, as Jambot speaks it', () => {
   });
 });
 
-describe('the session contract, version 2, as Jambot reads it (nothing speaks it yet)', () => {
+describe('the session contract, version 2, as Jambot speaks it', () => {
   it("is version 2's own protocol and first", () => {
     expect([V2.contract.protocol, V2.contract.firstProtocol]).toEqual([
       PROTOCOL_V2,
@@ -361,7 +361,16 @@ describe('the session contract, version 2, as Jambot reads it (nothing speaks it
       'welcome while playing: song.conducts absent',
     ])
       expect(differs(V2, { ...named(V2, name), reads: true }), name).toBe("client doesn't read it");
-    const own = named(V2, 'handshake: a join at protocol 31, its own');
+    const own = named(V2, 'handshake: a join at protocol 32, its own');
     expect(differs(V2, { ...own, admits: false })).toBe('host admits');
+    // Cell studio's follower joins at 31, a minor before, and is admitted.
+    const before = named(V2, 'handshake: a join at protocol 31, a minor before');
+    expect(differs(V2, { ...before, admits: false })).toBe('host admits');
+    // A client's `lacked`, read; one whose `why` the contract doesn't name, turned over, is caught.
+    const lacked = named(V2, 'lacked, late');
+    expect(differs(V2, lacked)).toBeNull();
+    expect(differs(V2, { ...lacked, reads: false })).toBe('host reads it');
+    const muted = named(V2, 'lacked, silent: why = "muted"');
+    expect(differs(V2, { ...muted, reads: true })).toBe("host doesn't read it");
   });
 });

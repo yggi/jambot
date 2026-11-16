@@ -133,6 +133,35 @@ describe('the session card', () => {
       expect(oncast).toHaveBeenLastCalledWith('c1', 'player');
     });
 
+    it('shows beside each player the bars it told the host it lacked, and why, and nothing beside one that lacked none (#553)', async () => {
+      render(
+        Session,
+        props({
+          hosting: {
+            session: 'Garage',
+            guests: [
+              { id: 'c0', name: 'Ada', role: 'player' },
+              { id: 'c1', name: 'Bo', role: 'player' },
+              { id: 'c2', name: 'Cy', role: 'player' },
+            ],
+            lacked: {
+              c0: { silent: 0, digest: 1, lock: 0, late: 2 },
+              c1: { silent: 0, digest: 0, lock: 0, late: 0 },
+              c2: { silent: 1, digest: 0, lock: 0, late: 0 },
+            },
+          },
+        }),
+      );
+      await unfold();
+      const items = within(screen.getByRole('list', { name: 'Players' })).getAllByRole('listitem');
+      const lacked = (i: number) => items[i]!.querySelector('.lacked');
+      expect(lacked(1)).toHaveTextContent('lacked 3 bars');
+      expect(lacked(1)).toHaveAttribute('title', '1 digest, 2 late');
+      expect(lacked(2)).toBeNull();
+      expect(lacked(3)).toHaveTextContent('lacked 1 bar');
+      expect(lacked(3)).toHaveAttribute('title', '1 silent');
+    });
+
     it('says nobody has joined yet, in the list, as the summary does', async () => {
       render(Session, props());
       await unfold();

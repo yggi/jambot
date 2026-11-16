@@ -7,7 +7,7 @@ declare const __BUILD__: import('./buildInfo.ts').BuildInfo;
  * The dev readout (#399): how the band played through cells since the page opened (#469),
  * what the outputs played lately, event by event, from the one numbered `from` on, and the
  * transport's counters (#446), and a client's network pair (#509);
- * and the homeostat's song, none where it is off (#495).
+ * and the homeostat's song, none where it is off (#495); and, hosting, the bars its clients lacked (#553).
  */
 interface Window {
   /** Set once the app has mounted, so the boot guard in index.html stands down. */
@@ -18,5 +18,6 @@ interface Window {
     played(from?: number): ReturnType<import('./played.ts').PlayedLog['since']>;
     readonly timing: import('@jambot/session').TransportTiming;
     readonly network: import('./session/client.svelte.ts').NetworkTiming | null;
+    readonly lacked: ReturnType<typeof import('@jambot/session').lackedIn>;
   };
 }

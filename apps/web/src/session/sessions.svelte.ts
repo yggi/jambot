@@ -56,8 +56,6 @@ export interface SessionsOptions {
   readonly kept: Kept;
   /** The time, in seconds, that silences are measured by. */
   readonly wallNow?: () => number;
-  /** The version of the session contract this page speaks, as a host and as a client (`SESSION_SPEAKS` unless said). */
-  readonly speaks?: 1 | 2;
 }
 
 /** How long, in milliseconds, taking a kept session up again may take before it is given up. */
@@ -98,7 +96,7 @@ export class Sessions {
   constructor(
     player: Player,
     clocks: DeviceClocks,
-    { tabs, server, address = '', kept, wallNow, speaks }: SessionsOptions,
+    { tabs, server, address = '', kept, wallNow }: SessionsOptions,
   ) {
     this.#tabs = tabs;
     this.#server = server;
@@ -106,12 +104,10 @@ export class Sessions {
     this.#address = storedAddress() ?? address;
     this.asHost = new HostSession(player, clocks, wallNow, {
       keep: kept.hostKeep,
-      ...(speaks ? { speaks } : {}),
     });
     this.asClient = new ClientSession(player, clocks, {
       keep: kept.clientKeep,
       ...(wallNow ? { wallNow } : {}),
-      ...(speaks ? { speaks } : {}),
     });
   }
 
