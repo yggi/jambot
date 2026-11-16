@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { EMPTY_SPREAD, TRANSPORT_TIMING, hostClock, spreadWith } from '@jambot/session';
-import { describe, expect, it } from 'vitest';
+import { runLinkProbe } from '@yggi/webmidi/web';
+import { fakeLoop } from '@yggi/webmidi/testing';
+import { describe, expect, it, vi } from 'vitest';
 import { timingFile, timingReport } from './timing.ts';
 
 const place = { taken: '2026-09-27T22:00:00.000Z', userAgent: 'a browser' };
@@ -40,6 +42,7 @@ describe('the timing report (#27)', () => {
       output: { offset: 12034.568, bound: 0.5, jumps: 3 },
       network: null,
       session: { lacked: 0, dropped: { late: 0, ahead: 0, inadmissible: 0 } },
+      midiLinks: {},
     });
   });
 
@@ -85,5 +88,53 @@ describe('the timing report (#27)', () => {
     const { name, text } = timingFile(report);
     expect(name).toBe('jambot-timing-2026-09-27T22-00-00-000Z.json');
     expect(JSON.parse(text)).toEqual(report);
+  });
+
+  it('carries the latest link report of each output under its own key, as webmidi made it, in a file that is valid JSON of its own shape', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    try {
+      const loop = fakeLoop({ latency: 1.5, jitter: 0.5 });
+      const link = runLinkProbe({
+        output: loop.output,
+        input: loop.input,
+        outputName: 'Loop out',
+        inputName: 'Loop in',
+        environment: 'a browser',
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      const measured = await link;
+      const report = timingReport(
+        {
+          mode: 'solo',
+          transport: TRANSPORT_TIMING,
+          output: null,
+          network: null,
+          lacked: 0,
+          links: { o1: measured },
+        },
+        place,
+      );
+      expect(Object.keys(report)).toEqual([
+        'report',
+        'version',
+        'taken',
+        'userAgent',
+        'mode',
+        'transport',
+        'output',
+        'network',
+        'session',
+        'midiLinks',
+      ]);
+      expect(report.midiLinks).toEqual({ o1: measured });
+      const parsed = JSON.parse(timingFile(report).text);
+      expect(Object.keys(parsed.midiLinks)).toEqual(['o1']);
+      expect(parsed.midiLinks.o1.report).toBe('webmidi link');
+      expect(Object.keys(parsed.midiLinks.o1.tier)).toEqual(['scheduled', 'played']);
+      expect(parsed.midiLinks.o1.oneWay.assumed).toBe(true);
+      expect(parsed).toEqual(JSON.parse(JSON.stringify(report)));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -66,6 +66,15 @@ Facts about MIDI in and out of the app.
   Only a `note` binding's messages are notes, as only an input's notes are; every other kind plays nothing, on a panel or an input.
   So a panel is heard on the built-in synth through the part it plays, and is heard with no MIDI connected (`Device.hear`); it is no direct column of the synth (`PatchMatrix`'s `builtIn.direct` is not passed).
 
+## The link
+
+- An output's details (webmidi's `DeviceDialog`) offer Measure link where `SoundPanel` passes `onmeasure` (`Device.measureLink`, webmidi's `runLinkProbe`) and the inputs plugged in: 100 probes in a quick run, 600 in a long one, sent on the output and timed back on the input the person chooses, which is the loop (a cable from an out to an in, or a device that echoes).
+- No probe goes out unless the person presses the button; connecting, listening and playing send none.
+- While a run is on, the markers heard back (CC 119 on channel 16, `probeMarker`) are dropped before they reach anything of Jambot's: they are not forwarded, not played, not given to the panels or the Muse.
+- The latest report of each output is kept by its key (`Device.linkReports`) and carried in the `?timing` export under `midiLinks` ([session](session.md)).
+- What is measured: the loop, the page's lag, loss, drift (over a long run), whether timestamps are honoured, and two speculative tiers (scheduled, played).
+  What is not: the device's latency offset (its profile, set by hand) and the sound path, which needs the audio loop (#27 step 5); no real device has been measured yet.
+
 ## Ports
 
 - A setup remembered with a device or an input is reconnected on load without a click (`App.svelte`, `Device.remembersPorts`), since a Web MIDI permission already granted needs no gesture; a first visit, with nothing chosen yet, asks for none.

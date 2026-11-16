@@ -17,7 +17,7 @@
  */
 
 import type { SpreadSummary, TransportTiming } from '@jambot/session';
-import type { PairEstimate } from '@yggi/webmidi/core';
+import type { LinkReport, PairEstimate } from '@yggi/webmidi/core';
 import { summaryOf } from '@jambot/session';
 import type { Mode } from './player.svelte.ts';
 import type { NetworkTiming } from './session/client.svelte.ts';
@@ -31,6 +31,8 @@ export interface TimingSources {
   readonly network: NetworkTiming | null;
   /** How many of the host's bars, as a client, came too late. */
   readonly lacked: number;
+  /** The latest link report of each output, by its key in the setup (yggi/webmidi decision 009); none measured: none. */
+  readonly links?: Readonly<Record<string, LinkReport>>;
 }
 
 /** Where the report was taken. */
@@ -66,6 +68,12 @@ export interface TimingReport extends TimingPlace {
     readonly lacked: number;
     readonly dropped: TransportTiming['dropped'];
   };
+  /**
+   * The MIDI link of each output that was measured, by its key (webmidi's
+   * `LinkReport`, as it made it: plain JSON, its tiers speculative until
+   * real devices' numbers replace the limits). Empty until a person measures.
+   */
+  readonly midiLinks: Readonly<Record<string, LinkReport>>;
 }
 
 /** Seconds as milliseconds, to a microsecond; null stays null. */
@@ -80,7 +88,7 @@ const summary = (spread: TransportTiming['ticks']): SpreadSummary => {
 };
 
 export function timingReport(sources: TimingSources, place: TimingPlace): TimingReport {
-  const { mode, transport, output, network, lacked } = sources;
+  const { mode, transport, output, network, lacked, links = {} } = sources;
   return {
     report: 'jambot timing',
     version: 1,
@@ -101,6 +109,7 @@ export function timingReport(sources: TimingSources, place: TimingPlace): Timing
       skew: ms(network.skew),
     },
     session: { lacked, dropped: transport.dropped },
+    midiLinks: links,
   };
 }
 

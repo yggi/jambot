@@ -30,10 +30,12 @@
   goes on, where an error in a keyed list would have stopped it redrawing.
 -->
 <script lang="ts">
+  import type { ComponentProps } from 'svelte';
   import {
     BUILT_IN,
     DEFAULT_PRESET,
     HEARD,
+    type LinkReport,
     type PortOption,
     type SetupBook,
     isBuiltIn,
@@ -76,6 +78,11 @@
     onpanic?: () => void;
     /** A test note on an output, by its key, on a channel 1–16. */
     ontest?: (key: string, channel: number) => void;
+    /** Measure the link to an output, by its key, over the input of its loop (`Device.measureLink`): offered in the output's details. */
+    onmeasure?: (
+      key: string,
+      run: Parameters<NonNullable<ComponentProps<typeof PatchMatrix>['onmeasure']>>[1],
+    ) => Promise<LinkReport>;
     /** All notes off on one output, by its key. */
     onpanicoutput?: (key: string) => void;
     /** The synth's volume, a fader position 0–1: the Sound card's. */
@@ -98,6 +105,7 @@
     onpanic,
     ontest,
     onpanicoutput,
+    onmeasure,
     volume = 1,
     onvolume,
     deck,
@@ -209,6 +217,7 @@
           onchange={change}
           {...ontest && connected ? { ontest: testOn } : {}}
           {...onpanicoutput && connected ? { onpanic: onpanicoutput } : {}}
+          {...onmeasure && connected ? { onmeasure } : {}}
           onbuiltin={() => (inspecting = true)}
         />
       </div>

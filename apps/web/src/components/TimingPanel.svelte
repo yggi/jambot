@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
   import type { SpreadSummary } from '@jambot/session';
+  import type { LinkReport } from '@yggi/webmidi/core';
   import type { TimingReport } from '../timing.ts';
 
   interface Props {
@@ -19,6 +20,10 @@
     s.count === 0
       ? 'none yet'
       : `${figure(s.least)} / ${figure(s.p50)} / ${figure(s.p99)} / ${figure(s.most)} (${s.count})`;
+
+  /** A link report in words: its two tiers and why, which webmidi's limits (not yet measured on real devices) make speculative. */
+  const linkText = (link: LinkReport) =>
+    `scheduled ${link.tier.scheduled ?? 'not rated'}, played ${link.tier.played ?? 'not rated'} (speculative: ${link.reasons.join('; ') || 'no reasons'})`;
 
   const rows = $derived.by(() => {
     const { transport, output, network, session } = report;
@@ -43,6 +48,8 @@
       'Judgements dropped: late, ahead, inadmissible',
       `${late}, ${ahead}, ${inadmissible}`,
     ]);
+    for (const [key, link] of Object.entries(report.midiLinks))
+      lines.push([`MIDI link to ${link.output || key}`, linkText(link)]);
     return lines;
   });
 </script>
@@ -59,6 +66,12 @@
     {/each}
   </dl>
   <p class="note">In milliseconds, since the song started; a session's since it was joined.</p>
+  {#if Object.keys(report.midiLinks).length}
+    <p class="note">
+      A MIDI link is the last run measured from an output's details, over a loop: its tiers are
+      speculative until real devices' numbers replace their limits.
+    </p>
+  {/if}
 </section>
 
 <style>

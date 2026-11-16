@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import {
   DRUM_PRESETS,
   KEYS,
@@ -197,6 +197,19 @@ describe('SoundPanel', () => {
     await inspect();
     await fireEvent.click(screen.getByRole('button', { name: 'Test note' }));
     expect(ontest).toHaveBeenCalledWith('o1', 1);
+  });
+
+  it('offers Measure link in an output’s details only where a measurement is given, and sends nothing until it is pressed', async () => {
+    const onmeasure = vi.fn(() => new Promise<never>(() => {}));
+    panel({ settings: onJuno() });
+    await inspect();
+    expect(screen.queryByRole('button', { name: 'Measure link' })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    cleanup();
+    panel({ settings: onJuno(), onmeasure });
+    await inspect();
+    expect(screen.getByRole('button', { name: 'Measure link' })).toBeInTheDocument();
+    expect(onmeasure).not.toHaveBeenCalled();
   });
 
   it('sends all notes off to one output, by its key, from its details', async () => {
