@@ -10,18 +10,20 @@ The owner's reply to the first round, also verbatim:
 
 > B and C are out.
 > I tend toward a mix of A and D (with E on the side)
+>
 > - the drawer sits at the top, hanging down from the transport
 > - top drawer holds sound(with midi), session, style, time, key, muse
 >
 > - bottom switches between 3 views on the stage
-> 'Song' - a merge of plan and chords under this sessions play-along perspective
-> 'Melody' - the keyboard and a large Piano-Roll
-> 'Rhythm' - the drum-pads and a drum-pattern/sequencer view
-> 'Mix' - the multi-tracker/mixer from band
+>   'Song' - a merge of plan and chords under this sessions play-along perspective
+>   'Melody' - the keyboard and a large Piano-Roll
+>   'Rhythm' - the drum-pads and a drum-pattern/sequencer view
+>   'Mix' - the multi-tracker/mixer from band
 
 ## The brief
 
 UI reorganization with several goals
+
 - avoid scrolling and fat-fingering sliders
 - show what's relevant at all times
 - mobile: resolve limited space with tabs instead of a long ribbon
@@ -31,11 +33,14 @@ UI reorganization with several goals
 Goal: on mobile, UI the main interface should appear like a proper app, UX should be robust and avoid frustration and friction.
 
 concepts:
+
 # transport header
+
 get play/stop, stepped bar as background for immediate visual beat-syncing; shows counting and lead-out. detail: lead-out can be aborted (hard-stop) by clicking stop again.
 it also gets a 'loop' toggle which keeps playing the current section.
 
 # tabs
+
 most of our current stack of cards condenses to tabbed sections, glyphs and name as rider, details below.
 
 an footer can be toggled at the bottom for playing along: none or one of

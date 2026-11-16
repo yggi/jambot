@@ -37,7 +37,7 @@ import {
   withProfile,
 } from '@yggi/webmidi/core';
 import type { MatrixRow } from '@yggi/webmidi/ui';
-import type { DrumNotes, PartChannels } from '../audio/midi-out.ts';
+import type { DrumNotes, PartChannels } from './channels.ts';
 import { partOf } from './routing.ts';
 
 /** A part a person plays along on: any of the band's, as the player takes them (#564). */
@@ -48,9 +48,7 @@ import { DRUM_SOUNDS, drumNotesOf } from './drums.ts';
 export const BAND = 'band';
 
 /**
- * The parts, in the order the store before the book kept their channels:
- * `MidiOut` silences its channels in this order, so a migrated store sends
- * its all-notes-off as it did.
+ * The parts, in the order the store before the book kept their channels.
  */
 export const BAND_PARTS = [
   'lead',

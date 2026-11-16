@@ -30,6 +30,7 @@ A player's card is the host's with the setting controls (presets, drags, key dot
 A nudge is a cue, then an event: one shape in two tenses.
 Made, it is a pending cue on the nudger's device and a line in everyone's log ("Ada wants a slower tempo"); when the band moves, the move is an event in the log ("after the break: the tempo dropped to 95 bpm").
 **A nudge is a bias, not a request** (the owner, 2026-11-05): the host neither takes nor declines one. Every active nudge leans the style vector, the tonic, the tempo, the meter and the rest, as an extension of the radio's walk: a bias on the associations the composer searches and uses.
+
 - The effective nudge on a parameter is the sum of all active nudges, weighted by the players in the session: one nudge among few players moves it far, one among many moves it little, and many in the same direction move it far. (The reading here: each nudge weighs 1/N of the N players.)
 - A nudge fades.
 - With no nudges, the band walks by itself, as the radio does now.
@@ -65,6 +66,7 @@ Each step is one protocol minor and one pull request; the hub's session contract
    - the key and the meter, at protocol 19, minor 6 (yggi/music-commons#57: version 1 grows on, and version 2 starts at 30): a player's Key card nudges a fifth, and its Metrum a beat a bar; both move only by whole steps, one at a section line where the players' nudges come to half a step or more (`releaseNudges`), the key's as the wish's tonic a fifth from where the band is heading, within the style's reach, and the meter's as the meter asked for a pulse more or fewer, only where that is a meter the band offers (`meterNudged`).
 
    Each nudge is a line of the session's log (step 3) for everyone.
+
 3. **The log.** A host's `event`: the bar, who, the kind (joined, left, nudged, moved, Muse, reacted, announced) and a short text; the host keeps the last 200 and the welcome carries the tail. `cuesOf` grows an asked kind, and a cue whose moment passes becomes an event.
    Built at protocol 20, minor 7 (yggi/music-commons#57), human-readable and like a chat, as the owner asked (2026-11-06):
    - the players' lines (`HostSession`): joined, to play or to listen, back, left, lost the link, let in or made to listen, nudged what;
@@ -72,6 +74,7 @@ Each step is one protocol minor and one pull request; the hub's session contract
    - the host keeps the last 200 (`LOG_KEPT`), says each line to every client, and a welcome carries the last 50 (`LOG_TAIL`, `packages/session/src/log.ts`); the Session card shows the log under the players, newest at the bottom, the speaker's name beside a line that doesn't name them (`speakerOf`).
 
    Not yet: a filter by a tap on a person, the host's own sets (a preset, a slider) as lines, and the cues that pass as lines.
+
 4. **Reactions and announcements.** `react` from anyone (an emoji of a fixed set, the bar, the fragment playing it answers) and `announce` from a host or co-host, relayed as events. A reaction leans too: it is associated with the fragment it answers (a drum pattern, a melody, a bass line), and changes the chance of that fragment playing again.
 5. **Co-host.** A co-host's set as an `intent` the host applies outright; the host shares its reclaim secret and a periodic `HostSnapshot` with co-hosts, so one can reclaim the session within the lobby's grace and restore the song by today's path.
 6. **Music chat**, later: a `post` carrying a cells fragment, as the section texts (#446) carry theirs.
@@ -88,6 +91,7 @@ Steps 1 and 2 are the core; the rest follow in any order.
   - Negative, read as "clashes with the style" and "should stop": 🫩 boring, 🫨 dissonant, 😵‍💫 confusing.
 
   A reaction goes to the fragment playing (a drum pattern, a melody, a bass line): a positive one raises its chance of appearing, a negative one lowers it.
+
 - **A co-host's snapshot:** "we have to see; in any case, it will be better to pick up a session somehow than to just drop it." So a takeover is tried with the latest snapshot, however old, and its bound is measured in step 5.
 
 ## Open

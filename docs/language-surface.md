@@ -71,7 +71,7 @@ device, by the device's map from its sound.** Witness: `perform`
 `step`, `note`, `role` and `accent` pass through unchanged, and `velocity`,
 `length` and the timbre are what the claim names as replaced, read from the bar
 (T4). For the drums, `DRUM_NOTES` gives every sound its own General MIDI note,
-so a played note names its sound, and `MidiOut` (`midi-out.ts`) maps each sound
+so a played note names its sound, and webmidi's `MidiOut` (`audio/band-output.ts`) maps each sound
 to the note the device plays it on: a Novation Circuit's drum tracks answer only
 60, 62, 64 and 65 (#106). Counterexample: a field `perform` drops that names
 neither a replacement nor a pass-through. Two sounds on one General MIDI note,
@@ -81,7 +81,7 @@ does with rim and snare, is lossy, and allowed only there. Test:
 `performer.test.ts`, "carries a drum hit’s role and a lead note’s accent through
 to the dough note, unchanged (L7)"; `events.test.ts`, whose test of
 `doughProblems` cites L7; `drums.test.ts`, "give every sound its own note, so a
-played drum note names its sound (L7)"; `midi-out.test.ts`, whose test of the
+played drum note names its sound (L7)"; `band-output.test.ts`, whose test of the
 drum note map cites L7. Source: PR #103's review, a per-performer piano roll
 that can label a pitch but not a role; #106, a Circuit Tracks that plays no
 General MIDI drum note. Status: measured (every sound its own note, the device

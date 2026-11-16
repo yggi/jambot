@@ -1,18 +1,18 @@
 /**
  * The drum notes two ways: as webmidi keeps them, a `DrumMap` from the
  * General MIDI note the engine writes for a drum sound to the note a device
- * is sent, and as `MidiOut` takes them, the note each of Jambot's drum
+ * is sent, and as Jambot keeps them, the note each of Jambot's drum
  * sounds goes out as (`DrumNotes`). A device's map is its profile's
  * (`DeviceProfile.drums`), kept by its port's name in the book of setups.
  */
 
 import { DRUM_NOTES, type DrumSound } from '@jambot/engine';
 import { DRUM_PRESETS, type DrumMap, deviceNote } from '@yggi/webmidi/core';
-import type { DrumNotes } from '../audio/midi-out.ts';
+import type { DrumNotes } from './channels.ts';
 
 export const DRUM_SOUNDS = Object.keys(DRUM_NOTES) as readonly DrumSound[];
 
-/** The note each drum sound goes out as under a map: what `MidiOut` takes, until note out is webmidi's too. */
+/** The note each drum sound goes out as under a map: what the settings keep: webmidi's `MidiOut` takes the map itself. */
 export const drumNotesOf = (map: DrumMap): DrumNotes =>
   Object.fromEntries(
     DRUM_SOUNDS.map((sound) => [sound, deviceNote(map, DRUM_NOTES[sound])]),

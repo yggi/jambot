@@ -39,7 +39,7 @@ What it shows:
   - how it came: found in the repository, a variation and how (`drop &hat 6`), layered, a player's via the Muse, invented on a miss, asked for, or code;
   - its distance from the query (#444);
   - its weight in the composer's short-term memory (#443).
-  The tag *host* marks an id that a client doesn't receive today.
+    The tag _host_ marks an id that a client doesn't receive today.
 - **The other views are tabs over the same rows:**
   - **Next §**: the section composed ahead, where the plan reaches.
   - **In mind**: the short-term memory, its ids and weights (#443).
@@ -52,33 +52,33 @@ What it shows:
 The survey was taken at `main` @ a34d13c, with cells v0.23.0, and read off `packages/engine/src` and `packages/score/src`.
 It feeds #624, the inventory by part, but not that issue's numbers (the share of each part that comes from cells).
 
-| Part | Decided by | A fragment? | Reaches a client | Issue |
-| --- | --- | --- | --- | --- |
-| Song form | `form.ts` `form`, a Markov chain over 6 section types | no | the section's name | #633, #547 rung 5 |
-| Section length | `form.ts` `SECTION_BARS` = 8 | no | – | #633 |
-| Meter and swing | `meter-query.ts` `composedMeter` | yes, `Plan.meterFragment`, `Plan.share` | yes | #444 (distance) |
-| Tempo | the style's `bpm`, `tempo.ts` | no, by ruling (D6) | as bpm | #617 |
-| Mode | `mode-repository.ts` `presetMode`, at a preset's choice only | yes, but its id is dropped | no | #531 (asked) |
-| Tonic and key moves | `plan.ts` `bandWish`, `key.ts` `nextKey` | no | as the key | #233, cells#647 |
-| Melodic scale | `licence.ts` | no | as its name | #644 |
-| Progression (theme) | `harmony-query.ts` `composedHarmony`; on a miss `themes.ts` | yes, `PlanCarried.themeFragments` | no, host only | #425 |
-| Chord colour (sevenths, V/x) | `chords.ts` `barChords` | no | as chords | #425 (in part) |
-| Drums | `rhythm-query.ts` `composedRhythm`, the ladder in `plan.ts` `climbed`; on a miss `drums.ts` | yes, `Plan.rhythmFragment` | yes | #634, #615, #632 |
-| Clave | chosen with the drums (`LAYER_DISTANCE`) | yes, `Plan.claveFragment` | yes | #439 |
-| Fills | `drums.ts`, the drummer's | no | – | #643 |
-| Kit and drum notes | `gm_kit`; `drums.ts` `DRUM_NOTES` | the kit yes, the note table no | in the section text | #615 |
-| Bass line | `bass-query.ts` `composedLine`; on a miss `bass.ts` | yes, `PlanCarried.bassFragment` | no, host only | #531 (asked) |
-| Lead line | `lead-query.ts` `composedLead`; on a miss `lead.ts` | yes, `PlanCarried.leadFragment` | no, host only | #547, #531 (asked) |
-| The lead's form | `lead-lines.ts` `LEAD_FORM`, fixed to `call_and_answer` | a fragment by name, never asked for | no | #547 rung 4 |
-| Comp: pad and stab | `comp.ts` | no (cells' stab facet is never asked) | – | #541 |
-| Instruments | `instruments.ts` `instrumentsAt`, facet `instrument` | yes, `FoundInstrument.id` | only in the section text | #531 item 5 (`timbreOf`) |
-| Performers | `section-text.ts` `performerOf` | yes, by name | in the section text | #107 |
-| Feel and timing licence | `performer.ts`, `licence.ts` | no | – | #324, #107 |
-| Dynamics and energy | `dynamics.ts`, `form.ts` `barEnergy` | no | as energy | #645, cells#571 |
-| Ending and count-in | `ending.ts` | no | – | #646 |
-| The Muse's motifs | `muse.ts` | no (her lead lines are filed) | yes, as her memory | #547 rung 6, #580 |
-| Style | cells' `STYLES` (#596) | a preset is a cells style | as its name | #597, #598 |
-| Short-term memory | `short-term.ts` | ids of fragments | no, host only | #443 |
+| Part                         | Decided by                                                                                  | A fragment?                             | Reaches a client         | Issue                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------ | ------------------------ |
+| Song form                    | `form.ts` `form`, a Markov chain over 6 section types                                       | no                                      | the section's name       | #633, #547 rung 5        |
+| Section length               | `form.ts` `SECTION_BARS` = 8                                                                | no                                      | –                        | #633                     |
+| Meter and swing              | `meter-query.ts` `composedMeter`                                                            | yes, `Plan.meterFragment`, `Plan.share` | yes                      | #444 (distance)          |
+| Tempo                        | the style's `bpm`, `tempo.ts`                                                               | no, by ruling (D6)                      | as bpm                   | #617                     |
+| Mode                         | `mode-repository.ts` `presetMode`, at a preset's choice only                                | yes, but its id is dropped              | no                       | #531 (asked)             |
+| Tonic and key moves          | `plan.ts` `bandWish`, `key.ts` `nextKey`                                                    | no                                      | as the key               | #233, cells#647          |
+| Melodic scale                | `licence.ts`                                                                                | no                                      | as its name              | #644                     |
+| Progression (theme)          | `harmony-query.ts` `composedHarmony`; on a miss `themes.ts`                                 | yes, `PlanCarried.themeFragments`       | no, host only            | #425                     |
+| Chord colour (sevenths, V/x) | `chords.ts` `barChords`                                                                     | no                                      | as chords                | #425 (in part)           |
+| Drums                        | `rhythm-query.ts` `composedRhythm`, the ladder in `plan.ts` `climbed`; on a miss `drums.ts` | yes, `Plan.rhythmFragment`              | yes                      | #634, #615, #632         |
+| Clave                        | chosen with the drums (`LAYER_DISTANCE`)                                                    | yes, `Plan.claveFragment`               | yes                      | #439                     |
+| Fills                        | `drums.ts`, the drummer's                                                                   | no                                      | –                        | #643                     |
+| Kit and drum notes           | `gm_kit`; `drums.ts` `DRUM_NOTES`                                                           | the kit yes, the note table no          | in the section text      | #615                     |
+| Bass line                    | `bass-query.ts` `composedLine`; on a miss `bass.ts`                                         | yes, `PlanCarried.bassFragment`         | no, host only            | #531 (asked)             |
+| Lead line                    | `lead-query.ts` `composedLead`; on a miss `lead.ts`                                         | yes, `PlanCarried.leadFragment`         | no, host only            | #547, #531 (asked)       |
+| The lead's form              | `lead-lines.ts` `LEAD_FORM`, fixed to `call_and_answer`                                     | a fragment by name, never asked for     | no                       | #547 rung 4              |
+| Comp: pad and stab           | `comp.ts`                                                                                   | no (cells' stab facet is never asked)   | –                        | #541                     |
+| Instruments                  | `instruments.ts` `instrumentsAt`, facet `instrument`                                        | yes, `FoundInstrument.id`               | only in the section text | #531 item 5 (`timbreOf`) |
+| Performers                   | `section-text.ts` `performerOf`                                                             | yes, by name                            | in the section text      | #107                     |
+| Feel and timing licence      | `performer.ts`, `licence.ts`                                                                | no                                      | –                        | #324, #107               |
+| Dynamics and energy          | `dynamics.ts`, `form.ts` `barEnergy`                                                        | no                                      | as energy                | #645, cells#571          |
+| Ending and count-in          | `ending.ts`                                                                                 | no                                      | –                        | #646                     |
+| The Muse's motifs            | `muse.ts`                                                                                   | no (her lead lines are filed)           | yes, as her memory       | #547 rung 6, #580        |
+| Style                        | cells' `STYLES` (#596)                                                                      | a preset is a cells style               | as its name              | #597, #598               |
+| Short-term memory            | `short-term.ts`                                                                             | ids of fragments                        | no, host only            | #443                     |
 
 Three findings shape the plan:
 

@@ -8,11 +8,15 @@ import {
   addOutput,
   chooseDevice,
   inputRow,
+  panelKey,
   withCrossing,
+  withPanelActive,
 } from '@yggi/webmidi/core';
+import { EXAMPLE_MIXER, EXAMPLE_PLAY, memoryPanelStore } from '@yggi/webmidi/panels';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BAND } from '../midi/patch.ts';
 import { MidiSettings } from '../midi/settings.svelte.ts';
+import { PanelDeck } from '../midi/panels.svelte.ts';
 import SoundPanel from './SoundPanel.svelte';
 
 beforeEach(() => localStorage.clear());
@@ -43,11 +47,12 @@ function onJuno() {
   return settings;
 }
 
-/** An output's device settings opened, from its button under the patch. */
+/** An output's details opened, from its head in the patch: the matrix's own dialog (webmidi v0.5.0). */
 async function inspect(slot = 1) {
-  const devices = within(screen.getByRole('group', { name: 'Device settings' }));
-  await fireEvent.click(devices.getByRole('button', { name: new RegExp(`^OUT ${slot} `) }));
-  return within(screen.getByRole('dialog', { name: new RegExp(`^OUT ${slot}: `) }));
+  await fireEvent.click(
+    within(screen.getByRole('table')).getByRole('button', { name: new RegExp(`^OUT ${slot} `) }),
+  );
+  return within(screen.getByRole('dialog', { name: /^Details of / }));
 }
 
 const jack = (row: string, output: string) =>
@@ -93,29 +98,12 @@ describe('SoundPanel', () => {
     expect(settings.setup.name).toBe('Jambot - custom');
   });
 
-  it('patches the clock, the five parts with the drum sounds, the keys, then each input with what it plays', () => {
+  it('patches the clock, the five parts, the keys, then each input with what it plays (a kit’s members are no rows: webmidi v0.5.0)', () => {
     panel();
     const rows = within(screen.getByRole('table'))
       .getAllByRole('rowheader')
       .map((h) => h.querySelector('.label')?.textContent);
-    expect(rows).toEqual([
-      'Clock',
-      'Lead',
-      'Bass',
-      'Pad',
-      'Stab',
-      'Drums',
-      'Kick',
-      'Rim',
-      'Snare',
-      'Clap',
-      'Closed hat',
-      'Pedal hat',
-      'Open hat',
-      'Ride',
-      'Keys',
-      'KeyStep',
-    ]);
+    expect(rows).toEqual(['Clock', 'Lead', 'Bass', 'Pad', 'Stab', 'Drums', 'Keys', 'KeyStep']);
     expect(jack('Lead', 'No device')).toHaveAccessibleName('Lead to No device: channel 1');
     expect(jack('Drums', 'No device')).toHaveAccessibleName('Drums to No device: channel 10');
     expect(jack('Keys', 'No device')).toHaveAccessibleName('Keys to No device: not sent');
@@ -183,13 +171,14 @@ describe('SoundPanel', () => {
     expect(settings.book.devices.Juno!.latency).toBe(9);
   });
 
-  it('edits a drum sound’s note on an output in the patch, clamped to 0–127, the map then a custom one (yggi/webmidi#36)', async () => {
+  it('edits a drum sound’s note on an output in its details, clamped to 0–127, the map then a custom one (yggi/webmidi#36)', async () => {
     const { settings } = panel({ settings: onJuno() });
-    const kick = screen.getByLabelText(/^Kick on Juno/);
+    expect(screen.queryByLabelText(/^Kick/)).toBeNull();
+    await inspect();
+    const kick = screen.getByLabelText(/^Kick: General MIDI 36 goes out as/);
     expect(kick).toHaveValue(36);
     await fireEvent.change(kick, { target: { value: '200' } });
     expect(settings.book.devices.Juno!.drums[36]).toBe(127);
-    await inspect();
     expect(screen.getByLabelText(/Drum map/)).toHaveValue('Custom');
   });
 
@@ -197,7 +186,7 @@ describe('SoundPanel', () => {
     const settings = onJuno();
     settings.book = withCrossing(settings.book, BAND, 'drums', 'o1', undefined);
     panel({ settings });
-    expect(screen.queryByLabelText(/^Kick on/)).toBeNull();
+    expect(screen.queryByLabelText(/^Kick/)).toBeNull();
     await inspect();
     expect(screen.queryByLabelText(/Drum map/)).toBeNull();
   });
@@ -210,19 +199,25 @@ describe('SoundPanel', () => {
     expect(ontest).toHaveBeenCalledWith('o1', 1);
   });
 
+  it('sends all notes off to one output, by its key, from its details', async () => {
+    const [ontest, onpanicoutput] = [vi.fn(), vi.fn()];
+    panel({ settings: onJuno(), ontest, onpanicoutput });
+    await inspect();
+    await fireEvent.click(screen.getByRole('button', { name: /notes off/i }));
+    expect(onpanicoutput).toHaveBeenCalledWith('o1');
+  });
+
   it('shows a device of the setup that isn’t plugged in as such, and says how many are missing', () => {
     panel({ settings: onJuno(), ports: { inputs: [], outputs: [] }, message: 'MIDI connected.' });
     expect(screen.getByText(/1 of this setup’s devices isn’t plugged in/)).toBeInTheDocument();
     expect(screen.getByText('Not plugged in')).toBeInTheDocument();
   });
 
-  it('opens an output’s settings from its head in the patch too, and closes them', async () => {
+  it('opens an output’s details from its head in the patch, and closes them', async () => {
     panel({ settings: onJuno() });
     expect(screen.queryByRole('dialog')).toBeNull();
-    await fireEvent.click(
-      within(screen.getByRole('table')).getByRole('button', { name: /^OUT 1 Juno/ }),
-    );
-    expect(screen.getByRole('dialog', { name: 'OUT 1: Juno' })).toBeInTheDocument();
+    await inspect();
+    expect(screen.getByRole('dialog', { name: 'Details of Juno' })).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -244,8 +239,9 @@ describe('SoundPanel', () => {
   it('opens the synth’s own settings: its volume, the parts it plays, and taking it out of the setup', async () => {
     const onvolume = vi.fn();
     const { settings } = panel({ settings: onJuno(), volume: 0.5, onvolume });
-    const devices = within(screen.getByRole('group', { name: 'Device settings' }));
-    await fireEvent.click(devices.getByRole('button', { name: /^BUILT-IN Synth/ }));
+    await fireEvent.click(
+      within(screen.getByRole('table')).getByRole('button', { name: /^BUILT-IN Synth/ }),
+    );
     const dialog = within(screen.getByRole('dialog', { name: 'BUILT-IN: Synth' }));
     expect(dialog.getByRole('slider', { name: /Volume/ })).toHaveValue('50');
     await fireEvent.input(dialog.getByRole('slider', { name: /Volume/ }), {
@@ -307,5 +303,66 @@ describe('SoundPanel', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(settings.book).toEqual(book);
     error.mockRestore();
+  });
+
+  describe('control panels', () => {
+    /** Settings with the Juno, and a deck over them whose sends are recorded. */
+    function withPanels() {
+      const made: { deck?: PanelDeck } = {};
+      const settings = new MidiSettings({ onchange: () => made.deck?.adopt() });
+      settings.book = chooseDevice(settings.book, 'o1', PORTS.outputs[0]!);
+      const sent: { output: string; data: readonly number[] }[] = [];
+      const deck = (made.deck = new PanelDeck({
+        settings,
+        store: memoryPanelStore(),
+        send: (f) => void sent.push(...f),
+      }));
+      return { settings, deck, sent };
+    }
+
+    it('offers the library’s panels as chips over the patch, and adds one as a row and a column', async () => {
+      const { settings, deck } = withPanels();
+      panel({ settings, deck });
+      await fireEvent.click(screen.getByRole('button', { name: /DM-8 mixer/ }));
+      expect(settings.setup.panels).toEqual([EXAMPLE_MIXER.id]);
+      expect(deck.shown).toBe(EXAMPLE_MIXER.id);
+      const rows = within(screen.getByRole('table'))
+        .getAllByRole('rowheader')
+        .map((h) => h.querySelector('.label')?.textContent);
+      expect(rows).toContain('DM-8 mixer');
+    });
+
+    it('plays the shown panel, its touches going out through the setup’s outputs', async () => {
+      const { settings, deck, sent } = withPanels();
+      settings.book = withCrossing(
+        withPanelActive(settings.book, EXAMPLE_MIXER.id, true),
+        BAND,
+        panelKey(EXAMPLE_MIXER.id),
+        'o1',
+        3,
+      );
+      panel({ settings, deck });
+      const main = screen.getByRole('slider', { name: /Main/ });
+      await fireEvent.keyDown(main, { key: 'End' });
+      expect(sent.length).toBeGreaterThan(0);
+      expect(sent.every((f) => f.output === 'o1' && (f.data[0]! & 0x0f) === 2)).toBe(true);
+    });
+
+    it('edits the shown panel, makes a new one and deletes it', async () => {
+      const { settings, deck } = withPanels();
+      panel({ settings, deck });
+      await fireEvent.click(screen.getByRole('button', { name: 'New panel' }));
+      expect(deck.library.panels.map((p) => p.id)).toContain('p3');
+      expect(deck.shown).toBe('p3');
+      expect(screen.getByRole('button', { name: 'Done editing' })).toBeInTheDocument();
+      await fireEvent.click(screen.getByRole('button', { name: 'Delete this panel' }));
+      expect(deck.library.panels.map((p) => p.id)).toEqual([EXAMPLE_MIXER.id, EXAMPLE_PLAY.id]);
+      expect(settings.setup.panels ?? []).toEqual([]);
+    });
+
+    it('shows no panels where none is given', () => {
+      panel({ settings: onJuno() });
+      expect(screen.queryByRole('button', { name: 'New panel' })).toBeNull();
+    });
   });
 });

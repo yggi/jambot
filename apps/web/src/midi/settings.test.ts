@@ -14,7 +14,7 @@ import {
   withBuiltIn,
   withCrossing,
 } from '@yggi/webmidi/core';
-import { DEFAULT_CHANNELS, type DrumNotes } from '../audio/midi-out.ts';
+import { DEFAULT_CHANNELS, type DrumNotes } from './channels.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { drumMapOf, drumNotesOf } from './drums.ts';
 import { BAND } from './patch.ts';
