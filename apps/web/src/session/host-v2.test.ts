@@ -201,7 +201,7 @@ describe('a host that speaks version 2 of the session contract (#553)', () => {
 
   it('conducts each bar a beat before it, states each section four bars and a beat before it, and every bar by the score its conduct foresaw', async () => {
     const preset = 'Funk';
-    const { host, session, join, run } = await hosting({ preset });
+    const { session, join, run } = await hosting({ preset });
     const ada = await join('Ada');
     await run(80);
     const beat = beatOf(preset);
@@ -229,9 +229,7 @@ describe('a host that speaks version 2 of the session contract (#553)', () => {
         (SECTION_BARS / 2) * 4 * beat + beat - 0.05,
       );
     }
-    expect(host.player.shadow.split).toBe(true);
     session.close();
-    expect(host.player.shadow.split).toBe(false);
   });
 
   it('sends a fragment the Muse filed to each client once by its hash, and not again to one back with its token', async () => {

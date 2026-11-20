@@ -620,12 +620,17 @@ describe('the player', () => {
         .map((step) => step % 16);
     };
 
-    it('hears a motif played on the keys, and the lead plays it from the bar after next (#79)', async () => {
+    it('hears a motif played on the keys, and the lead plays it from the bar after next (#79): the Muse hearing the page’s own player directly, its own player sounding the scores that state it (#711)', async () => {
       const { world, player, run } = await playing();
       playMotif(world, player, run, 2);
       run(8);
       expect(leadSteps(world, 4)).toEqual([0, 4, 8]);
       expect(player.museLog.map((l) => [l.bar, l.offer?.bar ?? null])).toContainEqual([2, 2]);
+      expect(player.museLog.find((l) => l.bar === 2)!.judgements).toMatchObject([
+        { kind: 'motif', source: 'the computer keys' },
+      ]);
+      expect([player.lacked, player.silent]).toEqual([0, 0]);
+      expect(player.shadow.readout.played).toEqual({ cells: world.plays.length, band: 0 });
     });
 
     it('shows the Muse on the screen: the motif on offer, the log, and the lead playing it (#79)', async () => {
@@ -1834,29 +1839,50 @@ describe('the band through cells (#399, #469)', () => {
     expect(readout.gaps).toEqual({});
   });
 
-  it('falls back on the band’s own events where no text states a bar, counted under its reason; and where texts state them, plays cells’ events as the band’s own: the same notes at the same velocities, the performer’s feel on them, each within 1 ms (#405)', async () => {
+  it('sounds through its own player only the scores and conducts its conductor hands it: every bar of three sections from a score, none lacked, none silent (#711)', async () => {
+    const { world, player } = await played(SECTIONS_3);
+    expect([player.lacked, player.silent, player.said]).toEqual([0, 0, []]);
+    const bars = new Set(player.played.since().events.map((e) => e.bar));
+    expect([...bars].sort((a, b) => a - b).slice(0, 3 * SECTION_BARS)).toEqual(
+      range(3 * SECTION_BARS),
+    );
+    expect(player.shadow.readout.played).toEqual({ cells: world.plays.length, band: 0 });
+  });
+
+  it('plays silent a bar no score states, counted and said with its reason, where it played the band’s own events before (#711)', async () => {
     const reason = 'a test states none';
-    const [band, cells] = [
-      await played(SECTIONS_3, { unstated: reason }),
-      await played(SECTIONS_3),
-    ];
-    const fallback = band.player.shadow.readout;
-    expect(fallback.played).toEqual({ cells: 0, band: band.world.plays.length });
-    expect(Object.keys(fallback.gaps)).toEqual([reason]);
-    expect(fallback.gaps[reason]!.events).toBe(band.world.plays.length);
-    expect(band.world.plays.length).toBeGreaterThan(3 * SECTION_BARS * 4);
-    expect(cells.player.shadow.readout.played.band).toBe(0);
-    expect(cells.player.shadow.readout.played.cells).toBe(cells.world.plays.length);
-    const key = (p: { part: string; note: number; velocity: number; seconds: number }) =>
-      `${p.part} ${p.note} ${p.velocity} ${Math.round(p.seconds * 100)}`;
-    expect(cells.world.plays.map(key).sort()).toEqual(band.world.plays.map(key).sort());
-    const order = (ps: typeof band.world.plays) =>
-      [...ps].sort(
-        (a, b) => a.seconds - b.seconds || a.note - b.note || (a.part < b.part ? -1 : 1),
-      );
-    const [b, c] = [order(band.world.plays), order(cells.world.plays)];
-    for (const [i, p] of c.entries())
-      expect(Math.abs(p.seconds - b[i]!.seconds)).toBeLessThan(0.001);
+    const { world, player } = await played(SECTIONS_3, { unstated: reason });
+    expect(world.plays).toEqual([]);
+    expect(player.shadow.readout.played).toEqual({ cells: 0, band: 0 });
+    // (every bar the song reached, from its first, its transport passed)
+    expect(player.silent).toBeGreaterThanOrEqual(3 * SECTION_BARS);
+    expect(player.lacked).toBe(0);
+    expect(player.said.at(-1)).toMatchObject({ silent: true, why: reason });
+  });
+
+  it('lacks the bars whose score could not be written, and says why, where the ask threw (#711)', async () => {
+    const { world, s } = surroundings();
+    const inline = inlineTexts();
+    // (the second section's text throws, as one whose chords name no quality does, #702)
+    const texts: SectionTexts = {
+      ...inline,
+      ask: (bars, answer) => {
+        if (bars[0]!.bar >= SECTION_BARS) throw new Error('a test throws');
+        inline.ask(bars, answer);
+      },
+    };
+    const player = new Player({ ...s, texts: () => texts });
+    void player.start();
+    world.resolve();
+    await settle();
+    for (let t = 0; t < SECTIONS_3; t += 0.025) {
+      world.currentTime += 0.025;
+      world.tickers[0]!.tick();
+    }
+    expect(player.lacked).toBeGreaterThanOrEqual(SECTION_BARS);
+    expect(player.silent).toBe(0);
+    expect(player.said.at(-1)!.why).toMatch(/could not be written: Error: a test throws/);
+    expect(player.shadow.readout.errors.length).toBeGreaterThan(0);
   });
 
   it('leans its entropy as it hears itself, alone (#495): from two sections after the one read, every text written ahead as it plays, nothing written again', async () => {
