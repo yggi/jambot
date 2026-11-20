@@ -173,6 +173,23 @@ describe('a client of session version 2 playing its host’s scores (#553 rung 3
     v1.hosting.close();
   }, 240_000);
 
+  it('plays as its host does while the radio glides the style through the bars, the host sounding its own scores and conducts through its own player (#711)', async () => {
+    const { host, client, hosting, following } = await session();
+    host.player.tuneRadio(true);
+    await run([host, client], funkSeconds(FUNK_BARS));
+    // (the radio walked: the style glides from the second section on, as in the session soak of #710)
+    expect(host.player.station!.walked).toBeGreaterThan(1);
+    expect([host.player.lacked, host.player.silent]).toEqual([0, 0]);
+    expect([client.player.lacked, client.player.silent]).toEqual([0, 0]);
+    expect(host.player.shadow.readout.played.band).toBe(0);
+    const compared = versus(host, client);
+    expect(compared.events).toBeGreaterThan(1000);
+    expect(compared.bars.to).toBeGreaterThanOrEqual(FUNK_BARS);
+    expect(compared, compared.differing.slice(0, 3).join('\n')).toMatchObject(AGREED);
+    following.leave();
+    hosting.close();
+  }, 240_000);
+
   it('plays from a welcome’s scores and conducts as one that joins mid-song, and keeps the last eight bars’ scores and conducts', async () => {
     const { lobby, host, client, hosting, following } = await session();
     await run([host, client], 20);

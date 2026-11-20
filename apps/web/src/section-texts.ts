@@ -140,9 +140,11 @@ export interface SectionStated {
 
 /**
  * The job: the bars written as one text (`sectionAsCells`), then compiled and
- * played through cells as a client plays it (`playText`), timed on `clock`
- * (ms); `edit` changes the text before cells plays it, for a test to show
- * that cells' events, not the band's, are what plays.
+ * played through cells as a client of session version 2 plays it as a score
+ * (`playScore`, with the fragments it locks), and what it states read off it
+ * (`read`), timed on `clock` (ms); `edit` changes the text before cells plays
+ * it, for a test to show that cells' events, not the band's, are what plays.
+ * Its `frame` is the first bar's, which a client of version 1 reads beside the text (`playText`).
  */
 export function stateSection(
   bars: readonly BandBar[],
@@ -179,11 +181,9 @@ export function stateSection(
   }
   const { lock, filed } = scoreLock(source);
   const built = clock() - t0;
-  const played = playText(
-    { bar: bars[0]!.bar, step: 0, text: source, unstated: null, frame, foreseen, cut },
-    clock,
-  );
-  return { ...played, lock, filed, cost: { ...played.cost, build: built } };
+  // (played as a client of session version 2 plays the score, with the fragments it locks: what the page's own player sounds, #711)
+  const read = readScore({ text: source, unstated: null, lock, foreseen, cut }, filed, clock);
+  return { ...read, frame, filed, cost: { ...read.cost, build: built } };
 }
 
 /**
@@ -248,9 +248,16 @@ export interface GivenScore {
  * style (`resolveBand`). A score that locks a fragment neither holds, or whose frame cells can't read, is read as
  * lacking, and nothing is played; one that states nothing (`unstated`) plays nothing either.
  */
-export function playScore(
+export const playScore = (
   { score, fragments }: GivenScore,
   clock: () => number = () => performance.now(),
+): SectionStated => readScore(score, fragments, clock);
+
+/** `playScore` over what of a score it reads, so the page that builds a score plays it as its clients do (#711). */
+function readScore(
+  score: Pick<SectionScore, 'text' | 'unstated' | 'lock' | 'foreseen' | 'cut'>,
+  fragments: readonly FragmentText[],
+  clock: () => number,
 ): SectionStated {
   const { text: source, foreseen, cut, unstated } = score;
   const none = {

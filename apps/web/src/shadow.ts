@@ -6,6 +6,13 @@
  * in `@jambot/score`), compiled and played by cells' engine (`playSection`),
  * and its events are laid on the transport's clock in place of the band's.
  *
+ * It has two halves (#711). The asking half (`ask`, from `asked`) is the
+ * conductor's: it checks each bar the band composes and asks for the texts,
+ * and lays nothing. The laying half (`follow`) is the player's: it lays the
+ * bars a player's transport gives it, a client's or, alone and hosting, the
+ * page's own player's, which plays the scores the asking half takes as a
+ * client of session version 2 plays the scores its host tells (below).
+ *
  * A section's bars are not all composed when it starts (the band composes
  * each a beat before it plays), so its text is written from the bars as the
  * band will compose them (a forecast run on the band's own decisions, as
@@ -38,26 +45,25 @@
  * as it carries its own; an event's end is laid as the transport lays the
  * band's (`laidClock`).
  *
- * The band's own events are the fallback for a gap, a bar cells states none
- * of, each counted with its reason (`gaps`): a bar whose text is still on its
- * way as its bar is laid (late, `arrival`), a section whose swing's share
- * glides between its bars (one text states one swing), a bar whose beats
- * swing at a share that moves within it, a note cut at the finale's ring, and
- * a bar no text was stated for. A note's level is composed within MIDI's 1 to
- * 127 (`composedLevel`, #433), so a text states every level the band plays on.
- * That cells plays a bar it states as the band would have is held by the tests
- * (`shadow.test.ts`), not counted as it plays.
+ * On a client of session version 1 the band's own events are the fallback
+ * for a gap, a bar cells states none of, each counted with its reason
+ * (`gaps`): a bar whose text is still on its way as its bar is laid (late,
+ * `arrival`), a bar whose beats swing at a share that moves within it, a note
+ * cut at the finale's ring, and a bar no text was stated for. A note's level is
+ * composed within MIDI's 1 to 127 (`composedLevel`, #433), so a text states
+ * every level the band plays on. That cells plays a bar it states as the band
+ * would have is held by the tests (`shadow.test.ts`), not counted as it plays.
  *
  * In a session (#446) a host's texts are asked as a band alone asks them,
  * and each answer it takes is told (`told`), which the host sends its
- * clients (`SectionText`). A client asks for none: it is given them
- * (`given`), has each compiled and played where its own are
- * (`SectionTexts.play`), and lays them on its own transport as a host lays
- * its own (`follow`), its performer's feel on cells' events. Each bar it is
- * sent is checked against what the latest text that states it was built
- * from (`foreseen`, a digest), as a host checks the bar it composes: a bar
- * sent otherwise than foreseen waits for the host's text again, and plays
- * the band's own if it hasn't come, counted late.
+ * clients (`SectionText`). A client of version 1 asks for none: it is given
+ * them (`given`), has each compiled and played where its own are
+ * (`SectionTexts.play`), and lays them on its own transport (`follow`), its
+ * performer's feel on cells' events. Each bar it is sent is checked against
+ * what the latest text that states it was built from (`foreseen`, a digest),
+ * as a host checks the bar it composes: a bar sent otherwise than foreseen
+ * waits for the host's text again, and plays the band's own if it hasn't
+ * come, counted late.
  *
  * A client of session version 2 (#553) is given scores in place of texts
  * (`givenScore`, `from` `scored`): each is read, compiled and played where its
@@ -68,10 +74,14 @@
  * and plays cells' events alone: the band's own are none on that path.
  *
  * Each text told goes as a score too (`HostScore`, session version 2, #553),
- * with its section's type, each bar's energy and what it locks. A host of
- * version 2 asks for a section's bars in runs that each hold one meter,
- * swing, key and melodic scale (`split`), so no bar a looper mixes from two
- * keys goes unstated, which would play silent on its clients.
+ * with its section's type, each bar's energy and what it locks, and what it
+ * states of its bars goes to the page's own player as it is taken (`stated`,
+ * #711): built and played as a client plays a score (`stateSection`), so
+ * nothing is compiled twice, and its bars are `reading` from when it is asked
+ * until then. A band alone or hosting asks for a section's bars in runs that
+ * each hold one meter, swing, key and melodic scale (`split`), so no bar a
+ * looper mixes from two keys, nor a swing that glides, goes unstated, which
+ * would play silent on its own player and its clients.
  */
 
 import {
@@ -366,17 +376,18 @@ export class Shadow {
    */
   told: ((text: SectionText, score: HostScore) => void) | null = null;
   /**
-   * Hears what each score a host of session version 2 gave states of its bars (#553): that it is being read as it is
-   * given, and what it states once read, for each bar it is still the latest for. What a client's follower lays by.
+   * Hears what each score states of its bars, for each bar it is still the latest for: one a host of session version 2
+   * gave (#553), or one this page's band took (#711), that it is being read as it is given or asked, and what it states
+   * once read. What a client's follower, or the page's own player, lays by.
    */
   stated: ((bars: readonly ScoreStatement[]) => void) | null = null;
   /**
    * Whether the bars asked for as one text are asked for in runs, split where the key, the meter, the swing or the
-   * melodic scale moves (`sectionRuns`), each run a text of its own: what a host of session version 2 does, since a
-   * bar no score states plays silent on its clients (#553, #626). Off, a section whose bars part on any of them is
-   * unstated, and plays the band's own events (a looper over two plans whose keys part, #648).
+   * melodic scale moves (`sectionRuns`), each run a text of its own, since a bar no score states plays silent, on a
+   * client and on the page's own player (#553, #626, #711). Off, which only a test sets to show it firing, a section
+   * whose bars part on any of them is unstated (a looper over two plans whose keys part, #648).
    */
-  split = false;
+  split = true;
   #played = { cells: 0, band: 0 };
   #gaps: Record<string, { bars: number; events: number }> = {};
   #errors: string[] = [];
@@ -462,27 +473,32 @@ export class Shadow {
   }
 
   /**
-   * One tick: the bars composed checked and stated, then the steps laid. The
-   * tick's output as the band's outputs play it: cells' events where it
-   * states the bar, the band's own in a gap, and those dropped late of each
-   * (#462).
+   * One tick of the conductor's transport (#711): each bar it composed checked against what its score foresaw, its
+   * section's score asked again where it wasn't, and the next section's asked ahead; nothing laid, since the page's
+   * own player lays the scores told (`follow`). What each bar composed was built from, as a digest, in order: what its
+   * conduct carries; null for a bar whose digest threw.
    */
-  tick(tick: ShadowTick): TransportOutput {
-    return this.#run(tick, (bar) => this.#composed(bar, tick));
+  ask(tick: ShadowTick): (string | null)[] {
+    this.#lastTick = { page: this.#clock(), tick };
+    return tick.output.composed.map((bar) => {
+      try {
+        return this.#composed(bar, tick);
+      } catch (error) {
+        if (this.#errors.length < 20) this.#errors.push(String(error));
+        return null;
+      }
+    });
   }
 
   /**
-   * One tick of a client's transport (#446): the bars sent, checked against
-   * the texts given, then the steps laid; the output to play as `tick`'s.
+   * One tick of a player's transport: the bars it was given (#446), checked against the texts given, or as its scores
+   * state them (#553, #711), then the steps laid. Its output as the outputs play it: cells' events where a text or
+   * score states the bar, on a client of session version 1 the band's own in a gap, and those dropped late of each (#462).
    */
   follow(tick: FollowTick): TransportOutput {
-    return this.#run(tick, (bar) => this.#sent(bar));
-  }
-
-  #run(tick: FollowTick, composed: (bar: BandBar) => void): TransportOutput {
     this.#lastTick = { page: this.#clock(), tick };
     try {
-      for (const bar of tick.output.composed) composed(bar);
+      for (const bar of tick.output.composed) this.#sent(bar);
       const { played, late } = this.#laid(tick);
       return { ...tick.output, events: played, lateEvents: late };
     } catch (error) {
@@ -571,8 +587,14 @@ export class Shadow {
     if (samples.length > SAMPLES_KEPT) samples.splice(0, samples.length - SAMPLES_KEPT);
   }
 
-  /** A bar composed: its text written again if it wasn't foreseen, and the next section's text built ahead at this one's middle. */
-  #composed(bar: BandBar, { env: laidWith, next: env = laidWith, carried, envFrom }: ShadowTick) {
+  /**
+   * A bar composed: its text written again if it wasn't foreseen, and the next section's text built ahead at this
+   * one's middle; what it was built from, as a digest.
+   */
+  #composed(
+    bar: BandBar,
+    { env: laidWith, next: env = laidWith, carried, envFrom }: ShadowTick,
+  ): string {
     const section = Math.floor(bar.bar / SECTION_BARS);
     const last = (section + 1) * SECTION_BARS - 1;
     const end = carried.finale.bar === null ? last : Math.min(last, carried.finale.bar);
@@ -596,6 +618,7 @@ export class Shadow {
       this.#counted.ahead++;
       this.#state(bars, carried, 'ahead');
     }
+    return digest;
   }
 
   /** A bar composed or sent, kept for the steps laid from it, and what it was built from, as a digest. */
@@ -610,10 +633,11 @@ export class Shadow {
 
   /**
    * A bar a host sent (#446): played through cells once a text given states it as it was sent. A bar a score states
-   * (#553) is laid only where its conduct carries the score's digest, so it is the score's as it is.
+   * (#553), a client's or the page's own player's (#711), is laid only where its conduct carries the score's digest, so
+   * it is the score's as it is.
    */
   #sent(bar: BandBar) {
-    if (this.#from === 'scored') {
+    if (this.#from !== 'given') {
       this.#composedBars.set(bar.bar, bar);
       this.#composedBars.delete(bar.bar - 2 * SECTION_BARS);
     } else this.#keep(bar);
@@ -688,7 +712,16 @@ export class Shadow {
         textStart: clock.barStart(run[0]!.bar),
         main: null,
       };
-      this.#ask(pending, (answer) => this.#texts.ask(run, answer));
+      // (its bars are being read until the answer comes: a bar laid meanwhile is lacked, as on a client; its digest unread)
+      this.stated?.(run.map((b) => ({ bar: b.bar, foreseen: '', kind: 'reading' })));
+      try {
+        this.#ask(pending, (answer) => this.#texts.ask(run, answer));
+      } catch (error) {
+        // (an ask that throws is answered by no one: its bars are lacked, and why said)
+        const why = `its score could not be written: ${String(error)}`;
+        this.stated?.(run.map((b) => ({ bar: b.bar, foreseen: '', kind: 'lacking', why })));
+        throw error;
+      }
     }
   }
 
@@ -751,7 +784,8 @@ export class Shadow {
           ? 'no text'
           : played.diagnostics.length > 0
             ? `cells said: ${played.diagnostics[0]}`
-            : stated.cut.includes(i)
+            : // (a score's bar plays its notes cut, as a client of version 2 does: there is no band's own to fall back on, #711)
+              stated.cut.includes(i) && this.#from === 'given'
               ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
               : null);
       this.#bars.set(b, {
@@ -769,7 +803,12 @@ export class Shadow {
       this.stated?.(statedBars(pending.score, read).filter((b) => this.#asked.get(b.bar) === ask));
     }
     const first = bars[0]!;
-    if (took && this.#from === 'asked') this.#tell(first, textStart, stated, pending.forecast);
+    if (took && this.#from === 'asked') {
+      // Told, and what it states handed to the page's own player as it stands, nothing compiled again (#711).
+      const score = this.#tell(first, textStart, stated, pending.forecast);
+      const read = stated.read ?? { lacks: stated.error ?? 'its score was not read' };
+      this.stated?.(statedBars(score, read).filter((b) => this.#asked.get(b.bar) === ask));
+    }
     for (const key of this.#bars.keys()) if (key < first - 2 * SECTION_BARS) this.#bars.delete(key);
     for (const key of this.#asked.keys())
       if (key < first - 2 * SECTION_BARS) this.#asked.delete(key);
@@ -780,7 +819,7 @@ export class Shadow {
    * and as a score (#553), each kept for a client's welcome, and the text's size
    * on the wire counted.
    */
-  #tell(bar: number, step: number, stated: SectionStated, bars: readonly BandBar[]) {
+  #tell(bar: number, step: number, stated: SectionStated, bars: readonly BandBar[]): HostScore {
     const { source: text, unstated, frame, foreseen, cut, lock, filed } = stated;
     const told: SectionText = { bar, step, text, unstated, frame, foreseen, cut };
     const score = hostScoreOf(bar, step, { text, unstated, lock, filed, foreseen, cut }, bars);
@@ -790,6 +829,7 @@ export class Shadow {
     this.#wire.push(new TextEncoder().encode(JSON.stringify({ kind: 'section', ...told })).length);
     if (this.#wire.length > SAMPLES_KEPT) this.#wire.shift();
     this.told?.(told, score);
+    return score;
   }
 
   /**

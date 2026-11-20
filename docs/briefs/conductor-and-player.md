@@ -5,7 +5,7 @@ The owner, on #531 item 3 (2026-11-12): split Jambot into a host, composer and c
 Jambot is the original implementation: cells split out of it and comes back in a new shape, and there is debt left from that history.
 
 This brief maps `main` @ a84c8e6 plus #531's first commit (8c903c9), read: `apps/web/src/player.svelte.ts` in full, `shadow.ts`, `section-texts.ts`, `session/{host,client,sessions}.svelte.ts`, `packages/session/src/{follow,host,clock}.ts`, and `packages/engine/src/transport.ts`.
-Nothing here is built yet.
+This brief was written before anything here was built: step 1, the wire, is on `main` behind the switch (#553, #707), and step 2's direct calls are (#711), the class split not yet (below).
 
 ## The answer in short
 
@@ -96,6 +96,9 @@ A client of session version 2, behind the switch (#553 rung 3), plays from the s
    This is the debt's largest part, and it doesn't need the cut.
 2. **The cut: `Conductor` out of `Player`**, behind the emissions above, with solo on direct calls.
    `player.svelte.ts` (1,769 lines) parts into about 750 and 700, and shadow's halves move with it.
+   It is cut in two.
+   First what plays (#711): alone and hosting, the page's own player sounds the scores and conducts its conductor hands it, over `scoreSource` at a skew of 0, and the shadow's `ask` and `follow` are its halves; one class still holds both sides, and they share the track, the forecast, the Muse and the finale as fields.
+   Then the move of code: `Conductor` and `Player` as classes, the shadow's halves with them, and `Hosting` a fan-out of the conductor's emissions, which changes no event.
 3. **One ear for every player**: `played` for every part, and the Muse reading clients as she reads her own page's player.
 4. **Host-only**, last: a conductor with the page's clock.
 
