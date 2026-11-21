@@ -60,6 +60,9 @@ Facts about MIDI in and out of the app.
   Its touches go out through the outputs its row crosses, on the channel the crossing says (`forwardsOf` on `panel:<id>`, through `Device`'s sender), and to the panels its row crosses (`panelForwardsOf`).
   An input's raw messages (`MidiAccess`'s `onMessage`) go to the panels its row crosses, so a panel follows a controller whether or not a view shows it.
   The panels' notes are released on All notes off (`PanelDeck.silence`), and where a panel is taken out or edited, by the book of before the change.
+- The panel editor's Try (webmidi v0.9.0) is offered: `SoundPanel` gives `PanelEditor` the same send `PanelView` has (`PanelDeck.played`), so a tried control's bytes go where a played one's do, to the outputs the panel's row crosses and to the instruments where its Plays says, to real hardware.
+  Turning Try off releases the held notes (the deck sees the note-offs).
+  A panel the setup does not have active has no row, so nothing is routed and Try is silent: the panel is neither shown to play nor to edit until it is added from the chips over the patch.
 - Jambot's own rows (the parts, the keys) are sent from notes, not bytes, so no panel's column crosses them (decision 007).
 - A panel's row takes a Plays choice as an input's does (`Setup.plays` under `panel:<id>`, webmidi decision 007's amendment; the matrix shows it where `heardBy` is passed), none by default and not following what every input plays.
   A message a panel makes that its choice hears (`panelPartPlayed`, over webmidi's `panelPlays`, the one rule an input's `partPlayed` shares) goes down the path an input's note takes: `Device`'s one handler (`hear`, `connect`) to the keys and the instruments, the Muse listening, with `panel:<id>` as its source; no other way into the Muse.

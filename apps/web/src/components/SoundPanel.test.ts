@@ -385,6 +385,79 @@ describe('SoundPanel', () => {
       expect(settings.setup.panels ?? []).toEqual([]);
     });
 
+    describe('Try in the editor (yggi/jambot#714)', () => {
+      /** The play panel active and routed to the Juno on channel 3, rendered; `sent` is what the deck sent out. */
+      function playPanel() {
+        const made = withPanels();
+        made.settings.book = withCrossing(
+          withPanelActive(made.settings.book, EXAMPLE_PLAY.id, true),
+          BAND,
+          panelKey(EXAMPLE_PLAY.id),
+          'o1',
+          3,
+        );
+        panel({ settings: made.settings, deck: made.deck });
+        return made;
+      }
+      /** Press the C4 key and move Mod, as a person does, wherever the panel is drawn. */
+      const play = async () => {
+        await fireEvent.keyDown(screen.getByRole('button', { name: 'C4' }), { key: 'Enter' });
+        await fireEvent.keyDown(screen.getByRole('slider', { name: 'Mod' }), { key: 'ArrowUp' });
+      };
+      const tryButton = () => screen.getByRole('button', { name: 'Try' });
+
+      it('sends what a tried control makes the way a played one goes: the same bytes to the same outputs, a note and a control change', async () => {
+        const played = playPanel();
+        await play();
+        const expected = played.sent.map((f) => [f.output, [...f.data]]);
+        expect(expected.length).toBe(2);
+        expect(expected[0]).toEqual(['o1', [0x92, 60, 100]]);
+        expect(expected[1]![1]).toEqual([0xb2, 1, expect.any(Number)]);
+        cleanup();
+        const tried = playPanel();
+        await fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        await fireEvent.click(tryButton());
+        await play();
+        expect(tried.sent.map((f) => [f.output, [...f.data]])).toEqual(expected);
+      });
+
+      it('sends nothing with Try off: a press in the editor chooses', async () => {
+        const { sent } = playPanel();
+        await fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        expect(tryButton()).toHaveAttribute('aria-pressed', 'false');
+        // (a press chooses the control: the editor draws each with an Edit button over it)
+        await fireEvent.click(screen.getByRole('button', { name: 'Edit Mod' }));
+        expect(sent).toEqual([]);
+      });
+
+      it('releases the held notes when Try is turned off: the deck sees the note-offs', async () => {
+        const { sent } = playPanel();
+        await fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+        await fireEvent.click(tryButton());
+        await fireEvent.keyDown(screen.getByRole('button', { name: 'C4' }), { key: 'Enter' });
+        expect(sent.map((f) => [...f.data])).toEqual([[0x92, 60, 100]]);
+        await fireEvent.click(tryButton());
+        expect(sent.map((f) => [...f.data])).toEqual([
+          [0x92, 60, 100],
+          [0x82, 60, 0],
+        ]);
+      });
+
+      it('is silent for a panel the setup does not have: no row, so no output', async () => {
+        const { settings, deck, sent } = withPanels();
+        deck.edit({
+          id: 'q',
+          name: 'Q',
+          children: [{ type: 'button', id: 'b', label: 'B', bind: [{ kind: 'note', number: 60 }] }],
+        });
+        deck.shown = 'q';
+        panel({ settings, deck });
+        expect(settings.setup.panels ?? []).toEqual([]);
+        // (not active: it is not shown to play, and the editor has nothing to edit)
+        expect(sent).toEqual([]);
+      });
+    });
+
     it('shows no panels where none is given', () => {
       panel({ settings: onJuno() });
       expect(screen.queryByRole('button', { name: 'New panel' })).toBeNull();

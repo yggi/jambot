@@ -20,7 +20,7 @@
   setup; an active panel is a row (what it sends, routed to outputs like an
   input's) and a column (what an input's or another panel's row sends it). It
   is played, edited, made and deleted under the patch (`PanelView`,
-  `PanelEditor`). The band's own rows are no panel's to cross. A panel's row
+  `PanelEditor`, whose Try plays the panel through the same send as the view's, to real outputs). The band's own rows are no panel's to cross. A panel's row
   has the Plays choice an input's has: what it plays, the keys and the Muse
   hear as an input's notes (`Device`), none by default.
 
@@ -253,7 +253,11 @@
             >
           </div>
           {#if editing && shownPanel}
-            <PanelEditor panel={shownPanel} onchange={(edited) => deck.edit(edited)} />
+            <PanelEditor
+              panel={shownPanel}
+              onchange={(edited) => deck.edit(edited)}
+              onsend={(data) => deck.played(shownPanel.id, data)}
+            />
             <div class="bar">
               <button
                 type="button"
