@@ -318,4 +318,16 @@ describe('the built-in synth, a column of the setup (yggi/webmidi decision 004)'
     // (what every input plays is not a panel's to follow)
     expect(panelPartPlayed(withPlays(book, 'in:*', 'default'), 'p', on(0))).toBeNull();
   });
+
+  it('reads a part routed to several channels of an output as its channels, ascending, and one channel as it was', () => {
+    let book = fromJambot(stored(), NONE);
+    const lead = withCrossing(book, BAND, 'lead', 'o1', [3, 1]);
+    const channels = bandRoutes(lead, () => null)[0]!.channels;
+    expect(channels.lead).toEqual([1, 3]);
+    expect(channels.bass).toBe(2);
+    expect(channels.drums).toBe(10);
+    expect(bandRoutes(book, () => null)[0]!.channels).toEqual(DEFAULT_CHANNELS);
+    book = withCrossing(book, BAND, 'lead', 'o1', 0);
+    expect(bandRoutes(book, () => null)[0]!.channels.lead).toBeUndefined();
+  });
 });

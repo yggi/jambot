@@ -28,6 +28,7 @@ import {
   HEARD,
   activeSetup,
   builtInHears,
+  channelsOf,
   hardwareOutputs,
   isBuiltIn,
   listenOf,
@@ -169,11 +170,14 @@ export function bandRoutes(
   const routes = bandRoutesOf(setup);
   // (the built-in synth is no output the band sends MIDI to: `synthPlays` is its)
   return hardwareOutputs(setup).map((output) => {
-    const channels: Partial<Record<Part, number>> = {};
+    const channels: Partial<Record<Part, number | readonly number[]>> = {};
     for (const part of BAND_PARTS) {
-      const crossings = own(routes, part);
-      const channel = crossings && own(crossings, output.key);
-      if (channel !== undefined && channel >= 1 && channel <= 16) channels[part] = channel;
+      const crossing = own(routes, part);
+      const crossed = crossing && own(crossing, output.key);
+      if (crossed === undefined) continue;
+      // (webmidi's spelling: one channel is the bare number, several the ascending set; as played is no channel here)
+      const on = channelsOf(crossed).filter((c) => c >= 1 && c <= 16);
+      if (on.length) channels[part] = on.length === 1 ? on[0]! : on;
     }
     const profile = profileOf(book, output.name);
     return {
@@ -233,8 +237,8 @@ export function withSynth(setup: Setup, on: boolean): Setup {
 export const channelsTo = (setup: Setup, key: string): number[] => [
   ...new Set(
     Object.values(bandRoutesOf(setup)).flatMap((crossings) => {
-      const channel = own(crossings, key);
-      return channel !== undefined && channel > 0 ? [channel] : [];
+      const crossing = own(crossings, key);
+      return crossing === undefined ? [] : channelsOf(crossing);
     }),
   ),
 ];

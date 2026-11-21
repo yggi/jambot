@@ -96,6 +96,80 @@ function fakeSettings() {
 }
 
 describe('bandOutput', () => {
+  describe('a part on several channels of one output (webmidi decision 010)', () => {
+    /** One output whose lead is on channels 1 and 3, the drums on 10 and 12, the bass on 2 alone. */
+    function layered() {
+      const base = fakeBase();
+      const { port, sent } = fakePort();
+      const clock = base.output as { currentTime: number };
+      const output = bandOutput(
+        {
+          internal: () => true,
+          outputs: () => [route({ port, channels: { lead: [1, 3], bass: 2, drums: [10, 12] } })],
+        },
+        base.output,
+        clockOffset(base.output, () => clock.currentTime * 1000),
+      );
+      void output.currentTime;
+      return { clock, output, sent };
+    }
+
+    it('sends a note-on and its note-off on every channel, ascending, at one timestamp each', () => {
+      const { clock, output, sent } = layered();
+      output.play('lead', 60, 100, 0.1, 0.2, timbre);
+      output.play('bass', 40, 90, 0.1, 0.2, timbre);
+      clock.currentTime = 0.25;
+      output.tick?.([step(0.25, 0.5)]);
+      expect(sent.map((m) => [m.data, Math.round(m.timestamp)])).toEqual([
+        [[NOTE_ON | 0, 60, 100], 100],
+        [[NOTE_ON | 2, 60, 100], 100],
+        [[NOTE_ON | 1, 40, 90], 100],
+        [[0x80 | 0, 60, 0], 300],
+        [[0x80 | 2, 60, 0], 300],
+        [[0x80 | 1, 40, 0], 300],
+      ]);
+    });
+
+    it('sends a drum hit on each channel through the device’s drum notes', () => {
+      const { output, sent } = layered();
+      output.play('drums', DRUM_NOTES.kick, 100, 0.1, 0.05, timbre);
+      expect(sent.map((m) => m.data)).toEqual([
+        [NOTE_ON | 9, 36, 100],
+        [NOTE_ON | 11, 36, 100],
+      ]);
+    });
+
+    it('releases both channels on a stop and on the panic button', () => {
+      for (const stop of ['silence', 'panic'] as const) {
+        const { output, sent } = layered();
+        output.play('lead', 60, 100, 0.1, 30, timbre);
+        sent.length = 0;
+        output[stop]?.();
+        const offs = sent.filter((m) => (m.data[0]! & 0xf0) === 0x80).map((m) => m.data);
+        expect(offs, stop).toEqual([
+          [0x80 | 0, 60, 0],
+          [0x80 | 2, 60, 0],
+        ]);
+      }
+    });
+
+    it('adopts a changed set of channels, releasing the notes of the channels it leaves', () => {
+      const base = fakeBase();
+      const { port, sent } = fakePort();
+      let channels: PartChannels = { lead: [1, 3] };
+      const output = bandOutput(
+        { internal: () => true, outputs: () => [route({ port, channels })] },
+        base.output,
+      );
+      void output.currentTime;
+      output.play('lead', 60, 100, 0, 30, timbre);
+      sent.length = 0;
+      channels = { lead: 1 };
+      void output.currentTime;
+      expect(sent.some((m) => (m.data[0]! & 0xf0) === 0x80 && m.data[0] === 0x82)).toBe(true);
+    });
+  });
+
   it('plays the built-in synth when there is no MIDI port', () => {
     const base = fakeBase();
     const { settings } = fakeSettings();
@@ -302,7 +376,7 @@ describe('bandOutput', () => {
     output.play('bass', 40, 100, 0.05, 10, timbre); // held far longer: cut at the tail's end
     sent.length = 0;
     output.silence();
-    expect(sent.map((m) => [m.data, m.timestamp])).toEqual([
+    expect(sent.map((m) => [m.data, Math.round(m.timestamp)])).toEqual([
       [[0x80 | 0, 60, 0], 100],
       [[0x80 | 1, 40, 0], (LOOKAHEAD + 0.4) * 1000],
     ]);

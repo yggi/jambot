@@ -6,6 +6,7 @@ import {
   KEYS,
   type DrumMap,
   activeSetup,
+  type SetupBook,
   deviceNote,
   fromJambot,
   memoryStore,
@@ -57,6 +58,21 @@ describe('MidiSettings', () => {
     const reopened = new MidiSettings();
     expect(reopened.synth).toEqual([]);
     expect(reopened.book).toEqual(settings.book);
+  });
+
+  it('reads a book from before several channels unchanged: a crossing is a number on disk, and a set is written as a set only where a person chose one', () => {
+    const first = new MidiSettings();
+    expect(JSON.stringify(first.setup.routes[BAND]!.lead)).toBe(
+      '{"o1":1,"builtin":"heard"}'.replace('"heard"', JSON.stringify(HEARD)),
+    );
+    const reopened = new MidiSettings();
+    expect(reopened.book).toEqual(first.book);
+    expect(kept()).toEqual(JSON.parse(JSON.stringify(first.book)));
+    first.book = withCrossing(first.book, BAND, 'lead', 'o1', [1, 3]);
+    const lead = () => activeSetup(kept() as SetupBook).routes[BAND]?.lead?.o1;
+    expect(lead()).toEqual([1, 3]);
+    first.book = withCrossing(first.book, BAND, 'lead', 'o1', [3]);
+    expect(lead()).toBe(3);
   });
 
   it('moves the switch kept before into every setup once, as it is, no named setup made a custom variant', () => {

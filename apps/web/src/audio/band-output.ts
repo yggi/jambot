@@ -31,6 +31,7 @@ import {
   MidiOut,
   clockOffset,
 } from '@yggi/webmidi/core';
+import { channelsOfPart } from '../midi/channels.ts';
 import { drumMapOf } from '../midi/drums.ts';
 import type { BandRoute } from '../midi/patch.ts';
 import { type Output, webAudioOutput } from './output.ts';
@@ -68,6 +69,12 @@ interface Out {
   /** The audio clock to this output's timestamps: the device's latency earlier. */
   toDeviceMs: (seconds: number) => number;
 }
+
+/** Whether a part is on the same channels in two routes. */
+const sameChannels = (a: BandRoute['channels'], b: BandRoute['channels'], part: Part) => {
+  const [x, y] = [channelsOfPart(a, part), channelsOfPart(b, part)];
+  return x.length === y.length && x.every((c, i) => c === y[i]);
+};
 
 /** A transport window's steps as the clock out takes them: 6 ticks to a step, from tick 6 × its index. */
 function ticksOf(steps: readonly ScheduledStep[]): ClockTicks | null {
@@ -110,7 +117,7 @@ export function bandOutput(
         out.toDeviceMs,
       );
       // (the channels it leaves are silenced first)
-      if (!PARTS.every((part) => out.channels[part] === route.channels[part]))
+      if (!PARTS.every((part) => sameChannels(out.channels, route.channels, part)))
         out.notes.panic(at, out.toDeviceMs);
       out.channels = route.channels;
       if (out.clockOn && !route.clock) out.clock.stop(at, out.toDeviceMs);
@@ -145,13 +152,12 @@ export function bandOutput(
     play(part, note, velocity, seconds, duration, timbre) {
       if (settings.internal(part)) base.play(part, note, velocity, seconds, duration, timbre);
       for (const out of outs.values()) {
-        const channel = out.channels[part];
-        // (a part not routed to an output sends it nothing)
-        if (channel === undefined) continue;
-        out.notes.play(
-          { at: seconds, duration, note, velocity, channel, drum: part === 'drums' },
-          out.toDeviceMs,
-        );
+        // (a part not routed to an output sends it nothing; on several channels it plays on each, ascending, at one moment)
+        for (const channel of channelsOfPart(out.channels, part))
+          out.notes.play(
+            { at: seconds, duration, note, velocity, channel, drum: part === 'drums' },
+            out.toDeviceMs,
+          );
       }
     },
     // The click is this device's own: the built-in synth, whatever `internal` says, never MIDI.
