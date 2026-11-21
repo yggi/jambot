@@ -28,6 +28,7 @@ import {
   HEARD,
   activeSetup,
   builtInHears,
+  channelsOf,
   hardwareOutputs,
   isBuiltIn,
   listenOf,
@@ -173,7 +174,7 @@ export function bandRoutes(
     for (const part of BAND_PARTS) {
       const crossings = own(routes, part);
       const channel = crossings && own(crossings, output.key);
-      if (channel !== undefined && channel >= 1 && channel <= 16) channels[part] = channel;
+      if (typeof channel === 'number' && channel >= 1 && channel <= 16) channels[part] = channel;
     }
     const profile = profileOf(book, output.name);
     return {
@@ -233,8 +234,8 @@ export function withSynth(setup: Setup, on: boolean): Setup {
 export const channelsTo = (setup: Setup, key: string): number[] => [
   ...new Set(
     Object.values(bandRoutesOf(setup)).flatMap((crossings) => {
-      const channel = own(crossings, key);
-      return channel !== undefined && channel > 0 ? [channel] : [];
+      const crossing = own(crossings, key);
+      return crossing === undefined ? [] : channelsOf(crossing);
     }),
   ),
 ];
