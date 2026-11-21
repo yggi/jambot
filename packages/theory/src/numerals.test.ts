@@ -47,7 +47,7 @@ describe('Roman numerals (U1)', () => {
             expect(parseNumeral(text), text).toEqual(numeral);
             count++;
           }
-    expect(count).toBe(7 * 3 * 19 * 43);
+    expect(count).toBe(7 * 3 * 21 * 43);
   });
 
   it('read every numeral the prototype composer writes, and write each back as it was (U1, E8)', () => {

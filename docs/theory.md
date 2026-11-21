@@ -310,9 +310,10 @@ seventh of every diatonic mode is `even(3 or 4, 7)` composed with the mode: 98
 of 98. Five stacked thirds span more than a turn of 7 and are not even in it, so
 a ninth chord is a named **stack**, heights above its root, not a composition.
 Every stack splits at the octave: the tones below it are a helix of one turn,
-and the rest lie above them (the ninth in `9`, `maj9`, `m9` and `add9`, and four
+and the rest lie above them (the ninth in `9`, `maj9`, `m9`, `m7b9`, `m7b5b9` and `add9`, and four
 of the harmonics), so a stack is a helix and the tones above it, with nothing
-lost. That is what a chord is (#38, decided): a helix of one turn, plus its
+lost.
+Every diatonic ninth chord of every mode is one of five named stacks: two `maj9`, two `m9`, one `9`, one `m7b9` and one `m7b5b9` (checked with music21 and tonal, #702). That is what a chord is (#38, decided): a helix of one turn, plus its
 **tensions**, the tones above the octave (`Chord`, `splitChord`). The helix
 composes, shifts and mirrors; the tensions ride on it, and a tension sets its
 own degree of the scale the helix implies.
