@@ -13,6 +13,7 @@
 
 import type { Machine } from './machine.ts';
 import { draw, pick } from './random.ts';
+import { kindOffset } from './section-kinds.ts';
 import type { Style } from './style.ts';
 
 export const SECTION_TYPES = ['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown'] as const;
@@ -90,22 +91,13 @@ export const form: Machine<FormEnv, Section | null, null, Section> = {
   },
 };
 
-/** How far each kind of section moves the energy from the style's. */
-const ENERGY_OFFSET: Record<SectionType, number> = {
-  intro: -0.3,
-  groove: 0,
-  bridge: -0.1,
-  build: 0,
-  drop: 0.3,
-  breakdown: -0.45,
-};
-
 /**
  * How far a section moves a bar's energy from its style's: its kind's offset, a build ramping from −0.15 to +0.30 over
- * its bars. A section text writes it as cells' sum of the song's and the kind's (yggi/cells decision 096).
+ * its bars, as cells' section fragments say it (`section-kinds.ts`, #655). A section text writes it as cells' sum of
+ * the song's and the kind's (yggi/cells decision 096).
  */
 export const energyOffset = (type: SectionType, barInSection: number): number =>
-  type === 'build' ? -0.15 + (0.45 * barInSection) / (SECTION_BARS - 1) : ENERGY_OFFSET[type];
+  kindOffset(type, barInSection);
 
 /**
  * The energy a bar plays at: the style's energy shaped by its section, and
