@@ -11,6 +11,7 @@ import {
   PRESETS,
   RHYTHM_REPOSITORY,
   SECTION_BARS,
+  type BandBar,
   type TimedEvent,
   type TransportCarried,
   type TransportEnv,
@@ -27,6 +28,11 @@ import {
 } from '@jambot/engine';
 import {
   type FollowCarried,
+  SAYS,
+  type ScoreArrival,
+  type ScoreFollowCarried,
+  conductOf,
+  scoreSource,
   type SectionText,
   type SentBar,
   type Station,
@@ -35,6 +41,7 @@ import {
   sentBars,
   tuneIn,
 } from '@jambot/session';
+import { frameOf } from '@jambot/score';
 import { METERS, type MeterName } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { conductRadio, radioStyle } from './conductor.ts';
@@ -55,6 +62,11 @@ const TICK = 0.025;
 
 /** What a run did: the shadow's readout, the band's events and the events played. */
 interface Run {
+  /** How many bars the page's own player lacked and played silent, and why (#711); none on a client of version 1. */
+  lacked?: Pick<ScoreFollowCarried, 'lacked' | 'silent' | 'said'>;
+  /** The bars the band composed, and as the page's own player laid them from their scores (#711). */
+  bars?: BandBar[];
+  scored?: BandBar[];
   readout: ShadowReadout;
   band: TimedEvent[];
   played: TimedEvent[];
@@ -186,6 +198,11 @@ function run({
         };
   const shadow = new Shadow(page, texts(delay));
   shadow.reset();
+  // The page's own player (#711): the scores its band takes and the bars it conducts, on a transport of its own.
+  const scoreFollower = transportOver(scoreSource);
+  let own: TransportCarried<ScoreFollowCarried> | null = null;
+  let arrivals: ScoreArrival[] = [];
+  shadow.stated = (stated) => void arrivals.push(...stated.map((s) => ({ stated: s })));
   // The client: the host's bars and texts over the link, on a transport of its own in the host's time.
   const follower = transportOver(followSource);
   const theirs = follow && new Shadow(page, texts(follow.delay ?? delay));
@@ -215,6 +232,8 @@ function run({
   const band: TimedEvent[] = [];
   const played: TimedEvent[] = [];
   const late: LateEvent[] = [];
+  const composed: BandBar[] = [];
+  const scored: BandBar[] = [];
   const walk = (on: Station, first: number, c: TransportCarried, from: TransportEnv) => {
     const walked = onward(on, radioStyle(from.track, nudge));
     const at = Math.max(c.head.step, clockOfTransport(c).barStart(first));
@@ -280,7 +299,7 @@ function run({
     const output = meddle ? { ...next.output, events: meddle(next.output.events) } : next.output;
     band.push(...output.events);
     at(now);
-    const playing = shadow.tick({
+    const digests = shadow.ask({
       env: laidWith,
       next: env,
       carried,
@@ -289,6 +308,27 @@ function run({
       envFrom: (first) =>
         radio ? { ...env, track: walk(radio, first, c, env).conducted.track } : env,
     });
+    const conducted = sentBars(
+      next.output.composed,
+      next.output.steps,
+      carried.head,
+      laidWith.track,
+      clockOfTransport(carried),
+      laidWith.tempoMeter,
+    );
+    for (const [i, bar] of conducted.entries())
+      arrivals.push({ conduct: conductOf(bar, digests[i]!) });
+    const mine = scoreFollower.advance(env, own, {
+      now,
+      until: now + LOOKAHEAD,
+      arrived: arrivals,
+      ends: carried.finale.bar ?? undefined,
+    });
+    arrivals = [];
+    own = mine.carried;
+    composed.push(...next.output.composed);
+    scored.push(...mine.output.composed);
+    const playing = shadow.follow({ env, carried: own!, output: mine.output, now });
     played.push(...playing.events);
     late.push(...playing.lateEvents);
     const stalled = follow?.stall && now >= follow.stall[0] && now < follow.stall[1];
@@ -307,9 +347,12 @@ function run({
       client.played.push(...playing.events);
       client.late.push(...playing.lateEvents);
     }
-    if (carried.nextBar > bars + 1 || carried.finale.ended !== null) break;
+    if (carried.nextBar > bars + 1 || own!.finale.ended !== null) break;
   }
   return {
+    lacked: own!.source,
+    bars: composed,
+    scored,
     readout: shadow.readout,
     band,
     played,
@@ -322,20 +365,38 @@ function run({
  * Every event the band's outputs play, against the band's own, which the band
  * composed and the transport laid beside cells' (the bound of #399 and #405): the same note on the same step, its onset within 1 ms, and its velocity and
  * sounding length the band's, its duration within a microsecond.
+ * Given the bars as the band composed them and as their scores frame them (`felt`), the page's own player plays the
+ * feel the score frames (#711, the owner's ruling (a) on #710): a bar framed otherwise than the band's is held to its
+ * notes on their steps alone, and how many bars that is is given.
  */
-function playsAsTheBand(band: readonly TimedEvent[], played: readonly TimedEvent[]) {
+function playsAsTheBand(
+  band: readonly TimedEvent[],
+  played: readonly TimedEvent[],
+  felt?: Pick<Run, 'bars' | 'scored'>,
+): number {
   const key = (e: TimedEvent) => `${e.bar} ${e.event.part} ${e.event.step} ${e.event.note}`;
   const sorted = (es: readonly TimedEvent[]) => [...es].sort((a, b) => (key(a) < key(b) ? -1 : 1));
   const [b, c] = [sorted(band), sorted(played)];
   expect(c.map(key)).toEqual(b.map(key));
+  const framed = (bars: readonly BandBar[] | undefined, bar: number) =>
+    JSON.stringify(frameOf(bars!.find((x) => x.bar === bar)!));
+  const otherwise = new Set(
+    felt
+      ? [...new Set(c.map((e) => e.bar))].filter(
+          (bar) => framed(felt.bars, bar) !== framed(felt.scored, bar),
+        )
+      : [],
+  );
   for (const [i, e] of c.entries()) {
     const own = b[i]!;
+    if (otherwise.has(e.bar)) continue;
     expect(Math.abs(e.seconds - own.seconds)).toBeLessThan(ONSET_BOUND);
     expect(e.event.velocity).toBe(own.event.velocity);
     expect(e.event.gain).toBe(own.event.gain);
     expect(e.event.length).toBeCloseTo(own.event.length, 9);
     expect(Math.abs(e.duration - own.duration)).toBeLessThan(1e-6);
   }
+  return otherwise.size;
 }
 
 /** A motif a player plays in `bar`, on its steps 0, 4, 8 and 12, each at its own velocity: offered with accents, their mean's distance, from bar + 2 on. */
@@ -411,12 +472,15 @@ describe('the band through cells (#399, #469)', () => {
     },
   );
 
-  it('follows the radio’s walk, a section at a time at entropy 0.3: the walk to come is in the forecast, and cells’ events ride the transport’s gliding tempo', () => {
-    const { readout, band, played } = run({ station: tuneIn(7), bars: 40 });
+  it('follows the radio’s walk, a section at a time at entropy 0.3: the walk to come is in the forecast, and cells’ events ride the transport’s gliding tempo, each bar felt as its score frames it (#711)', () => {
+    const walked = run({ station: tuneIn(7), bars: 40 });
+    const { readout, band, played } = walked;
     expect(readout.errors).toEqual([]);
     expect(readout.texts.again).toBe(0);
+    expect(walked.lacked).toMatchObject({ lacked: 0, silent: 0 });
     expect(played.length).toBeGreaterThan(40 * 4);
-    playsAsTheBand(band, played);
+    // (the glide moves the style within a bar, which its score states as it stands where the bar starts)
+    expect(playsAsTheBand(band, played, walked)).toBeGreaterThan(0);
   });
 
   it('writes a section again from a bar composed otherwise than foreseen: a control moved mid-section, and nothing differs', () => {
@@ -436,10 +500,10 @@ describe('the band through cells (#399, #469)', () => {
     playsAsTheBand(band, played);
   });
 
-  it('counts apart a swing that glides: the bars its share moves in are a gap with their reason, and play the band’s own', () => {
+  it('plays a swing that glides at the share each bar’s score states: a score a share, so no bar a gap, each bar felt and laid as its score frames it (#711)', () => {
     let moved = false;
     const swung = PRESETS.find((p) => presetSwing(p)!.share !== 0.5)!;
-    const { readout, band, played } = run({
+    const glided = run({
       control: (env, carried) => {
         if (moved || carried.nextBar !== 6) return env;
         moved = true;
@@ -449,9 +513,23 @@ describe('the band through cells (#399, #469)', () => {
         };
       },
     });
-    expect(Object.keys(readout.gaps).join()).toMatch(/swing moves/);
-    expect(readout.played.band).toBeGreaterThan(0);
-    playsAsTheBand(band, played);
+    const { readout, band, played } = glided;
+    expect(moved).toBe(true);
+    expect(readout.errors).toEqual([]);
+    expect(readout.gaps).toEqual({});
+    expect(readout.played.band).toBe(0);
+    expect(glided.lacked).toMatchObject({ lacked: 0, silent: 0 });
+    // (every bar the share moves in is framed and laid at the share its score states, not as it glides within the bar)
+    const sharesOf = (bars: readonly BandBar[]) => new Set(bars.map((b) => b.plan.share));
+    expect(sharesOf(glided.scored!).size).toBeGreaterThan(2);
+    // Before the glide and once it has settled, as the band plays; while the share moves, every note on its step.
+    const gliding = (e: TimedEvent) => e.bar >= 5 && e.bar <= 15;
+    playsAsTheBand(
+      band.filter((e) => !gliding(e)),
+      played.filter((e) => !gliding(e)),
+    );
+    const key = (e: TimedEvent) => `${e.bar} ${e.event.part} ${e.event.step} ${e.event.note}`;
+    expect(played.filter(gliding).map(key).sort()).toEqual(band.filter(gliding).map(key).sort());
   });
 
   it.each(PRESETS.map((p) => [p.name, p] as const))(
@@ -550,41 +628,32 @@ describe('the band through cells (#399, #469)', () => {
     }
   });
 
-  it('counts the song’s last bar apart, its last chord ringing past the text’s end, and plays the band’s own there', () => {
-    const { readout, band, played } = run({ finishAt: 6, bars: 16 });
-    expect(Object.entries(readout.gaps)).toEqual([
-      [expect.stringMatching(/finale's ring/), expect.objectContaining({ bars: 1 })],
-    ]);
+  it('plays the song’s last bar from its score, its last chord cut where the text ends: no gap, none of the band’s own (#711)', () => {
+    const ended = run({ finishAt: 6, bars: 16 });
+    const { readout, band, played } = ended;
+    expect(readout.gaps).toEqual({});
+    expect(readout.played.band).toBe(0);
     expect(readout.texts.again).toBe(1);
-    playsAsTheBand(band, played);
-  });
-
-  it('falls back on the band’s own events in a gap, a bar cells states none of, and names it: the very events the band laid, in that bar alone', () => {
-    // Each text has the bass a step later than the band plays it, so cells' events are not the band's.
-    const edit = (text: string) =>
-      text.replace(/(&bassline part=bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/, '$1~ $2');
-    const { readout, band, played } = run({ edit, finishAt: 6, bars: 16 });
-    const reasons = Object.keys(readout.gaps);
-    expect(reasons).toEqual([expect.stringMatching(/finale's ring/)]);
+    expect(ended.lacked).toMatchObject({ lacked: 0, silent: 0 });
     const last = Math.max(...band.map((e) => e.bar));
-    expect(readout.gaps[reasons[0]!]).toEqual({
-      bars: 1,
-      events: band.filter((e) => e.bar === last).length,
-    });
     const inBar = (es: readonly TimedEvent[], bar: number) => es.filter((e) => e.bar === bar);
-    expect(inBar(played, last)).toEqual(inBar(band, last));
-    expect(readout.played.band).toBe(inBar(band, last).length);
-    expect(readout.played.cells).toBe(played.length - readout.played.band);
-    expect(() => playsAsTheBand(inBar(band, last - 1), inBar(played, last - 1))).toThrow();
+    expect(inBar(played, last).length).toBeGreaterThan(0);
+    // Every bar before plays as the band does; in the last, every note the band starts there, its chord cut at the text's end.
+    playsAsTheBand(
+      band.filter((e) => e.bar < last),
+      played.filter((e) => e.bar < last),
+    );
+    const key = (e: TimedEvent) => `${e.event.part} ${e.event.step} ${e.event.note}`;
+    expect(inBar(played, last).map(key).sort()).toEqual(inBar(band, last).map(key).sort());
   });
 
-  it('falls back on the band’s own events wherever no text states a bar, each counted under the reason the text gives', () => {
-    const { readout, band, played } = run({ unstated: 'a test states none', bars: 16 });
-    expect(played).toEqual(band);
-    expect(readout.played).toEqual({ cells: 0, band: band.length });
-    expect(Object.keys(readout.gaps)).toEqual(['a test states none']);
-    expect(readout.gaps['a test states none']!.events).toBe(band.length);
-    expect(readout.gaps['a test states none']!.bars).toBeGreaterThanOrEqual(16);
+  it('plays silent wherever no score states a bar, each bar counted and said with the reason the score gives, and none of the band’s own (#711)', () => {
+    const { readout, played, lacked } = run({ unstated: 'a test states none', bars: 16 });
+    expect(played).toEqual([]);
+    expect(readout.played).toEqual({ cells: 0, band: 0 });
+    expect(lacked!.silent).toBeGreaterThanOrEqual(16);
+    expect(lacked!.lacked).toBe(0);
+    expect(lacked!.said.at(-1)).toMatchObject({ silent: true, why: 'a test states none' });
   });
 
   it('holds the band to what it checks: a lead note moved in the text, an onset 2 ms late, a note the band plays that cells lacks, a velocity one louder or a note sounding shorter, each fails it', () => {
@@ -653,12 +722,13 @@ describe('the band through cells in every meter it plays (#432)', () => {
     (meter) => {
       for (const preset of PRESETS)
         for (const seed of [1, 2]) {
-          const { readout, band, played } = run({ preset, seed, meter });
+          const held = run({ preset, seed, meter });
+          const { readout, band, played } = held;
           expect(readout.errors).toEqual([]);
           expect(readout.gaps).toEqual({});
           expect(readout.played.cells).toBe(band.length);
           expect(readout.played.band).toBe(0);
-          playsAsTheBand(band, played);
+          playsAsTheBand(band, played, held);
         }
     },
   );
@@ -666,7 +736,7 @@ describe('the band through cells in every meter it plays (#432)', () => {
   it.each(['3/4', '5/4', '6/8', '7/8'] as const)(
     'in %s, plays a preset whose swing’s level turns to 8n mid-song as the band does: pulses of 2 and of 3 eighths then their pairs alone, no gap (#451)',
     (meter) => {
-      const { readout, band, played } = run({
+      const turned = run({
         preset: PRESETS.find((p) => p.name === 'Deep house')!,
         meter,
         bars: 32,
@@ -675,9 +745,10 @@ describe('the band through cells in every meter it plays (#432)', () => {
             ? { ...env, swing: swingTo(env.swing!, { level: '8n' }, carried.head.step, 0) }
             : env,
       });
+      const { readout, band, played } = turned;
       expect(readout.errors).toEqual([]);
       expect(readout.gaps).toEqual({});
-      playsAsTheBand(band, played);
+      playsAsTheBand(band, played, turned);
     },
   );
 
@@ -685,7 +756,7 @@ describe('the band through cells in every meter it plays (#432)', () => {
     'in %s, plays an 8n swing whose share glides within bars as the band does, stated straight: no pulse of 2 eighths swings there (T16, #438)',
     (meter) => {
       let moved = false;
-      const { readout, band, played } = run({
+      const glided = run({
         preset: PRESETS.find((p) => p.name === 'Swing jazz')!,
         meter,
         control: (env, carried) => {
@@ -694,11 +765,12 @@ describe('the band through cells in every meter it plays (#432)', () => {
           return { ...env, swing: swingTo(env.swing!, { share: 0.55 }, carried.head.step, 8 * 16) };
         },
       });
+      const { readout, band, played } = glided;
       expect(moved).toBe(true);
       expect(readout.errors).toEqual([]);
       expect(readout.gaps).toEqual({});
       expect(readout.played.band).toBe(0);
-      playsAsTheBand(band, played);
+      playsAsTheBand(band, played, glided);
     },
   );
 });
@@ -760,13 +832,19 @@ describe('a section’s text from a worker (#406)', () => {
     playsAsTheBand(band, played);
   });
 
-  it('plays the band’s own where a text is still on its way as its bar is laid, and counts each such step late, with its reason', () => {
-    const { readout, band, played } = run({ delay: 2 });
-    expect(readout.arrival.late).toBeGreaterThan(0);
-    expect(Object.keys(readout.gaps)).toEqual([expect.stringMatching(/on its way/)]);
-    expect(readout.played.band).toBeGreaterThan(0);
+  it('lacks a bar whose score is still being read as its bar is laid, and says why, where it played the band’s own before: what it plays, it plays as the band does (#711)', () => {
+    const { readout, band, played, lacked } = run({ delay: 2 });
+    expect(lacked!.lacked).toBeGreaterThan(0);
+    expect(lacked!.silent).toBe(0);
+    expect(lacked!.said.map((s) => s.why)).toContain(SAYS.reading);
+    expect(readout.played.band).toBe(0);
     expect(readout.played.cells).toBeGreaterThan(0);
-    playsAsTheBand(band, played);
+    const bars = new Set(played.map((e) => e.bar));
+    expect(lacked!.said.every((s) => !bars.has(s.bar))).toBe(true);
+    playsAsTheBand(
+      band.filter((e) => bars.has(e.bar)),
+      played,
+    );
   });
 
   it('times the page’s own work for each text apart from the job’s, which a worker does', () => {
@@ -900,10 +978,10 @@ describe('a session through cells: the section’s text on the wire, host to cli
     playsAsTheHost(played, client!.played);
   });
 
-  it('a client sent a bar otherwise than its latest text foresaw never plays that text in it: it waits for the host’s text again, as the host does, and plays the band’s own meanwhile', () => {
+  it('a client sent a bar otherwise than its latest text foresaw never plays that text in it: it waits for the host’s text again, as the host does, and plays the band’s own meanwhile, where the host’s own player lacks the bar (#711)', () => {
     let moved = false;
     // The host's worker slower than a beat: its text again comes after the bar it was asked at, on both pages.
-    const { readout, played, client } = run({
+    const { readout, band, lacked, client } = run({
       delay: 0.6,
       countIn: COUNT_IN,
       follow: { link: LINK, delay: WORKER },
@@ -917,11 +995,13 @@ describe('a session through cells: the section’s text on the wire, host to cli
       },
     });
     const theirs = client!.readout;
-    expect(readout.arrival.late).toBeGreaterThan(0);
+    // (the host's own player lacks the bars its text again came too late for, #711; its client of version 1 plays the band's own there)
+    expect(lacked!.lacked).toBeGreaterThan(0);
+    expect(readout.played.band).toBe(0);
     expect(theirs.arrival.late).toBeGreaterThan(0);
     expect(theirs.played.band).toBeGreaterThan(0);
     expect(theirs.errors).toEqual([]);
-    playsAsTheHost(played, client!.played);
+    playsAsTheHost(band, client!.played);
   });
 
   it('a client ends a note that runs into the next section, whose swing’s level turned, as the host does, though it holds the next bar only as it starts (#501)', () => {
@@ -957,8 +1037,8 @@ describe('a session through cells: the section’s text on the wire, host to cli
     playsAsTheHost(played, client!.played);
   });
 
-  it('a client follows the radio’s walk through cells, a section at a time, as the host plays it', () => {
-    const { played, client } = run({
+  it('a client of version 1 follows the radio’s walk through cells, a section at a time, as the band composed it, where the host’s own player feels each bar as its score frames it (#711)', () => {
+    const { band, client } = run({
       station: tuneIn(7),
       bars: 40,
       follow: { link: LINK },
@@ -967,7 +1047,7 @@ describe('a session through cells: the section’s text on the wire, host to cli
     expect(theirs.gaps).toEqual({});
     expect(theirs.texts.given).toBeGreaterThan(4);
     expect(theirs.played.band).toBe(0);
-    playsAsTheHost(played, client!.played);
+    playsAsTheHost(band, client!.played);
   });
 
   it('a client that joins mid-section is given the texts that state the bars not yet played with its welcome, plays them as the host does, and counts none late', () => {

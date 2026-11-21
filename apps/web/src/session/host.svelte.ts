@@ -31,9 +31,10 @@
  * as it is made), and admits a client of that version. Version 1 sends each
  * bar the band composed (`bar`) and each section's text (`section`).
  * Version 2 (#553) sends each bar's conduct in place of the bar
- * (`conductOf`) and each section's score in place of its text, its band's
- * bars asked for in runs that each state one key and meter (the shadow's
- * `split`), so a looped bar is never unstated; with a score go the
+ * (`conductOf`) and each section's score in place of its text; either way its
+ * band's bars are asked for in runs that each state one key and meter (the
+ * shadow's `split`), so a looped bar is never unstated, for its clients or
+ * for its own player (#711). With a score go the
  * fragments it locks that a client lacks, each sent to a client once, by
  * hash (`fragmentsLacked`), the ledger kept by the client's seat, so a
  * client back with its token is not sent again what it was sent.
@@ -228,8 +229,6 @@ export class HostSession {
     this.session = (restore?.session ?? session).trim();
     this.code = restore ? (restore.code ?? null) : byCode ? this.#draw() : null;
     this.#player.mode = 'host';
-    // Version 2 states every bar a score states, in runs where a section's key or meter moves (#553).
-    this.#player.shadow.split = this.#speaks === 2;
     this.#player.playerId = HOST_PLAYER;
     this.#player.players = {};
     this.#forecast = this.#player.ahead;
@@ -363,7 +362,6 @@ export class HostSession {
     this.#player.playerId = null;
     this.#player.players = {};
     this.#player.mode = 'solo';
-    this.#player.shadow.split = false;
     this.session = null;
     this.code = null;
     this.guests = [];

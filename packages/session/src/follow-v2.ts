@@ -118,7 +118,10 @@ export const SAYS = {
 } as const;
 
 /** Each bar a score states, as it leaves it once read, or while it is read. */
-export function statedBars(score: SectionScore, read: ScoreRead | 'reading'): StatedBar[] {
+export function statedBars(
+  score: Pick<SectionScore, 'bar' | 'section' | 'text' | 'unstated' | 'energy' | 'foreseen'>,
+  read: ScoreRead | 'reading',
+): StatedBar[] {
   return score.foreseen.map((foreseen, k): StatedBar => {
     const bar = score.bar + k;
     if (score.unstated !== null || score.text === '')
