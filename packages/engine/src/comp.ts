@@ -31,6 +31,7 @@ import type { Machine } from './machine.ts';
 import { type Stream, chance, heldDraw } from './random.ts';
 import { readOnMeter } from './regroup.ts';
 import { eighthSwing } from './swing.ts';
+import { kindPlays } from './section-kinds.ts';
 
 /** The lowest and highest note the comp plays. */
 export const COMP_RANGE = [50, 79] as const;
@@ -110,7 +111,8 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
             : 0.5,
     );
     const syncopated = readOnMeter(STABS_SYNCOPATED, meter, 'cycle', bar);
-    const quiet = plan.section.type === 'breakdown' || energy < 0.3;
+    // (a kind that leaves the stab out, a breakdown, pads only: `section-kinds.ts`, #655)
+    const quiet = !kindPlays(plan.section.type, 'stab') || energy < 0.3;
     const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
     const stabDensity = quiet
       ? 0

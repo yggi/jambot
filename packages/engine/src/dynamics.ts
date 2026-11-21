@@ -16,6 +16,7 @@ import { meterOnSteps, stepsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { backbeatOf } from './drums.ts';
 import { type DrumRole, type WrittenNote, halfOf, lateOf } from './events.ts';
+import { kindPlays } from './section-kinds.ts';
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -69,7 +70,7 @@ export function baseVelocityOf(env: BarEnv, written: WrittenNote): number {
     case 'stab':
       return 70 + 20 * energy;
     case 'pad': {
-      const quiet = plan.section.type === 'breakdown' || energy < 0.3;
+      const quiet = !kindPlays(plan.section.type, 'stab') || energy < 0.3;
       const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
       return 48 + 30 * energy * (0.5 + padWeight / 2);
     }

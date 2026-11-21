@@ -3,7 +3,7 @@
  * behaviour changes: it reads what the band plays.
  *
  * Jambot's section chain (`form.ts`) has six kinds, intro, groove, bridge, build, drop and breakdown, and shapes each
- * bar's energy from the style's by the kind (`barEnergy`, `ENERGY_OFFSET`); the parts read that energy, and some read
+ * bar's energy from the style's by the kind (`barEnergy`, its kind's offset); the parts read that energy, and some read
  * the kind itself (who rests in a breakdown). The question #571 asks before a section's style is spelled as an offset
  * from the song's: is a section's intensity one scalar that drives every component the band plays, or more than one?
  *

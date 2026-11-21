@@ -85,6 +85,7 @@ import { chance, draw, pick, quantize } from './random.ts';
 import { readOnMeter } from './regroup.ts';
 import { swingWeight } from './swing.ts';
 import type { ThemeKind } from './themes.ts';
+import { kindPlays } from './section-kinds.ts';
 
 /** The lowest and highest note the lead plays. */
 export const LEAD_RANGE = [60, 86] as const;
@@ -469,9 +470,9 @@ function intoRange(
   return { notes: ranged, octaves: best / 12 };
 }
 
-/** Whether the lead rests in a bar: in an intro, a breakdown, and below energy 0.4. */
+/** Whether the lead rests in a bar: where its section's kind leaves it out (an intro, a breakdown: `section-kinds.ts`), and below energy 0.4. */
 export function leadRests(section: SectionType, barEnergy: number): boolean {
-  return barEnergy < 0.4 || section === 'breakdown' || section === 'intro';
+  return barEnergy < 0.4 || !kindPlays(section, 'lead');
 }
 
 /** The phrase's cadence: bar 2 ends open, on the third or fifth, and bar 4 closes on the root. */
