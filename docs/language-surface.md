@@ -146,7 +146,7 @@ Counterexample: a numeral that reads back as another chord, or a chord of a
 diatonic key that no numeral writes. Counting from the parallel major, the other
 option, makes `VI` in A minor F♯ and fails the tests. Test: `numerals.test.ts`,
 whose tests cite U1: every numeral written and read back (7 degrees, 3
-accidentals, 19 qualities, 43 targets), every chord of every diatonic key, the
+accidentals, 21 qualities, 43 targets), every chord of every diatonic key, the
 prototype's 45 kinds (E8), and roots and cases checked with music21. music21
 raises the seventh degree of a minor key for `vii`; U1 doesn't. `seam.test.ts`
 (`packages/score`), whose test of the port's chords cites U1: every chord the

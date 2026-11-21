@@ -164,7 +164,7 @@ describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
         for (const c of CANDIDATES)
           expect(sameHarmony(c.read(c.write(h)), h), `${c.name} ${JSON.stringify(key)}`).toBe(true);
     }
-    expect([numerals, offTheKey]).toEqual([48 * 12 * 19, 4560]);
+    expect([numerals, offTheKey]).toEqual([48 * 12 * 21, 5040]);
     expect(Object.keys(QUALITY_DEGREES).sort()).toEqual(
       Object.keys(CHORD_QUALITIES)
         .filter((q) => q !== 'harmonics')
