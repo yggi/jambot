@@ -68,7 +68,8 @@ describe('the Playing tree (#642)', () => {
       '    bass -',
       '    stab -',
       'funk styles',
-      'style -',
+      // (a style reads its styles: a wire since cells v0.27.0, yggi/cells#827)
+      '  style -',
       // (the section's intensity, its song folded in: #645)
       'intensity -',
     ]);
@@ -87,8 +88,11 @@ describe('the Playing tree (#642)', () => {
   });
 
   it('reads it from the outputs: the band, each instrument and performer, the line it plays and what that reads', () => {
-    expect(drawn(playingRows(funk.text, funk.outline, 'outputs')).slice(3, 14)).toEqual([
+    // (the band reads the section's intensity, a sum of values, and the key under harm: wires since cells v0.27.0,
+    // yggi/cells#823 and #827)
+    expect(drawn(playingRows(funk.text, funk.outline, 'outputs')).slice(0, 13)).toEqual([
       'band band',
+      '  intensity -',
       '  drums_performer drums_performer',
       '    drums -',
       '      clave rumba_clave_3_2',
@@ -99,6 +103,7 @@ describe('the Playing tree (#642)', () => {
       '      bass -',
       '        harm -',
       '          bar meter',
+      '          key diatonic',
     ]);
   });
 
