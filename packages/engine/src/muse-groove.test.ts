@@ -13,7 +13,6 @@ import {
   heardDrums,
   levelOf,
   roleOfSound,
-  roledLayer,
 } from './muse-groove.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
@@ -161,15 +160,14 @@ describe('a groove’s drum roles as values (cells v0.24.0, decision 075)', () =
       ],
     };
     expect(RHYTHM_REPOSITORY.file!(before, { ...filing, created: 'song 2' }).held).toBe(false);
-    for (const kept of [roledLayer(before), keptLayer(before)]) {
-      expect(kept.filed[0]!.fragment.text).toBe(file.fragment.text);
-      expect(RHYTHM_REPOSITORY.file!(kept, { ...filing, created: 'song 2' })).toMatchObject({
-        id: filed.id,
-        held: true,
-      });
-    }
+    const kept = keptLayer(before);
+    expect(kept.filed[0]!.fragment.text).toBe(file.fragment.text);
+    expect(RHYTHM_REPOSITORY.file!(kept, { ...filing, created: 'song 2' })).toMatchObject({
+      id: filed.id,
+      held: true,
+    });
     // (a layer with nothing to write is the same layer)
-    expect(roledLayer(filed.layer)).toBe(filed.layer);
+    expect(keptLayer(filed.layer)).toBe(filed.layer);
   });
 });
 

@@ -154,3 +154,41 @@ describe('lint keeps the screens presentational', () => {
       expect(await firing(code, path)).not.toContain('no-restricted-imports');
   });
 });
+
+describe("lint keeps cells' internals out (#709)", () => {
+  const everywhere = [
+    ...pureSources,
+    'packages/engine/src/probe.test.ts',
+    'packages/score/experiments/probe.ts',
+    'apps/web/src/probe.ts',
+    'apps/lobby/src/probe.ts',
+    'tooling/probe.ts',
+  ];
+  const importing = (path: string) => using('probe', `import { probe } from '${path}';\n`);
+  // (a module path spelled in parts, so cells' ledger, which reads imports as text, counts no reach here)
+  const INTERNAL = ['@yggi/cells', 'repository', 'library'].join('/');
+
+  it('refuses a cells module path, an engine, theory or repository module, wherever it is imported', async () => {
+    for (const path of everywhere)
+      for (const module of [
+        '@yggi/cells/engine/migrate/axes',
+        '@yggi/cells/theory/modes',
+        '@yggi/cells/repository/fragments',
+      ])
+        expect(await firing(importing(module), path), `${module} in ${path}`).toContain(
+          'no-restricted-imports',
+        );
+    const screen = `<script lang="ts">\n  import { LIBRARY } from '${INTERNAL}';\n</script>\n\n<p>{LIBRARY.length}</p>\n`;
+    for (const path of ['apps/web/src/screens/Probe.svelte', 'apps/web/src/screens/Door.svelte'])
+      expect(await firing(screen, path), path).toContain('no-restricted-imports');
+  });
+
+  it('lets every entry point through', async () => {
+    for (const path of everywhere)
+      for (const entry of ['', '/edit', '/inspect', '/library', '/midi', '/repository', '/time'])
+        expect(
+          await firing(importing(`@yggi/cells${entry}`), path),
+          `@yggi/cells${entry} in ${path}`,
+        ).not.toContain('no-restricted-imports');
+  });
+});

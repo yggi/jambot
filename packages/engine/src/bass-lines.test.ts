@@ -18,7 +18,8 @@ import { type LineNote, type LineRead, lineTone } from './bass-query.ts';
 import type { BarChord } from './chords.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { type Key, keyHelix } from './key.ts';
-import { signedLayer, takenOn } from './taken.ts';
+import { takenOn } from './taken.ts';
+import { keptLayer } from './repository.ts';
 import { stepSeconds } from './tempo.ts';
 
 const KEY: Key = { tonic: 9, mode: 'aeolian' };
@@ -240,14 +241,16 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       filed: [{ ...file, fragment: { ...file.fragment, text: bodyOf(file.fragment.text) } }],
     };
     expect(lineRepository().file!(before, { ...filing, created: 'song 2' }).held).toBe(false);
-    const signed = signedLayer(before);
+    const signed = keptLayer(before);
     expect(signed.filed[0]!.fragment.text).toBe(file.fragment.text);
     expect(lineRepository().file!(signed, { ...filing, created: 'song 2' })).toMatchObject({
       id: filed.id,
       held: true,
     });
-    // (a layer with nothing to sign is the same layer)
-    expect(signedLayer(filed.layer)).toBe(filed.layer);
+    // (a layer with nothing left to sign is the same layer: this one's point is on the axes before cells v0.23.0, so
+    // once read as now)
+    const once = keptLayer(filed.layer);
+    expect(keptLayer(once)).toBe(once);
   });
 
   it('reads nothing but from its cache once warmed on every bench, its variations too', () => {

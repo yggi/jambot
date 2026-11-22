@@ -31,20 +31,14 @@
 import { METERS, type Meter } from '@jambot/theory';
 import { compileSource } from '@yggi/cells';
 import { setTiming } from '@yggi/cells/edit';
-import { OLD_AXES, newPoint } from '@yggi/cells/engine/migrate/axes';
-import { movedIds } from '@yggi/cells/engine/migrate/moved';
-import { MOVED } from '@yggi/cells/engine/renamed';
 import {
   type Fragment,
   type LearnedLayer,
-  type WeightedPoint,
-  byId,
   createRepository,
   layerProblems,
-  renamedLayer,
+  migrateLayer,
   useFragments,
 } from '@yggi/cells/repository';
-import { resolveSeed } from '@yggi/cells/library';
 import { METER_FRAGMENTS, BASS_FRAGMENTS, HARMONY_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
@@ -56,8 +50,6 @@ import {
   stylePoint,
 } from './meter-query.ts';
 import type { Preset } from './style.ts';
-import { signedLayer } from './taken.ts';
-import { roledLayer } from './muse-groove.ts';
 import { type MeterSwing, STRAIGHT, SWING_LEVELS, type SwingLevel } from './swing.ts';
 
 /** The eighths in a pulse of a meter's note value: two of a quarter, one of an eighth. */
@@ -195,124 +187,13 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
  * refuses.
  */
 /**
- * A learned layer as a band reads it on load, whenever it was kept:
- * - its seed ids written as the words they are now (cells' `renamedLayer`, yggi/cells#443), for one kept before cells
- *   v0.16.0, so a band keeps the points and pairs it learned, which would otherwise be left out as unheld (#558);
- * - its lead lines without the voice and card they carried before #580 (`leadsAlone`), so a line heard again is
- *   known as the one filed;
- * - its bass lines and progressions with the signature they are stated with since cells v0.21.0 (`signedLayer`,
- *   #562), so a line heard again is known as the one filed;
- * - its points on the style axes since cells v0.23.0, `sync harm bite mood` (`axedLayer`), for one kept before;
- * - its grooves with each line's drum role written as a value since cells v0.24.0 (`roledLayer`), so a groove heard
- *   again is known as the one filed;
- * - the fragments cells v0.25.0 moved by their ids now, Kinderlieder's tunes its parts and two motifs renamed
- *   (`movedLayer`), so a line filed over them compiles and plays as it did.
+ * A learned layer as a band reads it on load, whenever it was kept: cells' `migrateLayer`, which writes a layer of any
+ * version a frontend has kept as the language writes it now (its seed ids as words, its lines signed, its points on the
+ * axes now, its grooves' roles as values, the motifs cells v0.25.0 moved by their ids now), after the lead lines lose
+ * the voice and card they carried before #580 (`leadsAlone`), which is Jambot's own. A layer kept now is the layer
+ * itself.
  */
-export const keptLayer = (layer: LearnedLayer): LearnedLayer =>
-  movedLayer(roledLayer(axedLayer(signedLayer(leadsAlone(renamedLayer(layer))))));
-
-/**
- * The seed motifs cells v0.25.0 moved (decision 082, yggi/cells#642), each old id and the id it has now: Kinderlieder's
- * six tunes, the parts of its document (`kinderlied/twinkle`, cells' `MOVED`), and `waltz` and `korobeiniki`, renamed
- * with their heads (`waltzBar`, `korobeinikiBar`) since their old ids are examples' keys (one namespace).
- */
-export const MOVED_IDS: ReadonlyMap<string, string> = new Map([
-  ...[...MOVED].map(([id, { document, head }]): [string, string] => [id, `${document}/${head}`]),
-  ['waltz', 'waltzBar'],
-  ['korobeiniki', 'korobeinikiBar'],
-]);
-
-/** A `from` line that takes a renamed motif by its old head (`&waltz from waltz &key`), and how it takes it now. */
-const RENAMED_TAKE = /^(\s*)&(\w+)(?:=(\w+))? from (\w+)(?=[\s(]|$)/;
-
-/**
- * A text filed over a moved motif as it reads now: a take of one of Kinderlieder's tunes as its document's part (cells'
- * Migrate, its rule `moved`: `&twinkle from twinkle &key` → `&twinkle from kinderlied &key`), and one of a motif
- * renamed by its new id, under the name the text reads it by (`&waltz from waltz &key` → `&waltz=waltzBar from waltzBar
- * &key`), so the lines that read it are as written.
- */
-export function movedText(text: string): string {
-  let moved = text;
-  for (const rewrite of movedIds(text, resolveSeed)) moved = rewrite.apply(moved);
-  return moved
-    .split('\n')
-    .map((line) => {
-      const take = RENAMED_TAKE.exec(line);
-      const now = take && !MOVED.has(take[4]!) ? MOVED_IDS.get(take[4]!) : undefined;
-      if (!take || now === undefined || (take[3] ?? take[2]) !== take[4]) return line;
-      return `${take[1]}&${take[2]}=${now} from ${now}${line.slice(take[0].length)}`;
-    })
-    .join('\n');
-}
-
-/**
- * A layer kept before cells v0.25.0, with the motifs it moved written as they are now (`MOVED_IDS`, `movedText`): the
- * ids in its points, its pairs and a filed line's `varies` chain, and the texts it filed over them. A layer that names
- * none is the layer itself.
- */
-export function movedLayer(layer: LearnedLayer): LearnedLayer {
-  const id = (old: string) => MOVED_IDS.get(old) ?? old;
-  const named = [
-    ...layer.points.map((p) => p.id),
-    ...layer.together.flatMap((p) => p.ids),
-    ...layer.filed.map((f) => f.meta['varies']),
-  ].some((x) => typeof x === 'string' && MOVED_IDS.has(x));
-  const texts = layer.filed.map((f) => movedText(f.fragment.text));
-  if (!named && texts.every((t, k) => t === layer.filed[k]!.fragment.text)) return layer;
-  return {
-    ...layer,
-    points: layer.points.map((p) => ({ ...p, id: id(p.id) })),
-    together: layer.together.map((p) => ({
-      ...p,
-      ids: [id(p.ids[0]), id(p.ids[1])].sort(byId) as [string, string],
-    })),
-    filed: layer.filed.map((f, k) => {
-      const varies = f.meta['varies'];
-      return {
-        ...f,
-        fragment: { ...f.fragment, text: texts[k]! },
-        meta: typeof varies === 'string' ? { ...f.meta, varies: id(varies) } : f.meta,
-      };
-    }),
-  };
-}
-
-/** The facets a point speaks to mood for (cells decision 076 §2): a tonal fragment's; a meter's or a rhythm's has none. */
-const MOODY = new Set(['bass', 'harmony', 'lead', 'motif', 'mode', 'stab', 'instrument']);
-
-/**
- * A layer's points written on the style axes before cells v0.23.0, `sync harm artic energy`, on the axes now, as cells'
- * Migrate moved its own library's (`newPoint`, its rule `axes`, decision 076): `bite` the articulation, energy dropped,
- * and a tonal facet's `mood` read where the old point sits. A layer kept since is the layer itself.
- */
-export function axedLayer(layer: LearnedLayer): LearnedLayer {
-  const old = (point: WeightedPoint['point']) =>
-    OLD_AXES.every((a) => typeof point[a] === 'number');
-  const moved = <P extends WeightedPoint>(p: P): P =>
-    old(p.point)
-      ? {
-          ...p,
-          point: newPoint(
-            p.point as Record<(typeof OLD_AXES)[number], number>,
-            p.facet !== undefined && MOODY.has(p.facet),
-          ),
-        }
-      : p;
-  if (
-    ![...layer.points, ...layer.filed.flatMap((f) => f.fragment.association)].some((p) =>
-      old(p.point),
-    )
-  )
-    return layer;
-  return {
-    ...layer,
-    points: layer.points.map(moved),
-    filed: layer.filed.map((file) => ({
-      ...file,
-      fragment: { ...file.fragment, association: file.fragment.association.map(moved) },
-    })),
-  };
-}
+export const keptLayer = (layer: LearnedLayer): LearnedLayer => migrateLayer(leadsAlone(layer));
 
 export function repositoryLayerProblems(layer: unknown): string[] {
   if (typeof layer !== 'object' || layer === null || Array.isArray(layer))

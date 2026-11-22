@@ -17,7 +17,6 @@
 import { compileSource } from '@yggi/cells';
 import { hasFrom, signatureOf, declarations, fitsAs, useOn } from '@yggi/cells/repository';
 import type { CompileResult, Resolve } from '@yggi/cells';
-import type { LearnedLayer } from '@yggi/cells/repository';
 import { resolveSeed } from '@yggi/cells/library';
 
 /** The id a template is taken by on its workbench. */
@@ -122,32 +121,3 @@ export function takenOn(text: string, bench: string, as: TakenAs): Taken {
 
 /** A taken text compiled through its resolve, kept by text. */
 export const compileTaken = ({ text, compiled }: Taken): CompileResult => compiled(text);
-
-/** The signature each facet's stated lines are written with (`lineText`, `progressionText`), by facet and head. */
-const SIGNED: readonly {
-  readonly facet: string;
-  readonly head: string;
-  readonly signature: string;
-}[] = [
-  { facet: 'bass', head: '&bassline', signature: '&bassline from &harm' },
-  { facet: 'harmony', head: '&harm', signature: '&harm from &key' },
-];
-
-/**
- * A kept layer's bass lines and progressions with the signature they are stated with since cells v0.21.0 (#562), for
- * one filed before: cells' identity keeps the names a signature declares, so a line heard again is known as the one
- * filed only once both are templates. A layer with none to sign is returned as it is.
- */
-export function signedLayer(layer: LearnedLayer): LearnedLayer {
-  const signed = (file: LearnedLayer['filed'][number]) => {
-    const { text, association } = file.fragment;
-    const as = SIGNED.find(
-      (s) => association.some((p) => p.facet === s.facet) && text.startsWith(`${s.head} `),
-    );
-    return as && !signatureOf(text)
-      ? { ...file, fragment: { ...file.fragment, text: `${as.signature}\n${text}` } }
-      : file;
-  };
-  const filed = layer.filed.map(signed);
-  return filed.every((file, i) => file === layer.filed[i]) ? layer : { ...layer, filed };
-}

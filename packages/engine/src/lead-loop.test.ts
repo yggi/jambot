@@ -22,7 +22,8 @@ import type { HeardNote } from './muse.ts';
 import { SOLOIST, leadOf } from './muse-lead.ts';
 import { BY, VARIES } from './novelty.ts';
 import { LEAD_TAG } from './plan.ts';
-import { METER_REPOSITORY, keptLayer, movedLayer, movedText, presetSwing } from './repository.ts';
+import { METER_REPOSITORY, keptLayer, presetSwing } from './repository.ts';
+import { movedText } from '@yggi/cells/repository';
 import keptTwinkle from './kept-twinkle.fixture.json';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
@@ -464,11 +465,11 @@ describe('a layer kept at cells v0.24.0, holding the filed Twinkle, loads and pl
         },
       ],
     } as unknown as LearnedLayer;
-    const moved = movedLayer(layer);
+    const moved = keptLayer(layer);
     expect(moved.points.map((p) => p.id)).toEqual(['kinderlied/twinkle']);
     expect(moved.together.map((p) => p.ids)).toEqual([['meter', 'waltzBar']]);
     expect(moved.filed[0]!.meta['varies']).toBe('korobeinikiBar');
-    expect(movedLayer(EMPTY_LAYER)).toBe(EMPTY_LAYER);
+    expect(keptLayer(EMPTY_LAYER)).toBe(EMPTY_LAYER);
     const waltz = '&waltz from waltz &key\n&lead from call_and_answer &waltz';
     expect(movedText(waltz)).toBe(
       '&waltz=waltzBar from waltzBar &key\n&lead from call_and_answer &waltz',
