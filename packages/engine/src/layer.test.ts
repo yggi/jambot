@@ -1,4 +1,4 @@
-import { readFragment } from '@yggi/cells/repository/files';
+import { readFragment } from '@yggi/cells/repository';
 import { METER_FRAGMENTS } from './library.ts';
 import { describe, expect, it } from 'vitest';
 import { band } from './band.ts';

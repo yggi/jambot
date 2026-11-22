@@ -1,5 +1,5 @@
-import { compileSource } from '@yggi/cells/engine/compile';
-import { bodyOf } from '@yggi/cells/engine/use';
+import { compileSource } from '@yggi/cells';
+import { bodyOf } from '@yggi/cells/repository';
 import {
   BASS_FRAGMENTS,
   INSTRUMENT_FRAGMENTS,

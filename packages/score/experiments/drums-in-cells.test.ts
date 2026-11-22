@@ -28,7 +28,7 @@ import {
   velocitiesOf,
   witnesses,
 } from './drums-in-cells.ts';
-import { wordOf } from '@yggi/cells/engine/renamed';
+import { wordOf } from '@yggi/cells/repository';
 
 const WITNESSES = witnesses();
 if (process.env.E31_REPORT) console.log(WITNESSES.map(report).join('\n\n'));

@@ -13,10 +13,9 @@
  */
 
 import { parse } from '@yggi/cells';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { resolveSeed, LIBRARY } from '@yggi/cells/library';
 import type { SectionType } from './form.ts';
-import { createRepository } from '@yggi/cells/repository/fragments';
-import { seedFragments } from '@yggi/cells/repository/seed';
+import { createRepository } from '@yggi/cells/repository';
 import { MISS_DISTANCE, type QueriedStyle, stylePoint } from './meter-query.ts';
 
 /** The band's entries, in its order (cells' `&band &drums &bass &pad &stab &lead`): what a kind's `Plays` indexes. */
@@ -99,8 +98,10 @@ export function kindOffset(type: SectionType, barInSection: number): number {
   return ramp ? offset + (ramp.weight * barInSection) / (ramp.bars - 1) : offset;
 }
 
-/** Cells' song forms (yggi/cells#815, `fragments/songs/`), a repository of their own. */
-const SONGS = createRepository(seedFragments('songs'));
+/** Cells' song forms (yggi/cells#815, `fragments/songs/`): the library's fragments of the facet `song`, a repository of their own. */
+const SONGS = createRepository(
+  LIBRARY.filter((f) => f.association.some((p) => p.facet === 'song')),
+);
 
 const FOUND = new Map<string, string | null>();
 /**

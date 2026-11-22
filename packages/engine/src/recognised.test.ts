@@ -1,6 +1,6 @@
 import { METERS, even, stepsOf } from '@jambot/theory';
-import { readVariations } from '@yggi/cells/engine/vary/index';
-import { createRecogniser } from '@yggi/cells/repository/recognise';
+import { readVariations } from '@yggi/cells/edit';
+import { createRecogniser } from '@yggi/cells/repository';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, type BandEnv, band } from './band.ts';
 import { BASS_REPOSITORY, readLine } from './bass-lines.ts';

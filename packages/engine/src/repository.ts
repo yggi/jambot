@@ -29,8 +29,8 @@
  */
 
 import { METERS, type Meter } from '@jambot/theory';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { setTiming } from '@yggi/cells/engine/edit';
+import { compileSource } from '@yggi/cells';
+import { setTiming } from '@yggi/cells/edit';
 import { OLD_AXES, newPoint } from '@yggi/cells/engine/migrate/axes';
 import { movedIds } from '@yggi/cells/engine/migrate/moved';
 import { MOVED } from '@yggi/cells/engine/renamed';
@@ -41,9 +41,10 @@ import {
   byId,
   createRepository,
   layerProblems,
-} from '@yggi/cells/repository/fragments';
-import { renamedLayer, useFragments } from '@yggi/cells/repository/learned';
-import { resolveSeed } from '@yggi/cells/repository/library';
+  renamedLayer,
+  useFragments,
+} from '@yggi/cells/repository';
+import { resolveSeed } from '@yggi/cells/library';
 import { METER_FRAGMENTS, BASS_FRAGMENTS, HARMONY_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';

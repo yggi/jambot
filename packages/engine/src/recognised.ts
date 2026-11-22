@@ -53,13 +53,9 @@
  */
 
 import { stepsOf } from '@jambot/theory';
-import { type Operator, PITCHED_OPERATORS, RHYTHM_OPERATORS } from '@yggi/cells/engine/vary/index';
-import type { Fragment } from '@yggi/cells/repository/fragments';
-import {
-  type RecogniseOptions,
-  type Recogniser,
-  createRecogniser,
-} from '@yggi/cells/repository/recognise';
+import { type Operator, PITCHED_OPERATORS, RHYTHM_OPERATORS } from '@yggi/cells/edit';
+import type { Fragment } from '@yggi/cells/repository';
+import { type RecogniseOptions, type Recogniser, createRecogniser } from '@yggi/cells/repository';
 import type { BandBar } from './band.ts';
 import { BASS_VOICE, lineText, readingBench } from './bass-lines.ts';
 import { chordsOn } from './chords.ts';

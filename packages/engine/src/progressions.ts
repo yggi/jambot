@@ -21,10 +21,10 @@
  */
 
 import { METERS, type Meter, type MeterName } from '@jambot/theory';
-import { flatten } from '@yggi/cells/engine/flatten';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { tapWhole } from '@yggi/cells/engine/vary/lines';
-import type { Fragment } from '@yggi/cells/repository/fragments';
+import { flatten } from '@yggi/cells/inspect';
+import { codeShifts } from '@yggi/cells';
+import { tapWhole } from '@yggi/cells/edit';
+import type { Fragment } from '@yggi/cells/repository';
 import { HARMONY_FRAGMENTS } from './library.ts';
 import { SECTION_BARS } from './form.ts';
 import {

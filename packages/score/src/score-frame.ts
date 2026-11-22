@@ -28,13 +28,10 @@ import {
   STRAIGHT,
 } from '@jambot/engine';
 import { type Meter, beatsOf, parseNote } from '@jambot/theory';
-import type { Plan } from '@yggi/cells';
-import { mainMeter } from '@yggi/cells/engine/midiclock';
-import type { Resolve } from '@yggi/cells/engine/program';
-import { styleAt } from '@yggi/cells/engine/styleat';
-import { resolveBand } from '@yggi/cells/repository/band';
-import { AXIS_NAMES } from '@yggi/cells/engine/style';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import type { Plan, Resolve } from '@yggi/cells';
+import { mainMeter } from '@yggi/cells/midi';
+import { styleAt } from '@yggi/cells';
+import { resolveBand, AXIS_NAMES, resolveSeed } from '@yggi/cells/library';
 import { type LockedFragment, type LockedText, isSeed } from './lock.ts';
 
 /** What a score states of its bars: one meter, swing, tempo and key, and each bar's style as the feel reads it. */

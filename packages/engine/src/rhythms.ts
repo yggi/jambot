@@ -39,20 +39,23 @@
  * by its varied line alone, over the rhythm's lap, one compile (E39). */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
-import { planOf, windowAt } from '@yggi/cells';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { setTiming } from '@yggi/cells/engine/edit';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { cachedFit } from '@yggi/cells/repository/fit';
-import { resolveSeed } from '@yggi/cells/repository/library';
-import { fragmentHash, hasFrom } from '@yggi/cells/engine/use';
+import { planOf, windowAt, compileSource } from '@yggi/cells';
+import { setTiming, type Variation, drawn, variations } from '@yggi/cells/edit';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import {
+  cachedFit,
+  fragmentHash,
+  hasFrom,
+  type Fragment,
+  createRepository,
+  holesOf,
+  fileFragment,
+  useFragments,
+} from '@yggi/cells/repository';
+import { resolveSeed } from '@yggi/cells/library';
 import { collides, unionOn } from './taken.ts';
-import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
-import { holesOf } from '@yggi/cells/repository/holes';
 import { instrumentsFor, withInstruments } from './instruments.ts';
-import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
-import { type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
 import { DRUM_ROLES, sameMeter } from './events.ts';
 import { BENCH, BENCH_FRAGMENT, HASH, type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';

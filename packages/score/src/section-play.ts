@@ -52,13 +52,17 @@ import {
   planOf,
   windowAt,
 } from '@yggi/cells';
-import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
-import { readerOf } from '@yggi/cells/engine/perform/feel';
-import type { Resolve } from '@yggi/cells/engine/program';
-import { resolveSeed } from '@yggi/cells/repository/library';
-import { CENTRE, instrumentsAt, resolveBand, scoreStyle } from '@yggi/cells/repository/band';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { heldAt } from '@yggi/cells/engine/series';
+import {
+  DOUGH_SOURCES,
+  resolveSeed,
+  CENTRE,
+  instrumentsAt,
+  resolveBand,
+  scoreStyle,
+} from '@yggi/cells/library';
+import { readerOf, channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import type { Resolve } from '@yggi/cells';
+import { heldAt } from '@yggi/cells/inspect';
 import {
   type NotePart,
   type PitchedName,

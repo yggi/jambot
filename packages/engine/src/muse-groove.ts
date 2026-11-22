@@ -38,7 +38,7 @@
  */
 
 import { type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
-import { bjorklund } from '@yggi/cells/engine/parser/generators';
+import { bjorklund } from '@yggi/cells/library';
 import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, TOM_NOTES, backbeatOf } from './drums.ts';
 import { BAR_STEPS, DRUM_ROLES, type DrumRole, type SongClock } from './events.ts';
 import type { LearnedLayer } from './layer.ts';

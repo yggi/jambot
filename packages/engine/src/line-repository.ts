@@ -14,9 +14,13 @@
  */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
-import { type VaryOptions, type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
-import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
-import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
+import { type VaryOptions, type Variation, drawn, variations } from '@yggi/cells/edit';
+import {
+  type Fragment,
+  createRepository,
+  fileFragment,
+  useFragments,
+} from '@yggi/cells/repository';
 import { METER_FRAGMENTS } from './library.ts';
 import { sameMeter } from './events.ts';
 import type { FacetRepository } from './facet.ts';

@@ -1,5 +1,5 @@
 import { METERS, alteredDegree, stepsOf, wrap } from '@jambot/theory';
-import { usesOf } from '@yggi/cells/repository/library';
+import { usesOf } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { MOTIF_FRAGMENTS } from './library.ts';
 import { type BandCarried, type BandEnv, band } from './band.ts';

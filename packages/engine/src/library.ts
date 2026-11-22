@@ -4,8 +4,8 @@
  * A facet is read off a fragment's points, never off its folder (cells decision 046).
  */
 
-import type { Fragment } from '@yggi/cells/repository/fragments';
-import { LIBRARY } from '@yggi/cells/repository/library';
+import type { Fragment } from '@yggi/cells/repository';
+import { LIBRARY } from '@yggi/cells/library';
 
 /** The seed fragments whose points name `facet`, in the library's order. */
 export const facetFragments = (facet: string): readonly Fragment[] =>

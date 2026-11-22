@@ -26,9 +26,9 @@
  * the composer's.
  */
 
-import { setAttr } from '@yggi/cells/engine/edit';
-import { bodyOf } from '@yggi/cells/engine/use';
-import { gmDrumNote } from '@yggi/cells/engine/midi';
+import { setAttr } from '@yggi/cells/edit';
+import { bodyOf } from '@yggi/cells/repository';
+import { gmDrumNote } from '@yggi/cells/midi';
 import { INSTRUMENT_FRAGMENTS } from './library.ts';
 
 /** The order the instrument fragments fill a voice in: the first that defines it gives its line. */

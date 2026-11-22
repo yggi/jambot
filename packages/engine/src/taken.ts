@@ -14,12 +14,11 @@
  * reads the template as `taken` and every other id from cells' seed library.
  */
 
-import { compileSource } from '@yggi/cells/engine/compile';
-import { hasFrom, signatureOf } from '@yggi/cells/engine/use';
-import type { CompileResult, Resolve } from '@yggi/cells/engine/program';
-import { declarations, fitsAs, useOn } from '@yggi/cells/repository/fit';
-import type { LearnedLayer } from '@yggi/cells/repository/fragments';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { compileSource } from '@yggi/cells';
+import { hasFrom, signatureOf, declarations, fitsAs, useOn } from '@yggi/cells/repository';
+import type { CompileResult, Resolve } from '@yggi/cells';
+import type { LearnedLayer } from '@yggi/cells/repository';
+import { resolveSeed } from '@yggi/cells/library';
 
 /** The id a template is taken by on its workbench. */
 const TAKEN = 'taken';

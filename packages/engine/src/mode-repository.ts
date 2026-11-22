@@ -24,9 +24,8 @@
  */
 
 import { gaps, diatonicMode } from '@jambot/theory';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
-import { holesOf } from '@yggi/cells/repository/holes';
+import { compileSource } from '@yggi/cells';
+import { type Fragment, createRepository, holesOf } from '@yggi/cells/repository';
 import { MODE_FRAGMENTS } from './library.ts';
 import { COMPOSER_MODES, type ComposerMode } from './key.ts';
 import { instrumentsFor } from './instruments.ts';

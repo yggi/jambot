@@ -1,9 +1,9 @@
 import { METERS, type Meter, type MeterName, heightOf, stepsOf, wrap } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { PITCHED_OPERATORS, variations } from '@yggi/cells/engine/vary/index';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { PITCHED_OPERATORS, variations } from '@yggi/cells/edit';
 import { INSTRUMENT_FRAGMENTS, BASS_FRAGMENTS } from './library.ts';
-import { bodyOf } from '@yggi/cells/engine/use';
+import { bodyOf } from '@yggi/cells/repository';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_REPOSITORY,

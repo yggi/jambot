@@ -17,13 +17,11 @@
  * filed fragments, each list oldest first, as each grows at its end.
  */
 
-import { fragmentHash } from '@yggi/cells/engine/use';
-import type { FragmentFile } from '@yggi/cells/repository/files';
-import { writeFragment } from '@yggi/cells/repository/files';
-import type { LearnedLayer, Repository } from '@yggi/cells/repository/fragments';
+import { fragmentHash, writeFragment } from '@yggi/cells/repository';
+import type { FragmentFile, LearnedLayer, Repository } from '@yggi/cells/repository';
 import { RHYTHM_FRAGMENTS } from './library.ts';
 
-export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments';
+export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository';
 
 /**
  * The most a layer may weigh, in bytes of its JSON (UTF-8): 16,000, so the

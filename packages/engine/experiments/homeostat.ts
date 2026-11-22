@@ -32,7 +32,7 @@
  * packages/engine/experiments/homeostat.test.ts` prints the numbers.
  */
 
-import type { Recogniser } from '@yggi/cells/repository/recognise';
+import type { Recogniser } from '@yggi/cells/repository';
 import {
   BASS_REPOSITORY,
   type BandCarried,

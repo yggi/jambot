@@ -14,4 +14,4 @@ export {
   chordOf,
   readChords,
   readHarm,
-} from '@yggi/cells/engine/reading/chords';
+} from '@yggi/cells/repository';

@@ -18,8 +18,8 @@
  * Pure: it counts and knows no clock, file or key.
  */
 
-import { pointDistance } from '@yggi/cells/repository/fragments';
-import { nearestStyle, type Style as CellsStyle } from '@yggi/cells/repository/styles';
+import { pointDistance } from '@yggi/cells/repository';
+import { nearestStyle, type Style as CellsStyle } from '@yggi/cells/library';
 import { AXES, PRESETS, type Style, type StyleAxisName } from './style.ts';
 import type { StyleReading, TimingReading } from './style-reading.ts';
 

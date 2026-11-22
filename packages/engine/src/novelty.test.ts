@@ -24,7 +24,7 @@ import type { FragmentHit, RhythmRepository, RhythmVariation } from './rhythm-qu
 import { quantize } from './random.ts';
 import { readRhythm, rhythmRepository } from './rhythms.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
-import { CO_USE_PULL } from '@yggi/cells/repository/fragments';
+import { CO_USE_PULL } from '@yggi/cells/repository';
 
 const range = (n: number) => [...Array(n).keys()];
 const hit = (role: string, note: number, step: number, velocity: number): FragmentHit => ({

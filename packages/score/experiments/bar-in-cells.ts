@@ -90,7 +90,7 @@ import {
 } from '@jambot/engine';
 import { METERS, type MeterName, formatNumeral, parseNumeral, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import { lowerNumeral } from '../src/score.ts';
 import {
   PIN_VOICES,

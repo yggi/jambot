@@ -31,7 +31,7 @@
  * packages/engine/experiments/homeostat-sensor.test.ts` prints the numbers.
  */
 
-import type { Recogniser } from '@yggi/cells/repository/recognise';
+import type { Recogniser } from '@yggi/cells/repository';
 import {
   presetMode,
   BASS_REPOSITORY,

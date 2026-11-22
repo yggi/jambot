@@ -30,7 +30,7 @@
  */
 
 import { type Motif, alteredDegree } from '@jambot/theory';
-import { decompose } from '@yggi/cells/repository/decompose';
+import { decompose } from '@yggi/cells/repository';
 import { type Key, keyHelix } from './key.ts';
 import type { LeadNote } from './lead-query.ts';
 import { type Judgement, MUSE } from './muse.ts';

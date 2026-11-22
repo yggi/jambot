@@ -46,15 +46,13 @@
  */
 
 import { type Meter, type MeterName, stepsOf } from '@jambot/theory';
-import { planOf, windowAt } from '@yggi/cells';
-import { flatten } from '@yggi/cells/engine/flatten';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { expansion } from '@yggi/cells/engine/use';
-import { PITCHED_OPERATORS } from '@yggi/cells/engine/vary/index';
-import { linesOf } from '@yggi/cells/engine/vary/lines';
+import { planOf, windowAt, codeShifts } from '@yggi/cells';
+import { flatten } from '@yggi/cells/inspect';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { expansion } from '@yggi/cells/repository';
+import { PITCHED_OPERATORS, linesOf } from '@yggi/cells/edit';
 import { BASS_FRAGMENTS } from './library.ts';
-import type { Fragment } from '@yggi/cells/repository/fragments';
+import type { Fragment } from '@yggi/cells/repository';
 import { BASS_FACET, type LineNote, type LineRead, type LineRepository } from './bass-query.ts';
 import type { Bench } from './facet.ts';
 import { gridOf, lineRepositoryOf, nameOf } from './line-repository.ts';

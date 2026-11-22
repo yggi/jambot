@@ -22,8 +22,8 @@
  */
 import { type BarEnv, PRESETS, type SwingLevel } from '@jambot/engine';
 import { type DrumRole as FeelRole, planOf } from '@yggi/cells';
-import { readerOf } from '@yggi/cells/engine/perform/feel';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { readerOf } from '@yggi/cells/midi';
+import { resolveSeed } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import feelHub from '../../engine/fixtures/contracts/feel.json';
 import { performCells } from './perform.ts';

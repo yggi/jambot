@@ -10,11 +10,7 @@
  */
 
 import type { Meter } from '@jambot/theory';
-import {
-  type Voice,
-  type VoiceReading,
-  readVoice as readVoiceInBar,
-} from '@yggi/cells/engine/reading/voice';
+import { type Voice, type VoiceReading, readVoice as readVoiceInBar } from '@yggi/cells/repository';
 import { SONG_METER } from './events.ts';
 import { type Sounding, readingBar } from './style-reading.ts';
 
@@ -25,7 +21,7 @@ export {
   type VoiceReading,
   partDistance,
   voiceOf,
-} from '@yggi/cells/engine/reading/voice';
+} from '@yggi/cells/repository';
 
 /** A voice's notes alone, out of a bar's notes, in its meter's bar (cells' `readVoice`). */
 export function readVoice(

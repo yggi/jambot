@@ -1,7 +1,7 @@
 import { METERS, type MeterName } from '@jambot/theory';
 import { RHYTHM_FRAGMENTS } from './library.ts';
-import { cachedFit } from '@yggi/cells/repository/fit';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { cachedFit } from '@yggi/cells/repository';
+import { resolveSeed } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
 import { CLAVES_NOTE, DRUM_NOTES, TOM_NOTES } from './drums.ts';

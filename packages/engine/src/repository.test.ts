@@ -21,11 +21,11 @@ import {
   METER_FRAGMENTS,
   RHYTHM_FRAGMENTS,
 } from './library.ts';
-import { LIBRARY } from '@yggi/cells/repository/library';
+import { LIBRARY } from '@yggi/cells/library';
 import { CELLS_AXIS, PROTOTYPE_PRESETS, holding } from './style.ts';
 import { type MeterSwing, STRAIGHT, holdingSwing } from './swing.ts';
 import { presetMode } from './mode-repository.ts';
-import { RENAMED_IDS } from '@yggi/cells/engine/renamed';
+import { RENAMED_IDS } from '@yggi/cells/repository';
 
 /** Each preset's swing as `PROTOTYPE_PRESETS` named it by hand before the repository found it (#360, #459), as a literal. */
 const HAND_SWING: Readonly<Record<string, MeterSwing>> = {

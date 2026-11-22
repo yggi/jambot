@@ -9,7 +9,7 @@ import {
 import { joinChord, parseNumeral, stepsOf } from '@jambot/theory';
 import { lowerNumeral } from '../src/score.ts';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import { describe, expect, it } from 'vitest';
 import {
   BARS,
