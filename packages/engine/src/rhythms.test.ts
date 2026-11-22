@@ -1,6 +1,6 @@
 import { METERS, type MeterName } from '@jambot/theory';
 import { RHYTHM_FRAGMENTS } from './library.ts';
-import { cachedFit } from '@yggi/cells/repository';
+import { cachedFit, unionOf } from '@yggi/cells/repository';
 import { resolveSeed } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
@@ -23,6 +23,7 @@ import {
   RHYTHM_REPOSITORY,
   benchText,
   cellsFit,
+  collides,
   grooveLines,
   heldRhythms,
   readRhythm,
@@ -30,7 +31,6 @@ import {
   rhythmRepository,
 } from './rhythms.ts';
 import { pullOf } from './novelty.ts';
-import { collides, unionOn } from './taken.ts';
 import { PROTOTYPE_PRESETS, holding } from './style.ts';
 import { holdingSwing } from './swing.ts';
 import {
@@ -301,8 +301,12 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
     for (const workbench of benches)
       for (const chosen of held) {
         if (!fit(chosen.text, workbench).fits) continue;
-        const withIt = unionOn(chosen.text, workbench) ?? fit(chosen.text, workbench).text;
+        const withIt = unionOf(chosen.text, workbench).text;
         for (const other of held) {
+          // (the band's fast check is cells' union's, on every pair)
+          expect(collides(other.text, withIt), `${chosen.id} + ${other.id}`).toBe(
+            unionOf(other.text, withIt).renamed.size > 0,
+          );
           if (other.text === chosen.text || collides(other.text, withIt)) continue;
           pairs++;
           if (!added.includes(chosen.id) && !added.includes(other.id)) before++;

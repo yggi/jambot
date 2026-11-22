@@ -45,6 +45,8 @@ import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import {
   cachedFit,
   fragmentHash,
+  unionOf,
+  declarations,
   hasFrom,
   type Fragment,
   createRepository,
@@ -53,7 +55,6 @@ import {
   useFragments,
 } from '@yggi/cells/repository';
 import { isLibraryFragment, resolveSeed } from '@yggi/cells/library';
-import { collides, unionOn } from './taken.ts';
 import { instrumentsFor, withInstruments } from './instruments.ts';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { DRUM_ROLES, sameMeter } from './events.ts';
@@ -106,9 +107,31 @@ const straight = (name: MeterName) => `&bar meter("${name}") step=${READ_AT}bpm`
  */
 const onBench = cachedFit(resolveSeed, COMPILES);
 
-/** A rhythm's union with a workbench, its text: written as it is where nothing is renamed (`unionOn`), else cells'. */
-const unionText = (text: string, workbench: string): string =>
-  unionOn(text, workbench) ?? onBench(text, workbench).text;
+/** A rhythm's union with a workbench, its text: cells' `unionOf`, written with no compile. */
+const unionText = (text: string, workbench: string): string => unionOf(text, workbench).text;
+
+/** Each text's declarations (cells' `declarations`), kept by text, the last `COMPILES`. */
+const declared = new Map<string, ReturnType<typeof declarations>>();
+function declarationsOf(text: string): ReturnType<typeof declarations> {
+  let lines = declared.get(text);
+  if (!lines) {
+    lines = declarations(text);
+    declared.set(text, lines);
+    if (declared.size > COMPILES) declared.delete(declared.keys().next().value!);
+  }
+  return lines;
+}
+
+/**
+ * Whether a text's union with a workbench renames any of its names, `unionOf(text, bench).renamed.size > 0`: whether a
+ * name both declare is declared by different lines, which is where cells' union by lines renames first. Each text's
+ * declarations are read once: the warm-up asks it of each rhythm beside each other on every bench (11,594 pairs), and
+ * `unionOf` reads both texts at each ask, 1.4 s more at song start. `rhythms.test.ts` holds the two equal on every pair.
+ */
+export function collides(text: string, bench: string): boolean {
+  const there = new Map(declarationsOf(bench).map((l) => [l.name, l.code]));
+  return declarationsOf(text).some((l) => there.has(l.name) && there.get(l.name) !== l.code);
+}
 
 /** The workbench of a bench: its meter fragment at the reading tempo, or the meter named. */
 export function benchText({ meter, meterFragment }: RhythmBench): string | null {
