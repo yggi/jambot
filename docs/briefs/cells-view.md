@@ -23,6 +23,7 @@ And on the first draft of this brief:
 
 The mock is [`cells-view/tree.html`](cells-view/tree.html), one HTML file with no dependencies, in the app's tokens, light and dark; `?only=wide` and `?only=phone` show one frame each, `?theme=dark` forces the dark theme.
 Its screenshots are `cells-view/tree-light.png`, `cells-view/tree-dark.png` and `cells-view/tree-phone.png`.
+The built app's Playing tab on a phone, joined to the Library (#730), is `cells-view/playing-phone.png` (solo, Synth-pop, bar 4 of the intro, the drums picked) and `cells-view/playing-phone-detail.png` (the picked row's detail: what it was derived from, its lines, and the Library's detail of `synth_pop_drums`), at Pixel 7 width in Playwright's Chromium.
 Its scene is made up for the mock: Funk, section 3, a Groove, bar 5 of 8, in D dorian, with a player, Maya, in the session.
 The ids are real cells ids at v0.23.0; the distances and weights are not measured.
 

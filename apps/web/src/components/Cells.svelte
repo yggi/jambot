@@ -589,10 +589,18 @@
     :is(th, td):is(.frag, .came, .on, .frag-head, .came-head, .on-head) {
       display: none;
     }
+    /* (the part's cell takes what the weight leaves, and its second line ends in an ellipsis rather than widen the
+       table: the whole of it is the picked row's detail) */
+    .tree {
+      width: 100%;
+      max-width: 0;
+    }
     .sub {
       display: block;
+      overflow: hidden;
       color: var(--muted);
       font-size: 11px;
+      text-overflow: ellipsis;
     }
   }
   .detail {
