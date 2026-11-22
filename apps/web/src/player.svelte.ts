@@ -500,11 +500,11 @@ export class Player {
    */
   workbench: Workbench | null = $state.raw(null);
   /**
-   * What the sections planned lately derive their written parts from, by section index (#730, `derivationOf`): read
+   * What the sections planned lately derive their written parts from, one a section, the latest last (#730, `derivationOf`): read
    * off the band's carried plans as each section is planned, so a host's and solo's; empty for a client, whose band
    * state is its host's.
    */
-  derivations: ReadonlyMap<number, SectionDerivation> = $state.raw(new Map());
+  derivations: readonly SectionDerivation[] = $state.raw([]);
   /**
    * The score of the section heard and cells' outline of it, as the shadow took it (#642): a host's and a band
    * alone's as built, a client's as given. None before a section's score is taken, or where none states it.
@@ -1246,7 +1246,7 @@ export class Player {
   #begin(output: Output) {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
-    this.derivations = new Map();
+    this.derivations = [];
     this.lastBar = null;
     this.loop = null;
     this.loopMenu = loopView(null, 0);
@@ -1862,10 +1862,10 @@ export class Player {
   #derived(plans: PlanCarried) {
     const now = derivationOf(plans);
     if (!now) return;
-    const was = this.derivations.get(now.section);
+    const was = this.derivations.find((d) => d.section === now.section);
     if (was && DERIVED_PARTS.every((part) => was[part] === now[part])) return;
-    const kept = [...this.derivations].filter(([section]) => section !== now.section);
-    this.derivations = new Map([...kept.slice(1 - DERIVATIONS_KEPT), [now.section, now]]);
+    const kept = this.derivations.filter((d) => d.section !== now.section);
+    this.derivations = [...kept.slice(1 - DERIVATIONS_KEPT), now];
   }
 
   /** Whether the song's last bar has ended and its last chord has rung out, at `now` on the transport's clock. */

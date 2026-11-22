@@ -73,7 +73,7 @@
     /** The score of the section after it, as built ahead (`Player.nextScore`); none yet. */
     next?: Score | null;
     /** What the sections planned lately derive their written parts from (`Player.derivations`); a client's is empty. */
-    derivations?: ReadonlyMap<number, SectionDerivation>;
+    derivations?: readonly SectionDerivation[];
   }
 
   interface Carry {
@@ -96,7 +96,7 @@
     workbench = null,
     score = null,
     next = null,
-    derivations = new Map(),
+    derivations = [],
   }: Props = $props();
 
   /** What the last import said: that it took, or why not. */
@@ -134,9 +134,10 @@
   // rest as the band's carried plans logged it, a host's and solo's)
   const derivation = $derived.by((): SectionDerivation | null => {
     if (!bar) return null;
-    if (tab === 'next') return derivations.get(bar.sectionIndex + 1) ?? null;
+    const of = (section: number) => derivations.find((d) => d.section === section);
+    if (tab === 'next') return of(bar.sectionIndex + 1) ?? null;
     return {
-      ...derivations.get(bar.sectionIndex),
+      ...of(bar.sectionIndex),
       section: bar.sectionIndex,
       drums: bar.fragments.rhythm,
     };

@@ -100,7 +100,7 @@ describe('the cells card', () => {
         bar: bar(0, { rhythm: 'funk_drums' }),
         score,
         workbench: { inMind: [{ id: 'funk_bass', weight: 0.5 }], boredom: [] },
-        derivations: new Map([[0, { section: 0, bass: 'funk_bass', lead: null }]]),
+        derivations: [{ section: 0, bass: 'funk_bass', lead: null }],
       }),
     );
     expect(line('drums')).toContain('written from funk_drums');
