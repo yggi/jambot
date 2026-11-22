@@ -42,6 +42,7 @@ import {
 import { METER_FRAGMENTS, BASS_FRAGMENTS, HARMONY_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { isLibraryFragment } from '@yggi/cells/library';
 import { sameMeter } from './events.ts';
+import { askOptions } from './facet.ts';
 import { cappedLayer } from './layer.ts';
 import { MOTIF_LEADS, leadsAlone } from './lead-lines.ts';
 import {
@@ -118,23 +119,30 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
   );
   return {
     fragments: played,
-    query: (point, layer, chosen = [], pull) =>
-      (layer
-        ? cells
-            .query(
-              point,
-              played.size + layer.filed.length,
-              {},
-              {
-                facet: 'meter',
+    query: (point, layer, chosen = [], pull, ask) => {
+      // (with no layer nothing was used together: the seed alone, by distance)
+      const isPlayed = (fragment: Fragment) => played.has(fragment.id);
+      const found = cells.query(
+        point,
+        ask?.k ?? played.size + (layer?.filed.length ?? 0),
+        {},
+        {
+          facet: 'meter',
+          ...(layer
+            ? {
                 layer,
                 ...(chosen.length ? { chosen } : {}),
                 ...(pull === undefined ? {} : { pull }),
-              },
-            )
-            .filter((found) => played.has(found.fragment.id))
-        : cells.query(point, played.size, {}, { facet: 'meter' })
-      ).map((found) => ({ id: found.fragment.id, distance: found.distance })),
+              }
+            : {}),
+          ...(ask ? askOptions(ask, isPlayed) : {}),
+        },
+      );
+      return (ask ? found : found.filter((f) => isPlayed(f.fragment))).map((f) => ({
+        id: f.fragment.id,
+        distance: f.distance,
+      }));
+    },
     used: (layer, id, point) =>
       cappedLayer(useFragments(cells, layer, [{ id, point, facet: 'meter' }])),
   };

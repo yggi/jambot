@@ -23,7 +23,7 @@ import {
 } from '@yggi/cells/repository';
 import { isLibraryFragment } from '@yggi/cells/library';
 import { sameMeter } from './events.ts';
-import type { FacetRepository } from './facet.ts';
+import { type Ask, type FacetRepository, askOptions } from './facet.ts';
 import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { instrumentsFor } from './instruments.ts';
@@ -117,31 +117,39 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
     }
     return varied.get(key)!;
   };
-  const ranked = (
+  // Ranked as cells' query ranks them, the seed's every line and those the layer filed; a line the member can't read
+  // under the bench's meter is no find. With an ask, cells' query tests a read only for a line that could be taken.
+  const found = (
     point: StylePoint,
+    meter: Meter,
     layer: LearnedLayer | undefined,
     chosen: readonly string[],
-    reach: number,
+    ask: Ask | undefined,
     pull: number | undefined,
-  ) =>
-    cells
-      .query(
-        point,
-        fragments.length + (layer?.filed.length ?? 0),
-        {},
-        {
-          facet,
-          ...(layer ? { layer } : {}),
-          ...(chosen.length ? { chosen } : {}),
-          ...(pull === undefined ? {} : { pull }),
-        },
-      )
-      .filter((f) => texts.has(f.fragment.id) || f.distance <= reach);
+  ) => {
+    const all = fragments.length + (layer?.filed.length ?? 0);
+    const readable = (fragment: Fragment) => readText(fragment.text, meter) !== null;
+    const asked = cells.query(
+      point,
+      ask?.k ?? all,
+      {},
+      {
+        facet,
+        ...(layer ? { layer } : {}),
+        ...(chosen.length ? { chosen } : {}),
+        ...(pull === undefined ? {} : { pull }),
+        ...(ask ? askOptions(ask, readable) : {}),
+      },
+    );
+    return ask ? asked : asked.filter((f) => readable(f.fragment));
+  };
   return {
-    query(point, bench, layer, chosen = [], reach = Infinity, pull) {
-      return ranked(point, layer, chosen, reach, pull)
-        .filter((f) => readText(f.fragment.text, bench.meter) !== null)
-        .map((f) => ({ id: f.fragment.id, distance: f.distance, score: f.score }));
+    query(point, bench, layer, chosen = [], ask, pull) {
+      return found(point, bench.meter, layer, chosen, ask, pull).map((f) => ({
+        id: f.fragment.id,
+        distance: f.distance,
+        score: f.score,
+      }));
     },
     used: (layer, ids, point, alongside = []) =>
       cappedLayer(

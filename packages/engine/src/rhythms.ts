@@ -58,6 +58,7 @@ import { isLibraryFragment, resolveSeed } from '@yggi/cells/library';
 import { instrumentsFor, withInstruments } from './instruments.ts';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { DRUM_ROLES, sameMeter } from './events.ts';
+import { type Ask, askOptions } from './facet.ts';
 import { BENCH, BENCH_FRAGMENT, HASH, type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
@@ -452,29 +453,34 @@ export function rhythmRepository(
     }
     return layering.get(key)!;
   };
-  // Ranked as cells' query ranks them: the seed's every rhythm, and a groove filed (#401) no farther than `reach`,
-  // so a fit is tested only for one a section could take.
-  const ranked = (
+  // Ranked as cells' query ranks them, the seed's every rhythm and the grooves filed (#401), those `own` admits (its fit
+  // on the bench, whether the drummer reads it); with an ask, cells' query tests that only for one that could be taken.
+  const found = (
     point: StylePoint,
     layer: LearnedLayer | undefined,
     chosen: readonly string[],
-    reach: number,
+    own: (fragment: Fragment) => boolean,
+    ask: Ask | undefined,
     pull: number | undefined,
-  ) =>
-    cells
-      .query(
-        point,
-        fragments.length + (layer?.filed.length ?? 0),
-        {},
-        {
-          facet: 'rhythm',
-          ...(layer ? { layer } : {}),
-          ...(chosen.length ? { chosen } : {}),
-          ...(pull === undefined ? {} : { pull }),
-        },
-      )
-      .filter((f) => texts.has(f.fragment.id) || f.distance <= reach)
-      .map((f) => ({ id: f.fragment.id, text: f.fragment.text, distance: f.distance }));
+  ) => {
+    const all = fragments.length + (layer?.filed.length ?? 0);
+    const asked = cells.query(
+      point,
+      ask?.k ?? all,
+      {},
+      {
+        facet: 'rhythm',
+        ...(layer ? { layer } : {}),
+        ...(chosen.length ? { chosen } : {}),
+        ...(pull === undefined ? {} : { pull }),
+        ...(ask ? askOptions(ask, own) : {}),
+      },
+    );
+    return (ask ? asked : asked.filter((f) => own(f.fragment))).map((f) => ({
+      id: f.fragment.id,
+      distance: f.distance,
+    }));
+  };
   const readText = (text: string, meter: Meter) => {
     const key = `${text}\n${meterKey(meter)}`;
     if (!reads.has(key)) reads.set(key, read(text, meter));
@@ -491,27 +497,21 @@ export function rhythmRepository(
     return varied.get(key)!;
   };
   return {
-    query(point, bench, layer, chosen = [], reach = Infinity, pull) {
+    query(point, bench, layer, chosen = [], ask, pull) {
       const workbench = benchOf(bench);
-      return workbench === null
-        ? []
-        : ranked(point, layer, chosen, reach, pull)
-            .filter((f) => fits(f.text, workbench) && readable(f.text, bench.meter))
-            .map(({ id, distance }) => ({ id, distance }));
+      if (workbench === null) return [];
+      const own = (f: Fragment) => fits(f.text, workbench) && readable(f.text, bench.meter);
+      return found(point, layer, chosen, own, ask, pull);
     },
-    layered(point, bench, chosen, layer, reach = Infinity, more = [], pull) {
+    layered(point, bench, chosen, layer, ask, more = [], pull) {
       const workbench = benchOf(bench);
       const chosenText = textOf(chosen, layer);
       if (workbench === null || chosenText === undefined) return [];
-      return ranked(point, layer, [chosen, ...more], reach, pull)
-        .filter(
-          (f) =>
-            f.distance <= reach &&
-            layersWith(f.id, chosenText, workbench) &&
-            fits(f.text, workbench) &&
-            readable(f.text, bench.meter),
-        )
-        .map(({ id, distance }) => ({ id, distance }));
+      const own = (f: Fragment) =>
+        layersWith(f.id, chosenText, workbench) &&
+        fits(f.text, workbench) &&
+        readable(f.text, bench.meter);
+      return found(point, layer, [chosen, ...more], own, ask, pull);
     },
     used: (layer, ids, point, alongside = []) =>
       cappedLayer(

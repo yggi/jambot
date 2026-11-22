@@ -43,8 +43,11 @@ export interface ModeFragment {
 export interface ModeRepository {
   /** The fragments the band can play, by id. */
   readonly fragments: ReadonlyMap<string, ModeFragment>;
-  /** Every fragment the band can play, with its distance from a point, nearest first. */
-  query(point: StylePoint): readonly { readonly id: string; readonly distance: number }[];
+  /** Every fragment the band can play, with its distance from a point, nearest first; none farther than `reach`, where it is given. */
+  query(
+    point: StylePoint,
+    reach?: number,
+  ): readonly { readonly id: string; readonly distance: number }[];
 }
 
 /** The workbench a fragment is read on: a meter, which a stepped key (the bell and scale's) taps, and a tonic for its hole. */
@@ -90,9 +93,9 @@ export function modeRepository(fragments: readonly Fragment[] = MODE_FRAGMENTS):
   const cells = createRepository(fragments.filter((f) => played.has(f.id)));
   return {
     fragments: played,
-    query: (point) =>
+    query: (point, reach) =>
       cells
-        .query(point, played.size, {}, { facet: 'mode' })
+        .query(point, played.size, {}, { facet: 'mode', ...(reach === undefined ? {} : { reach }) })
         .map((found) => ({ id: found.fragment.id, distance: found.distance })),
   };
 }
@@ -105,7 +108,6 @@ export function presetMode(
   preset: Pick<Preset, 'style'>,
   repository: ModeRepository = MODE_REPOSITORY,
 ): ComposerMode | null {
-  const nearest = repository.query(stylePoint(preset.style))[0];
-  if (!nearest || nearest.distance > MISS_DISTANCE) return null;
-  return repository.fragments.get(nearest.id)!.mode;
+  const [nearest] = repository.query(stylePoint(preset.style), MISS_DISTANCE);
+  return nearest ? repository.fragments.get(nearest.id)!.mode : null;
 }

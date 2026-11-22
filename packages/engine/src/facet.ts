@@ -34,6 +34,7 @@
  */
 
 import type { Meter } from '@jambot/theory';
+import type { Fragment, QueryOptions } from '@yggi/cells/repository';
 import { SECTION_BARS } from './form.ts';
 import type { LearnedLayer } from './layer.ts';
 import { METER_HOLD, MISS_DISTANCE, type StylePoint } from './meter-query.ts';
@@ -87,16 +88,50 @@ export interface Margins {
 export const FIGURE_MARGINS: Margins = { miss: MISS_DISTANCE, hold: METER_HOLD };
 
 /**
+ * What the composer may take, as it asks a repository: cells' query applies it (`QueryOptions`, yggi/cells#869), and every
+ * margin is the composer's own number, none read from cells.
+ * - `reach`: the farthest a fragment may lie from the point, a miss past it;
+ * - `exclude`: those the composer has tired of (`novelty.ts`), the next nearest found in their place;
+ * - `accept`: what only the member can judge, tried in rank order (its read under the section's meter);
+ * - `within`: how near the best a fragment must score to be on offer, a number ≥ 1 (the harmony's `OFFER`);
+ * - `playing`: the fragment playing, returned first where it lies within `hold` of the nearest, and up to `slack` past `reach`;
+ * - `k`: how many to return, every one that passes where none.
+ */
+export interface Ask {
+  readonly reach: number;
+  readonly exclude?: readonly string[] | undefined;
+  readonly accept?: ((id: string) => boolean) | undefined;
+  readonly within?: number | undefined;
+  readonly playing?: QueryOptions['playing'] | undefined;
+  readonly k?: number | undefined;
+}
+
+/**
+ * An ask as cells' query options, the repository's own judgment of a fragment (`own`: its fit on the bench, whether the
+ * member can read it) tried before the composer's.
+ */
+export const askOptions = (
+  ask: Ask,
+  own: (fragment: Fragment) => boolean = () => true,
+): Pick<QueryOptions, 'reach' | 'exclude' | 'accept' | 'within' | 'playing'> => ({
+  reach: ask.reach,
+  ...(ask.exclude?.length ? { exclude: ask.exclude } : {}),
+  accept: (fragment) => own(fragment) && (ask.accept?.(fragment.id) ?? true),
+  ...(ask.within === undefined ? {} : { within: ask.within }),
+  ...(ask.playing ? { playing: ask.playing } : {}),
+});
+
+/**
  * A repository of one member's fragments, as the composer asks it. `R` is a
  * fragment read under a meter (its lap of `bars`), `C` what a filing and a
  * variation carry of what the member plays.
  */
 export interface FacetRepository<R extends { readonly bars: number }, C> {
   /**
-   * Every fragment that fits the bench, with its distance from the point, nearest first, with what was learned merged
-   * where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory and the
-   * section's meter, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046). A fragment the
-   * layer filed is among them only within `reach` of the point, so a fit is tested only for one that could be taken.
+   * Every fragment that fits the bench, with its distance from the point, in the order cells' query ranks them, with what
+   * was learned merged where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory
+   * and the section's meter, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046). Where an
+   * `ask` is given, only what the composer may take (`Ask`), cells' query testing a fit only for one that could be taken.
    * Use together pulls as strongly as `pull` (cells' query option; its default where none, #389).
    */
   query(
@@ -104,7 +139,7 @@ export interface FacetRepository<R extends { readonly bars: number }, C> {
     bench: Bench,
     layer?: LearnedLayer,
     chosen?: readonly string[],
-    reach?: number,
+    ask?: Ask,
     pull?: number,
   ): readonly Found[];
   /** The layer after the composer kept these fragments together at `point`: a use of each there, and of them together (cells' `useFragments`), and each counted as used together with those `alongside` (the section's meter), which it doesn't move; within its cap. None where the repository learns nothing. */
@@ -149,32 +184,13 @@ export const marginsOf = (repository: { readonly margins?: Margins | undefined }
   repository.margins ?? FIGURE_MARGINS;
 
 /**
- * The nearest of `found` within `miss`, unless `playing` is among them no
- * farther than `hold` beyond it; the one playing reaches `edge` past `miss`
- * (0 for a section's fragment, as for the meter: one past the distance gives
- * way).
- */
-export function heldNearest(
-  found: readonly Found[],
-  playing: string | undefined,
-  miss: number,
-  hold: number,
-  edge = 0,
-): string | undefined {
-  const nearest = found[0];
-  const held = playing === undefined ? undefined : found.find((f) => f.id === playing);
-  if (held && held.distance <= miss + edge && held.distance - nearest!.distance <= hold)
-    return held.id;
-  return nearest && nearest.distance <= miss ? nearest.id : undefined;
-}
-
-/**
  * The fragment a member plays a section from: of those that fit the bench
  * within the miss distance and that the composer hasn't `rejected`, the
  * nearest the member `admits` (given its read under the section's meter),
  * the one `playing` held as the meter is; none on a miss. It asks with
  * those `chosen` (its short-term memory and the section's meter), which
- * pull the fragments used with them, as strongly as `pull` (#389).
+ * pull the fragments used with them, as strongly as `pull` (#389). Cells'
+ * query applies the margins (`Ask`).
  */
 export function nearestFigure<R extends { readonly bars: number }, C>(
   repository: FacetRepository<R, C>,
@@ -188,15 +204,14 @@ export function nearestFigure<R extends { readonly bars: number }, C>(
   pull?: number,
 ): string | undefined {
   const { miss, hold } = marginsOf(repository);
-  return heldNearest(
-    repository
-      .query(point, bench, layer, chosen, miss, pull)
-      .filter((f) => f.distance <= miss && !rejected.includes(f.id))
-      .filter((f) => admits(repository.read(f.id, bench.meter, layer), f.id)),
-    playing,
-    miss,
-    hold,
-  );
+  const ask: Ask = {
+    reach: miss,
+    exclude: rejected,
+    accept: (id) => admits(repository.read(id, bench.meter, layer), id),
+    playing: playing === undefined ? undefined : { id: playing, hold },
+    k: 1,
+  };
+  return repository.query(point, bench, layer, chosen, ask, pull)[0]?.id;
 }
 
 /** Where, when and by whom a section's filings are made: its seed and index, the point it is asked at, and the tags. */

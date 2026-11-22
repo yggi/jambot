@@ -12,6 +12,8 @@ import {
 import { type SectionMeter, sectionMeter } from './plan.ts';
 import { pullOf } from './novelty.ts';
 import { INITIAL_STYLE } from './style.ts';
+import { type Ask, askOptions } from './facet.ts';
+import { createRepository } from '@yggi/cells/repository';
 
 const fragment = (id: string, share = 0.5): MeterFragment => ({
   id,
@@ -20,13 +22,35 @@ const fragment = (id: string, share = 0.5): MeterFragment => ({
 });
 const FRAGMENTS = [fragment('a'), fragment('b', 0.6), fragment('7/8')];
 
+/**
+ * What cells' query returns, asked as the composer asks (`askOptions`), of fragments that lie at these distances: each on
+ * one axis, so its distance is the one given exactly. The margins are cells' rule, the numbers the composer's.
+ */
+const found = (
+  distances: Record<string, number>,
+  ask?: Ask,
+): { id: string; distance: number }[] => {
+  const ids = Object.keys(distances);
+  if (!ids.length) return [];
+  const fragments = ids.map((id) => ({
+    id,
+    text: '&probe 1',
+    association: [{ point: { sync: distances[id]! }, weight: 1, facet: 'probe' }],
+  }));
+  return createRepository(fragments)
+    .query(
+      { sync: 0 },
+      ask?.k ?? ids.length,
+      {},
+      { facet: 'probe', ...(ask ? askOptions(ask) : {}) },
+    )
+    .map((f) => ({ id: f.fragment.id, distance: f.distance }));
+};
+
 /** A repository that finds each fragment at the distance given. */
 const at = (distances: Record<string, number>): MeterRepository => ({
   fragments: new Map(FRAGMENTS.map((f) => [f.id, f])),
-  query: () =>
-    Object.entries(distances)
-      .map(([id, distance]) => ({ id, distance }))
-      .sort((x, y) => x.distance - y.distance),
+  query: (_point, _layer, _chosen, _pull, ask) => found(distances, ask),
 });
 
 describe('the composer asks the repository for a meter (#375)', () => {
@@ -69,7 +93,9 @@ describe('the composer’s pull on the meter query (#389)', () => {
       },
     };
     composedMeter(repository, INITIAL_STYLE, null, undefined, ['x'], 0.05);
-    expect(asked).toEqual([[stylePoint(INITIAL_STYLE), undefined, ['x'], 0.05]]);
+    expect(asked).toEqual([
+      [stylePoint(INITIAL_STYLE), undefined, ['x'], 0.05, { reach: MISS_DISTANCE, k: 1 }],
+    ]);
   });
 
   it('asks a section’s meter with the pull its entropy sets (`pullOf`)', () => {

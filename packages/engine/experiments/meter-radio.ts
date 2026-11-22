@@ -115,10 +115,10 @@ export function meterRun(
   const repository: MeterRepository = {
     ...METER_REPOSITORY,
     ...(margins ? { margins } : {}),
-    query(point, given) {
-      const found = METER_REPOSITORY.query(point, given);
-      queries.push({ point, missed: found[0]!.distance > miss });
-      return found;
+    query(point, given, _chosen, _pull, ask) {
+      // (a miss read off the whole ranking, the nearest past the distance; the answer what the composer may take)
+      queries.push({ point, missed: METER_REPOSITORY.query(point, given)[0]!.distance > miss });
+      return METER_REPOSITORY.query(point, given, undefined, undefined, ask);
     },
     used(given, id, point) {
       const learned = METER_REPOSITORY.used!(given, id, point);
