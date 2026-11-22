@@ -208,12 +208,12 @@ describe('the controller on the page’s schedule (#495: read at a section’s l
   it('brings sections inside the band, held and walked, behind the schedule read a bar before the section it leans', () => {
     // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0; 0.604 and 0.646 held, and
     // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650; 0.594 held, and 0.609 and
-    // 0.68 walked, before the ostinato on top of cells v0.25.1, #651)
+    // 0.68 walked, before the ostinato on top of cells v0.25.1, #651; 0.617 walked before cells v0.27.1)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
       0.198, 0.604, 0.635,
     ]);
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.211, 0.617, 0.688,
+      0.211, 0.625, 0.688,
     ]);
   });
 

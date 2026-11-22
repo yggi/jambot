@@ -95,7 +95,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
 
   // (since cells v0.23.0 the next nearest drum bar is Electro swing drums at Lo-fi hip hop and Bossa nova, on sync harm
   // bite mood, and Acid drums at Techno, where the drummer invented, until cells v0.24.0's March drums, nearer: each
-  // plays the drums further from main's; Techno 59 % with Acid drums)
+  // plays the drums further from main's; Techno 59 % with Acid drums; Lo-fi hip hop 67 % before cells v0.27.1)
   it('keeps 65 % to 95 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
@@ -105,7 +105,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       Techno: 0.82,
       'Deep house': 0.95,
       Ambient: 0.89,
-      'Lo-fi hip hop': 0.67,
+      'Lo-fi hip hop': 0.66,
       Funk: 0.74,
       'Bossa nova': 0.65,
       'Swing jazz': 0.78,
