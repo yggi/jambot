@@ -52,6 +52,12 @@ export const CHORD_QUALITIES: Record<string, ChordQuality> = {
   '9': quality([0, 4, 7, 10, 14], ['9', 'dom9'], ['ninth', 'dominant ninth']),
   maj9: quality([0, 4, 7, 11, 14], ['maj9', 'M9', 'Δ9'], ['major ninth']),
   m9: quality([0, 3, 7, 10, 14], ['m9', 'min9', '-9'], ['minor ninth']),
+  m7b9: quality([0, 3, 7, 10, 13], ['m7b9', 'm7♭9', '-7b9'], ['minor seventh flat ninth']),
+  m7b5b9: quality(
+    [0, 3, 6, 10, 13],
+    ['m7b5b9', 'm7♭5♭9', 'ø7b9', 'ø7♭9'],
+    ['half diminished flat ninth', 'half diminished seventh flat ninth'],
+  ),
   add9: quality([0, 4, 7, 14], ['add9'], ['add nine', 'added ninth']),
   harmonics: quality([1, 2, 3, 4, 5].map(partial), [], ['harmonics', 'harmonic series']),
 };

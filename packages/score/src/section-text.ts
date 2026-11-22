@@ -196,6 +196,8 @@ export const QUALITY_DEGREES: Readonly<Record<string, readonly number[]>> = {
   '9': [0, 2, 4, 6, 8],
   maj9: [0, 2, 4, 6, 8],
   m9: [0, 2, 4, 6, 8],
+  m7b9: [0, 2, 4, 6, 8],
+  m7b5b9: [0, 2, 4, 6, 8],
   add9: [0, 2, 4, 8],
 };
 

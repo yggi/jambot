@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHORD_QUALITIES, joinChord, parseChordQuality, qualityOf, splitChord } from './chords.ts';
 import { even, isEven } from './even.ts';
-import { type Helix, compose, positions, shift } from './helix.ts';
+import { type Helix, compose, heightOf, positions, shift } from './helix.ts';
 import { partial } from './intervals.ts';
 import { DIATONIC_MODE_NAMES, diatonicMode } from './modes.ts';
 
@@ -55,6 +55,26 @@ describe('chords, by composition', () => {
     }
   });
 
+  it('name every diatonic ninth chord of every mode: 2 maj9, 2 m9, one 9, one m7♭9, one m7♭5♭9 (#702)', () => {
+    // A ninth spans more than a turn, so its stack is read in register, degree by degree. The census agrees with
+    // music21 10.5.0 and tonal (the music-theory skill's `stack --size 5`), which count the same five sets in every
+    // mode; music21 reads Am7b9 as A C E G B♭ and Bm7b5b9 as B D F A C.
+    const ninthOn = (key: Helix, d: number) =>
+      range(5).map((i) => heightOf(key, d + 2 * i) - heightOf(key, d));
+    for (const name of DIATONIC_MODE_NAMES) {
+      const counts: Record<string, number> = {};
+      for (const d of range(7)) {
+        const quality =
+          qualityOf(ninthOn(diatonicMode(name), d)) ??
+          `none ${ninthOn(diatonicMode(name), d).join(' ')}`;
+        counts[quality] = (counts[quality] ?? 0) + 1;
+      }
+      expect(counts, name).toEqual({ maj9: 2, m9: 2, '9': 1, m7b9: 1, m7b5b9: 1 });
+    }
+    // (the chord #702 met: a harmony's ninth on vi of C mixolydian, A C E G B♭)
+    expect(ninthOn(diatonicMode('mixolydian'), 5)).toEqual([0, 3, 7, 10, 13]);
+  });
+
   it('are even in 7 for three and four notes: every triad and seventh of every mode is even(3 or 4, 7) composed with it', () => {
     expect(isEven(thirds(3))).toBe(true);
     expect(isEven(thirds(4))).toBe(true);
@@ -88,6 +108,8 @@ describe('chords, by composition', () => {
       '9': [14],
       maj9: [14],
       m9: [14],
+      m7b9: [13],
+      m7b5b9: [13],
       add9: [14],
       harmonics: [12, 19, 24, 28],
     });

@@ -71,6 +71,8 @@ const SUFFIXES: Record<string, [upper: boolean, suffix: string]> = {
   '9': [true, '9'],
   maj9: [true, 'maj9'],
   m9: [false, '9'],
+  m7b9: [false, '7b9'],
+  m7b5b9: [false, 'ø7b9'],
   add9: [true, 'add9'],
 };
 

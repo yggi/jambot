@@ -346,14 +346,14 @@ describe('the forms it relies on, over every case', () => {
 });
 
 describe('the chord in force as E33 reads it, over every case (#387)', () => {
-  it('plays what `throughChord` says over every chord of the composer’s four modes: 228 a key, indices from below the root to past a lap, none, a sharp or a flat, 43,776 notes', () => {
+  it('plays what `throughChord` says over every chord of the composer’s four modes: 252 a key, indices from below the root to past a lap, none, a sharp or a flat, 48,384 notes', () => {
     // A stack of degrees is the same in every tonic, so A in each mode is every case; the tonic only adds itself.
     const alters = [0, 1, -1];
     let notes = 0;
     for (const mode of ['ionian', 'dorian', 'mixolydian', 'aeolian'] as const) {
       const key = { tonic: 9, mode };
       const chords = everyNumeral(key).map((n) => chordTones(key, lowerNumeral(key, n)));
-      expect(chords).toHaveLength(228);
+      expect(chords).toHaveLength(252);
       // each bar a chord, and 16 indices into it from −(its tones), on three lines: no accidental, `#`, `b`
       const index = (c: (typeof chords)[number], k: number) => k - c.length;
       const text = [
@@ -391,7 +391,7 @@ describe('the chord in force as E33 reads it, over every case (#387)', () => {
       expect(played, mode).toEqual(said);
       notes += said.length;
     }
-    expect(notes).toBe(4 * 228 * 3 * 16);
+    expect(notes).toBe(4 * 252 * 3 * 16);
   });
 });
 
