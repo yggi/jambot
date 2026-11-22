@@ -1,7 +1,8 @@
 /**
- * A host and a client that speak version 2 of the session contract (#553, rung 3): the client plays the host's scores
- * on the clock its conducts give, read from the scores alone (yggi/music-commons `contracts/session` at fea947e), held
- * against what the host plays and against a client of version 1 playing the same song.
+ * A host and a client that speak version 2 of the session contract (#553, rungs 3 and 4): the client plays the host's
+ * scores on the clock its conducts give, read from the scores alone (yggi/music-commons `contracts/session`, minor 3),
+ * held against what the host plays and against a client of version 1 playing the same song, and tells the host each
+ * bar it didn't play (`lacked`), which the host counts by client.
  */
 
 import { PRESETS } from '@jambot/engine';
@@ -11,7 +12,9 @@ import {
   type HostMessageV2,
   type HostSaid,
   KEPT_BARS,
+  NO_LACKED,
   SAYS,
+  lackedIn,
   readHostMessageV2,
 } from '@jambot/session';
 import { METERS } from '@jambot/theory';
@@ -136,7 +139,7 @@ const riffsIn = (heard: readonly HostSaid[]) =>
     .flatMap((m) => (m?.kind === 'welcome' || m?.kind === 'score' ? m.fragments : []))
     .filter((f) => f.hash === RIFF.hash);
 
-describe('a client of session version 2 playing its host’s scores (#553 rung 3)', () => {
+describe('a client of session version 2 playing its host’s scores (#553 rungs 3 and 4)', () => {
   beforeEach(() => void vi.useFakeTimers());
   afterEach(() => void vi.useRealTimers());
 
@@ -151,6 +154,8 @@ describe('a client of session version 2 playing its host’s scores (#553 rung 3
       Array.from({ length: FUNK_BARS }, (_, b) => b),
     );
     expect([client.player.lacked, client.player.silent, client.player.said]).toEqual([0, 0, []]);
+    // The host's count of the bars its client lacked, which the soak's bound reads: none.
+    expect(lackedIn(v2.hosting.lacked)).toEqual({ ...NO_LACKED, bars: 0 });
     // None of the band's own notes: every event the client played is cells'.
     expect(client.player.shadow.readout.played.band).toBe(0);
     expect(client.player.shadow.readout.errors).toEqual([]);
@@ -230,7 +235,9 @@ describe('a client of session version 2 playing its host’s scores (#553 rung 3
     await run([host, client], funkSeconds(20));
     expect(client.player.lacked).toBe(1);
     expect(client.player.silent).toBe(0);
-    expect(client.player.said).toEqual([{ bar: wrong, silent: false, why: SAYS.digest }]);
+    expect(client.player.said).toEqual([{ bar: wrong, why: 'digest', text: SAYS.digest }]);
+    // The client told its host, which counts it by the client's seat.
+    expect(hosting.lacked).toEqual({ [hosting.guests[0]!.id]: { ...NO_LACKED, digest: 1 } });
     const played = barsPlayed(client);
     expect(played).not.toContain(wrong);
     expect(played).toContain(wrong - 1);
@@ -254,8 +261,11 @@ describe('a client of session version 2 playing its host’s scores (#553 rung 3
     expect(client.player.silent).toBe(silent.length);
     expect(client.player.lacked).toBe(0);
     expect(client.player.said).toEqual(
-      silent.map((bar) => ({ bar, silent: true, why: 'a test states none' })),
+      silent.map((bar) => ({ bar, why: 'silent', text: 'a test states none' })),
     );
+    expect(hosting.lacked).toEqual({
+      [hosting.guests[0]!.id]: { ...NO_LACKED, silent: silent.length },
+    });
     const played = barsPlayed(client);
     for (const bar of silent) expect(played).not.toContain(bar);
     expect(played).toContain(from - 1);
@@ -323,18 +333,64 @@ describe('a client of session version 2 playing its host’s scores (#553 rung 3
     await run([host, bare.d], 10);
     expect(riffsIn(bare.heard)).toEqual([]);
     expect(bare.d.player.lacked).toBeGreaterThan(0);
-    expect(bare.d.player.said.at(-1)!.why).toMatch(/muse_riff_1/);
+    expect(bare.d.player.said.at(-1)).toMatchObject({ why: 'lock', text: /muse_riff_1/ });
+    // Its host counts each of those bars as lacked for the lock, and none before the reload.
+    expect(hosting.lacked).toEqual({
+      [hosting.guests[0]!.id]: { ...NO_LACKED, lock: bare.d.player.lacked },
+    });
     bare.following.leave();
     hosting.close();
   }, 240_000);
 
-  it('plays a host of version 1 as a client of version 1 does, read by its welcome’s protocol', async () => {
+  it('leaves a host of version 1, a page cached from before the switch, saying so, as the contract’s rollout has it', async () => {
     const { host, client, hosting, following } = await session({ speaks: 1, follows: 2 });
-    await run([host, client], funkSeconds(10));
-    expect(following.status).toBe('joined');
-    expect(client.player.shadow.readout.from).toBe('given');
-    expect(client.player.lacked).toBe(0);
-    expect(versus(host, client)).toMatchObject(AGREED);
+    await run([host, client], funkSeconds(2));
+    expect(following.status).toBe('idle');
+    expect(following.ended).toMatch(/version 24 .* reload the host/);
+    expect(client.player.played.since().events).toEqual([]);
+    // (shown firing: a client of version 1 stays with it)
+    const v1 = await session({ speaks: 1, follows: 1 });
+    await run([v1.host, v1.client], funkSeconds(2));
+    expect(v1.following.status).toBe('joined');
+    v1.following.leave();
+    v1.hosting.close();
+    hosting.close();
+  }, 240_000);
+
+  it('this issue’s bound: a client with no fragment of its own plays 32 bars of Funk, seed 1, with 0 errors, sent each fragment text once (the reload’s test holds the other: one it holds, 0 times)', async () => {
+    const lobby = memoryLobby();
+    const host = device(105, filing, undefined, 1);
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
+      speaks: 2,
+    });
+    await hosting.open(lobby, 'Jam');
+    host.player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Funk')! });
+    const heard = (into: HostSaid[]): Lobby => ({
+      ...lobby,
+      join: (session, hear, lost) => lobby.join(session, (m) => (into.push(m), hear(m)), lost),
+    });
+    const empty: HostSaid[] = [];
+    const fresh = device(100, undefined, undefined, 1);
+    const following = new ClientSession(fresh.player, fresh.clocks, { speaks: 2 });
+    await following.join(heard(empty), 'Jam', 'Ada');
+    await host.player.start();
+    await run([host, fresh], funkSeconds(FUNK_BARS));
+    expect(barsPlayed(fresh).slice(0, FUNK_BARS)).toEqual(
+      Array.from({ length: FUNK_BARS }, (_, b) => b),
+    );
+    expect(fresh.player.shadow.readout.errors).toEqual([]);
+    expect([fresh.player.lacked, fresh.player.silent]).toEqual([0, 0]);
+    expect(lackedIn(hosting.lacked).bars).toBe(0);
+    // Each fragment text sent once: the riff, in the first score that locks it, and in no score after.
+    expect(riffsIn(empty)).toEqual([RIFF]);
+    const scores = empty.filter((m) => m.kind === 'score');
+    expect(scores.length).toBeGreaterThan(4);
+    const bytes = (ms: readonly unknown[]) =>
+      ms.reduce<number>((n, m) => n + JSON.stringify(m).length, 0);
+    expect(bytes(riffsIn(empty))).toBe(JSON.stringify(RIFF).length);
+    // (measured at #553's rung 4: the riff 87 bytes as JSON, 5 scores 16,944 bytes, 400 messages 105,191 bytes in all)
+    expect(bytes(scores)).toBeLessThan(20_000);
+    expect(bytes(empty)).toBeLessThan(120_000);
     following.leave();
     hosting.close();
   }, 240_000);

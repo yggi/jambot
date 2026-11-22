@@ -390,7 +390,7 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   expect(compared.lacked.client.events).toBeGreaterThan(0);
   await playsThroughCells(page);
   expect(mine!.texts.told).toBeGreaterThanOrEqual(2);
-  expect(theirs!.from).toBe('given');
+  expect(theirs!.from).toBe('scored');
   expect(theirs!.texts.given).toBe(mine!.texts.told);
   expect(theirs!.arrival.late).toBe(0);
   await playsThroughCells(client);
@@ -398,13 +398,13 @@ test('a client plays what its host plays, event for event: part, note, velocity,
   expect(clientErrors).toEqual([]);
 });
 
-test('a client of session version 2 plays its host’s scores on the clock its conducts give, event for event, and none of the band’s own notes (#553, `?speaks=2`)', async ({
+test('a client of session version 2 plays its host’s scores on the clock its conducts give, event for event, and none of the band’s own notes, and its host counts no bar it lacked (#553)', async ({
   page,
   context,
 }) => {
   const client = await context.newPage();
-  const hostErrors = await listen(page, '/?speaks=2');
-  const clientErrors = await listen(client, '/?speaks=2');
+  const hostErrors = await listen(page);
+  const clientErrors = await listen(client);
   await host(page, 'score jam');
   await join(client, 'score jam', 'Ada');
   await joined(page, 'Ada');
@@ -426,6 +426,14 @@ test('a client of session version 2 plays its host’s scores on the clock its c
   expect(compared.lacked.client.events).toBe(0);
   expect(theirs.from).toBe('scored');
   expect(theirs.texts.given).toBeGreaterThanOrEqual(2);
+  // The bars its client told it it lacked (`lacked`), as the host counts them: none.
+  expect(await page.evaluate(() => window.jambot!.lacked)).toEqual({
+    silent: 0,
+    digest: 0,
+    lock: 0,
+    late: 0,
+    bars: 0,
+  });
   await playsThroughCells(page);
   await playsThroughCells(client);
   expect(hostErrors).toEqual([]);

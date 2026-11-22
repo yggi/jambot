@@ -153,9 +153,14 @@ describe('a host that speaks version 2 of the session contract (#553)', () => {
   beforeEach(() => void vi.useFakeTimers());
   afterEach(() => void vi.useRealTimers());
 
-  it('speaks version 1 unless switched, its bars and texts as version 1 sends them', async () => {
-    expect(SESSION_SPEAKS).toBe(1);
-    const { session, join, run } = await hosting({ speaks: SESSION_SPEAKS });
+  it('speaks version 2, the switch thrown (rung 4), and version 1 only where made to, its bars and texts as version 1 sends them', async () => {
+    expect(SESSION_SPEAKS).toBe(2);
+    const spoken = await hosting({ speaks: SESSION_SPEAKS });
+    const bo = await spoken.join('Bo');
+    await spoken.run(12);
+    expect((bo.raw[0] as { protocol: number }).protocol).toBe(PROTOCOL_V2);
+    spoken.session.close();
+    const { session, join, run } = await hosting({ speaks: 1 });
     const ada = await join('Ada', undefined, PROTOCOL);
     await run(12);
     const kinds = new Set(ada.raw.map((m) => (m as { kind: string }).kind));
@@ -166,6 +171,34 @@ describe('a host that speaks version 2 of the session contract (#553)', () => {
     for (const m of ada.raw) expect(readHostMessage(m)).not.toBeNull();
     expect((ada.raw[0] as { protocol: number }).protocol).toBe(PROTOCOL);
     session.close();
+  });
+
+  it('counts the bars each client tells it it lacked, by why and by the client, a listener’s too; a host of version 1 ignores them (minor 2)', async () => {
+    const lacked = (bar: number, why: string) => ({ kind: 'lacked', bar, why, text: `bar ${bar}` });
+    for (const speaks of [2, 1] as const) {
+      const { session, join, run } = await hosting({ speaks, started: false });
+      const protocol = speaks === 2 ? PROTOCOL_V2 : PROTOCOL;
+      const ada = await join('Ada', undefined, protocol);
+      const bo = await join('Bo', undefined, protocol);
+      await run(0.1);
+      session.cast(session.guests[1]!.id, 'listener');
+      for (const m of [lacked(3, 'late'), lacked(4, 'late'), lacked(5, 'digest')])
+        ada.send(m as never);
+      // (a malformed one is the lobby's reader's to drop, `readClientMessage`, as the contract's vectors hold)
+      bo.send(lacked(6, 'silent') as never);
+      await run(0.1);
+      const [a, b] = session.guests.map((g) => g.id);
+      expect(session.lacked, `version ${speaks}`).toEqual(
+        speaks === 2
+          ? {
+              [a!]: { silent: 0, digest: 1, lock: 0, late: 2 },
+              [b!]: { silent: 1, digest: 0, lock: 0, late: 0 },
+            }
+          : {},
+      );
+      session.close();
+      expect(session.lacked).toEqual({});
+    }
   });
 
   it('admits a join of version 2, and refuses one of version 1 for its version', async () => {

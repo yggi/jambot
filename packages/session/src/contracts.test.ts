@@ -1,7 +1,7 @@
 /**
  * The family's session contract (yggi/music-commons `contracts/session-v1`,
- * version 1, minor 11: protocol 24; and `contracts/session`, version 2,
- * minor 3: protocol 33) run against this package's readers, as yggi/webmidi
+ * version 1, minor 11: protocol 24, which Jambot spoke before version 2; and `contracts/session`, version 2,
+ * minor 3: protocol 33, the version Jambot speaks) run against this package's readers, as yggi/webmidi
  * and yggi/cells run theirs: each version's hub `vectors.json` is copied into
  * `fixtures/contracts/` (`session.json` for version 1, `session-v2.json` for
  * version 2) with a first field, `lifted`, naming the hub's path and the
@@ -11,7 +11,7 @@
  *
  * Each vector names its reader: `host` reads a client's message
  * (`readClientMessage`, which version 2 shares, its client messages being
- * version 1's at minor 9), `client` a host's (`readHostMessage`, or
+ * version 1's with minor 2's `lacked`), `client` a host's (`readHostMessage`, or
  * `readHostMessageV2` for version 2), `lobby` a page's request
  * (`readToLobby`) and `page` what a lobby says (`readFromLobby`), both
  * versions' alike, as a lobby reads no version. A reader gives a message it
@@ -197,25 +197,12 @@ function differs(run: Run, v: Vector): string | null {
 
 /**
  * The vectors Jambot doesn't meet, by version and name, each with why.
- * None of version 1: a client checks a host message's fields
+ * Empty for both: a client checks a host message's fields
  * (`readHostMessage`, `readHostMessageV2`), a host's join a protocol that is
  * an integer, and a page a listed session's `away` (`readFromLobby`), as the
- * contract's rule has them. Of version 2, minor 2's `lacked`, a client's
- * report of a bar it didn't play (yggi/music-commons#74), which Jambot's
- * reader of version 2, read and not yet spoken, doesn't take up yet: its
- * client messages are version 1's.
+ * contract's rule has them, and a host reads a client's `lacked` (minor 2).
  */
-const LACKED =
-  "version 2's minor 2 (yggi/music-commons#74): a client's `lacked`, which Jambot's host of version 2, not yet spoken, takes up when it speaks it";
-const RECORDED: Readonly<Record<1 | 2, Readonly<Record<string, string>>>> = {
-  1: {},
-  2: {
-    'lacked, silent': LACKED,
-    'lacked, digest': LACKED,
-    'lacked, lock': LACKED,
-    'lacked, late': LACKED,
-  },
-};
+const RECORDED: Readonly<Record<1 | 2, Readonly<Record<string, string>>>> = { 1: {}, 2: {} };
 
 /** The names recorded that name no vector: none while each record is of one. */
 const strays = (names: readonly string[], recorded: readonly string[]) =>
@@ -236,7 +223,7 @@ describe.each([
     it('is lifted with its source named, each vector named once, every record of a vector', () => {
       expect(contract.lifted).toMatch(
         new RegExp(
-          `^Lifted from yggi/music-commons contracts/${path}/vectors\\.json @ [0-9a-f]{7,40}$`,
+          `^Lifted from yggi/music-commons contracts/${path}/vectors\\.json @ [0-9a-f]{7,40}( \\(.+\\))?$`,
         ),
       );
       expect([contract.contract, contract.version, contract.minor]).toEqual([
@@ -294,8 +281,8 @@ describe.each([
   },
 );
 
-describe('the session contract, version 1, as Jambot speaks it', () => {
-  it('is the version Jambot speaks', () => {
+describe('the session contract, version 1, as Jambot spoke it before version 2', () => {
+  it('is the version Jambot spoke', () => {
     // (minor 11, protocol 24: a section a kind of a song form, and its song, #655, yggi/music-commons#76)
     expect([V1.contract.protocol, V1.contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
     expect(SESSION_V1).toEqual({ protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL });
@@ -333,12 +320,11 @@ describe('the session contract, version 1, as Jambot speaks it', () => {
   });
 });
 
-describe('the session contract, version 2, as Jambot reads it (nothing speaks it yet)', () => {
-  it("is version 2's own first protocol, two minors on from the one Jambot reads", () => {
-    // (the copy is minor 3, protocol 33: a score's section a kind of a song form, #655; Jambot's reader is minor 1's,
-    // 31, with minor 3's kinds, and minor 2's `lacked` recorded above)
+describe('the session contract, version 2, as Jambot speaks it', () => {
+  it("is version 2's own protocol and first", () => {
+    // (minor 3, protocol 33: a score's section a kind of a song form, #655, yggi/music-commons#76)
     expect([V2.contract.protocol, V2.contract.firstProtocol]).toEqual([
-      PROTOCOL_V2 + 2,
+      PROTOCOL_V2,
       FIRST_PROTOCOL_V2,
     ]);
     expect(SESSION_V2).toEqual({ protocol: PROTOCOL_V2, firstProtocol: FIRST_PROTOCOL_V2 });
@@ -374,5 +360,14 @@ describe('the session contract, version 2, as Jambot reads it (nothing speaks it
       expect(differs(V2, { ...named(V2, name), reads: true }), name).toBe("client doesn't read it");
     const own = named(V2, 'handshake: a join at protocol 33, its own');
     expect(differs(V2, { ...own, admits: false })).toBe('host admits');
+    // Cell studio's follower joins at 31, two minors before, and is admitted.
+    const before = named(V2, 'handshake: a join at protocol 31, a minor before');
+    expect(differs(V2, { ...before, admits: false })).toBe('host admits');
+    // A client's `lacked`, read; one whose `why` the contract doesn't name, turned over, is caught.
+    const lacked = named(V2, 'lacked, late');
+    expect(differs(V2, lacked)).toBeNull();
+    expect(differs(V2, { ...lacked, reads: false })).toBe('host reads it');
+    const muted = named(V2, 'lacked, silent: why = "muted"');
+    expect(differs(V2, { ...muted, reads: true })).toBe("host doesn't read it");
   });
 });

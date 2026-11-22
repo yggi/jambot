@@ -22,7 +22,9 @@
  * steps each page's transport laid and those its clock passed unlaid, and
  * the events each dropped late (`timing`). The session's bound (#462) is that
  * every event both played is the same and every event a page lacks is one it
- * dropped late (`sessionBreaks`): it exits with 1 where it breaks.
+ * dropped late (`sessionBreaks`), and that the host counts no bar its client
+ * told it it lacked, none of them late (`window.jambot.lacked`, version 2's
+ * `lacked`, #553, `lackedBreaks`): it exits with 1 where it breaks.
  *
  * The homeostat (#495) leans the host's entropy, and its song is read off
  * the readout too (`window.jambot.homeostat`, `hearingSummary`): the page's
@@ -44,6 +46,7 @@ import {
   type DroppedEvent,
   type PlayedEvent,
   compareSession,
+  lackedBreaks,
   sessionBreaks,
 } from '../src/played.ts';
 import { host, join, joined, openStyle, solo, state } from './audio.ts';
@@ -148,7 +151,12 @@ for (let minute = 1; minute <= minutes; minute++) {
   if (minute === minutes - 1) heardBy.last = await lastHeard();
   if (minute % every !== 0) continue;
   const line: Record<string, unknown> = { minutes: (Date.now() - started) / 60_000 };
-  if (client) Object.assign(line, { host: await summary(page), client: await summary(client) });
+  if (client)
+    Object.assign(line, {
+      host: await summary(page),
+      client: await summary(client),
+      lacked: await page.evaluate(() => window.jambot!.lacked),
+    });
   else Object.assign(line, await summary(page));
   line.homeostat = await leaned();
   console.log(JSON.stringify(line));
@@ -182,7 +190,9 @@ if (client) {
     host: mine.late,
     client: theirs.late,
   });
-  const breaks = sessionBreaks(compared);
+  // The bars the host counts its client told it it lacked, by why: 0 in all, and 0 late.
+  const lacked = await page.evaluate(() => window.jambot!.lacked);
+  const breaks = [...sessionBreaks(compared), ...lackedBreaks(lacked)];
   const [hosted, followed] = [await end(page), await end(client)];
   console.log(
     JSON.stringify({
@@ -192,6 +202,7 @@ if (client) {
         ...compared,
         played: { host: mine.events.length, client: theirs.events.length },
         lateEvents: { host: hosted.steps.lateEvents, client: followed.steps.lateEvents },
+        lacked,
         breaks,
       },
       homeostat: await leaned(),

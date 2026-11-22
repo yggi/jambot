@@ -1857,7 +1857,11 @@ describe('the band through cells (#399, #469)', () => {
     // (every bar the song reached, from its first, its transport passed)
     expect(player.silent).toBeGreaterThanOrEqual(3 * SECTION_BARS);
     expect(player.lacked).toBe(0);
-    expect(player.said.at(-1)).toMatchObject({ silent: true, why: reason });
+    // (said as a client tells its host, `lacked`: the contract's why, and the reason in its text)
+    expect(player.said.at(-1)).toMatchObject({
+      why: 'silent',
+      text: expect.stringContaining(reason),
+    });
   });
 
   it('lacks the bars whose score could not be written, and says why, where the ask threw (#711)', async () => {
@@ -1881,7 +1885,8 @@ describe('the band through cells (#399, #469)', () => {
     }
     expect(player.lacked).toBeGreaterThanOrEqual(SECTION_BARS);
     expect(player.silent).toBe(0);
-    expect(player.said.at(-1)!.why).toMatch(/could not be written: Error: a test throws/);
+    expect(player.said.at(-1)!.why).toBe('lock');
+    expect(player.said.at(-1)!.text).toMatch(/could not be written: Error: a test throws/);
     expect(player.shadow.readout.errors.length).toBeGreaterThan(0);
   });
 

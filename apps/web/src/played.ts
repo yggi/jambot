@@ -17,6 +17,7 @@
  */
 
 import type { LateEvent, TimedEvent } from '@jambot/engine';
+import { LACKED_WHYS, type lackedIn } from '@jambot/session';
 
 /** An event as an output played it: its bar, part, step, note, velocity, length in steps, and onset and duration in seconds. */
 export interface PlayedEvent {
@@ -186,6 +187,25 @@ export function compareSession(
   }
   for (const left of theirs.values()) for (const c of left) lacks('host', c);
   return { bars: { from, to }, events: mine.length, mismatched, lacked, largest, differing };
+}
+
+/**
+ * Where a session breaks its bound on the bars its host counts its clients
+ * lacked (version 2's `lacked`, #553, `lackedIn`): every bar a client didn't
+ * play, for any why, and apart the bars it came to too late. None where none
+ * was lacked.
+ */
+export function lackedBreaks(lacked: ReturnType<typeof lackedIn>): string[] {
+  if (lacked.bars === 0) return [];
+  const whys = LACKED_WHYS.filter((why) => lacked[why] > 0)
+    .map((why) => `${lacked[why]} ${why}`)
+    .join(', ');
+  return [
+    `the host counts ${lacked.bars} bars its clients lacked (${whys})`,
+    ...(lacked.late > 0
+      ? [`the host counts ${lacked.late} bars its clients came to too late`]
+      : []),
+  ];
 }
 
 /**

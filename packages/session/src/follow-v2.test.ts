@@ -21,6 +21,7 @@ import { METERS, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import {
   KEPT_BARS,
+  LACKED_AS,
   SAYS,
   type ScoreArrival,
   type ScoreRead,
@@ -32,6 +33,7 @@ import {
 import { conductOf } from './host-v2.ts';
 import { sentBars } from './host.ts';
 import type { BarConduct, SectionScore } from './protocol-v2.ts';
+import { LACKED_WHYS } from './protocol.ts';
 
 const style = { ...PRESETS[4]!.style, entropy: 0.3, bpm: 120 };
 const wished = (head: number): TransportEnv => ({
@@ -149,22 +151,27 @@ describe('a client of session version 2 following a host’s conducts and scores
     }
   });
 
-  it('lacks exactly a bar whose conduct’s digest isn’t its score’s, or whose score is still read, and says why', () => {
+  it('lacks exactly a bar whose conduct’s digest isn’t its score’s, whose score is still read or locks what it lacks, and says why, as the contract’s `lacked` names it', () => {
     const wrong = song((b) =>
       b.bar === 9
         ? { ...statedOf(b), foreseen: 'other' }
         : b.bar === 11
           ? { bar: b.bar, foreseen: digestOf(b.bar), kind: 'reading' }
-          : statedOf(b),
+          : b.bar === 13
+            ? { bar: b.bar, foreseen: digestOf(b.bar), kind: 'lacking', why: 'it locks a riff' }
+            : statedOf(b),
     );
-    expect(wrong.client.source.lacked).toBe(2);
+    expect(wrong.client.source.lacked).toBe(3);
     expect(wrong.client.source.silent).toBe(0);
     expect(wrong.client.source.said).toEqual([
-      { bar: 9, silent: false, why: SAYS.digest },
-      { bar: 11, silent: false, why: SAYS.reading },
+      { bar: 9, why: 'digest', text: SAYS.digest },
+      { bar: 11, why: 'late', text: SAYS.reading },
+      { bar: 13, why: 'lock', text: 'it locks a riff' },
     ]);
     expect([...wrong.clientBars.keys()].filter((b) => !played.clientBars.has(b))).toEqual([]);
-    expect([...played.clientBars.keys()].filter((b) => !wrong.clientBars.has(b))).toEqual([9, 11]);
+    expect([...played.clientBars.keys()].filter((b) => !wrong.clientBars.has(b))).toEqual([
+      9, 11, 13,
+    ]);
     // The bar after a lacked one starts where the host’s did, on the clock its conduct gives.
     const byStep = new Map(played.hostSteps.map((s) => [s.step, s]));
     for (const s of wrong.clientSteps) expect(s.seconds).toBe(byStep.get(s.step)!.seconds);
@@ -182,13 +189,29 @@ describe('a client of session version 2 following a host’s conducts and scores
     );
     expect(silent.client.source).toMatchObject({ lacked: 1, silent: 2 });
     expect(silent.client.source.said).toEqual([
-      { bar: 6, silent: true, why: SAYS.noScore },
-      { bar: 7, silent: true, why: 'the key moves' },
-      { bar: 14, silent: false, why: SAYS.noConduct },
+      { bar: 6, why: 'silent', text: SAYS.noScore },
+      { bar: 7, why: 'silent', text: 'the key moves' },
+      { bar: 14, why: 'late', text: SAYS.noConduct },
     ]);
     expect([...played.clientBars.keys()].filter((b) => !silent.clientBars.has(b))).toEqual([
       6, 7, 14,
     ]);
+  });
+});
+
+describe('why a client says it lacked a bar, as the contract names it (`LACKED_AS`)', () => {
+  it('maps every way a follower lacks a bar onto one of the contract’s, and each of the contract’s is met', () => {
+    expect(LACKED_AS).toEqual({
+      noConduct: 'late',
+      reading: 'late',
+      noScore: 'silent',
+      unstated: 'silent',
+      digest: 'digest',
+      lacking: 'lock',
+    });
+    expect(new Set(Object.values(LACKED_AS))).toEqual(new Set(LACKED_WHYS));
+    // Every reason a follower says in words is one the map names.
+    for (const key of Object.keys(SAYS)) expect(LACKED_AS, key).toHaveProperty(key);
   });
 });
 
