@@ -53,10 +53,16 @@ const styleAt = (bar: number): Style => ({
   entropy: (bar % 32) / 32,
 });
 
-const tour = (seed: number, bars = 160, style = styleAt, swing = swingAt): BandBar[] => {
+const tour = (
+  seed: number,
+  bars = 160,
+  style = styleAt,
+  swing = swingAt,
+  wished = presetAt,
+): BandBar[] => {
   let carried = band.initial;
   return range(bars).map((bar) => {
-    const preset = presetAt(bar);
+    const preset = wished(bar);
     const next = band.advance(
       {
         seed,
@@ -136,7 +142,8 @@ describe('the lead', () => {
       });
     };
     // Seed 9, bar 61, which played 86 84 89 79 81 72 69 when the octave
-    // folds undid each other.
+    // folds undid each other. Since #655 that bar is an outro's, where the
+    // lead rests, so every lead note of the run is held to the range.
     const repro = {
       sync: 1 / 3,
       harm: 0,
@@ -146,9 +153,7 @@ describe('the lead', () => {
       bpm: 120,
       mood: 0.5,
     };
-    const bar61 = run(9, repro, presetSwing(PROTOTYPE_PRESETS[7]!)!, 62).filter(
-      (n) => n.bar === 61,
-    );
+    const bar61 = run(9, repro, presetSwing(PROTOTYPE_PRESETS[7]!)!, 62);
     expect(bar61.length).toBeGreaterThan(0);
     const outside: string[] = [];
     for (const n of bar61) if (n.note < 60 || n.note > 86) outside.push(`repro: ${n.note}`);
@@ -197,12 +202,13 @@ describe('the lead', () => {
     }
   });
 
-  it('rests in an intro, a breakdown and below energy 0.4, and forgets its phrase there', () => {
+  it('rests in an intro, a breakdown, an outro and below energy 0.4, and forgets its phrase there', () => {
     let rests = 0;
     for (const { bar, events, after } of played) {
       const resting =
         bar.plan.section.type === 'intro' ||
         bar.plan.section.type === 'breakdown' ||
+        bar.plan.section.type === 'outro' ||
         bar.barEnergy < 0.4;
       expect(events.length === 0).toBe(resting);
       if (resting) {
@@ -213,10 +219,16 @@ describe('the lead', () => {
     expect(rests).toBeGreaterThan(0);
   });
 
-  it('plays from energy 0.4 up, and not below', () => {
+  it('plays from energy 0.4 up, and not below, in the chain’s sections (in a song form’s, its kind says: #655)', () => {
     const grooves = playing.map((p) => p.bar).slice(0, 100);
+    const chained = (b: BandBar) => ({
+      ...b,
+      plan: { ...b.plan, section: { type: b.plan.section.type, index: b.plan.section.index } },
+    });
     const at = (energy: number) =>
-      grooves.map((b) => lead.advance({ ...b, barEnergy: energy }, lead.initial, null).output);
+      grooves.map(
+        (b) => lead.advance({ ...chained(b), barEnergy: energy }, lead.initial, null).output,
+      );
     expect(at(0.41).every((events) => events.length > 0)).toBe(true);
     expect(at(0.39).every((events) => events.length === 0)).toBe(true);
   });
@@ -285,11 +297,13 @@ describe('the lead', () => {
   });
 
   it("brings a theme's melody back with its harmony, while the style stays near it (Q8)", () => {
-    // A steady style: every return of a theme plays the shape it played before.
+    // A steady style, its mode wished steady too: every return of a theme plays the shape it played before. (A mode
+    // that moves each section, as the tour's wish does, renews a theme wherever it moved: #655's song forms alternate
+    // their themes section by section, so a theme returns only where the mode holds.)
     const steady = (): Style => ({ ...PROTOTYPE_PRESETS[0]!.style, energy: 0.9, entropy: 0 });
     let returns = 0;
     for (const seed of range(6)) {
-      const run = play(tour(seed, 160, steady));
+      const run = play(tour(seed, 160, steady, swingAt, () => PROTOTYPE_PRESETS[0]!));
       const first = new Map<number, unknown>();
       for (const { bar, after } of run) {
         if (bar.barInSection !== 0 || !after.phrase) continue;
@@ -691,7 +705,7 @@ describe('the lead over a melodic scale', () => {
 });
 
 describe('whether the lead rests', () => {
-  it('is what the lead does: it rests in an intro, a breakdown and below energy 0.4, every section and energy', () => {
+  it('is what the lead does: it rests in an intro, a breakdown, an outro and below energy 0.4, every section and energy', () => {
     const { bar, after: carried } = playing[0]!;
     let rests = 0;
     for (const type of SECTION_TYPES)
@@ -699,15 +713,17 @@ describe('whether the lead rests', () => {
         const env = {
           ...bar,
           barEnergy: energy,
-          plan: { ...bar.plan, section: { ...bar.plan.section, type } },
+          // (a chain's section: in a song form's the energy doesn't rest the lead, #655)
+          plan: { ...bar.plan, section: { type, index: bar.plan.section.index } },
         };
         const next = lead.advance(env, carried, null);
         const rested = next.carried.phrase === null && next.output.length === 0;
-        expect(rested, `${type} at ${energy}`).toBe(leadRests(type, energy));
+        expect(rested, `${type} at ${energy}`).toBe(leadRests({ type }, energy));
         if (rested) rests++;
       }
-    // 2 of 6 sections always, and the other 4 below 0.4: 40 of 101 energies.
-    expect(rests).toBe(2 * 101 + 4 * 40);
+    // 3 of 9 kinds always (an intro, a breakdown, an outro: cells' section kinds, #655), and the other 6 below 0.4: 40 of
+    // 101 energies.
+    expect(rests).toBe(3 * 101 + 6 * 40);
   });
 });
 

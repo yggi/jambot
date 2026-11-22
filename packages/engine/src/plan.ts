@@ -806,18 +806,26 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     const bench = { meter: composed.meter.meter, meterFragment };
     const rejected = rejectedOf(boredom, claveOwners);
     const kind = themeKind(section.type);
-    const held = kind === 'build' ? null : themes[kind];
-    const heldFragment = kind === 'build' ? null : themeFragments[kind];
+    // (a new song writes its own themes: a chorus returns within its song, and the next song brings its own, #547
+    // rung 5, #655; the chain's sections keep theirs as before)
+    const newSong = section.song?.at === 0 && before !== null;
+    const songThemes = newSong ? { A: null, B: null } : themes;
+    const songThemeFragments = newSong ? { A: null, B: null } : themeFragments;
+    const held = kind === 'build' ? null : songThemes[kind];
+    const heldFragment = kind === 'build' ? null : songThemeFragments[kind];
     // (a theme returns unless the mode or the harmony moved, at random, or the composer tired of its progression)
     const returns =
       held &&
       held.mode === key.mode &&
       Math.abs(held.harm - style.harm) <= THEME_REACH &&
-      !chance(draw(seed, 'themeRenewal', index), style.entropy * 0.3) &&
+      // (renewed at random in the chain's sections; within a song a theme returns as it was, the song itself renewed at
+      // its end: #655)
+      (section.song !== undefined ||
+        !chance(draw(seed, 'themeRenewal', index), style.entropy * 0.3)) &&
       (heldFragment === null || !rejected.includes(heldFragment));
     const built = returns
       ? { theme: held, fragment: heldFragment }
-      : sectionTheme(env, kind, key, bench, themes, themeFragments, rejected);
+      : sectionTheme(env, kind, key, bench, songThemes, songThemeFragments, rejected);
     const { theme } = built;
     // Its ladder: a progression is eight bars, which the composer doesn't vary; tired of one, it rejects it.
     const harmonyLadder = layer
@@ -898,7 +906,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     return {
       carried: {
         before: plan,
-        themes: kind === 'build' ? themes : { ...themes, [kind]: theme },
+        themes: kind === 'build' ? songThemes : { ...songThemes, [kind]: theme },
         layer: leadLadder.layer
           ? harmonyLearned(
               env.harmonies,
@@ -944,7 +952,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         bassFragment: bassKept ?? null,
         leadFragment: leadKept ?? null,
         themeFragments:
-          kind === 'build' ? themeFragments : { ...themeFragments, [kind]: built.fragment },
+          kind === 'build' ? songThemeFragments : { ...songThemeFragments, [kind]: built.fragment },
         // (a section's bench as JSON keeps it: no meter fragment where it has none)
         earlier:
           asked && before

@@ -677,11 +677,9 @@ describe('what the composer took, written as its `from` line (#531, yggi/cells#7
           if (/^&clave from /m.test(text)) taken++;
           else expect(text, at).toMatch(/^&clave role=clave /m);
         }
-    // (18 of 24 at cells v0.25.1: a section whose rim wins a step of the clave writes it out, shown below)
-    expect(stated).toBeGreaterThan(170);
-    expect(claves).toBeGreaterThan(0);
-    expect(taken).toBeGreaterThan(claves / 2);
-    expect(taken).toBeLessThan(claves);
+    // (18 of 24 at cells v0.25.1, where a section whose rim wins a step of the clave writes it out, shown below; in
+    // #655's songs every one of these sections plays its clave whole, 16 of 16, of 184 stated)
+    expect([stated, claves, taken]).toEqual([184, 16, 16]);
   });
 
   it('is shown firing: a clave missing a hit the fragment holds is written out, not taken', () => {
@@ -896,19 +894,21 @@ describe('a section as a score holds what the band plays (#531’s bounds)', () 
     );
   });
 
-  it('writes a section’s intensity, its song’s plus its kind’s offset, and a build’s levels repeat bar to bar once the band drives them: Funk’s build from bar 17 (seed 1), 2,619 characters of levels where they took 3,312 (#645)', () => {
-    const bars = section('Funk', undefined, 1, 24).slice(16, 24);
+  it('writes a section’s intensity, its song’s plus its kind’s offset, and a build’s levels repeat bar to bar once the band drives them: Techno’s build from bar 17 (seed 1), 2,189 characters of levels (#645)', () => {
+    // (Funk's build from bar 17 before #655's song forms, whose 2,619 characters of levels took 3,312 undriven: Funk's
+    // song, a vamp, plays no build, and Techno's plays its first there)
+    const bars = section('Techno', undefined, 1, 24).slice(16, 24);
     expect(bars[0]!.plan.section.type).toBe('build');
     const text = sectionTextOf(sectionAsCells(bars));
     expect(text.split('\n').filter((l) => /^&(song|rise|intensity) /.test(l))).toEqual([
-      '&song .75',
+      '&song .8',
       '&rise step=1m 0 .142857 .285714 .428571 .571429 .714286 .857143 1',
       '&intensity [&song + -.15 + &rise * .45]',
     ]);
     const levels = text
       .split('\n')
       .filter((l) => !l.startsWith('* from') && /Level|:0:|\* \.|\* [0-9]/.test(l));
-    expect(levels.join('\n').length).toBe(2619);
+    expect(levels.join('\n').length).toBe(2189);
     // (and it plays as the band writes it, each velocity)
     const played = playSection(text, bars);
     bars.forEach((bar, i) =>
@@ -1015,30 +1015,43 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     Elektro: { bass: 'square' },
     'Dark ambient': { pad: 'sawtooth', lead: 'triangle' },
     'Blues shuffle': { bass: 'sawtooth', pad: 'square', lead: 'sawtooth' },
-    Chiptune: { bass: 'square' },
+    Chiptune: { bass: 'square', lead: 'square' },
+    // (the leads below, Chiptune's and Baroque's stab, heard since the first three sections are played, #655)
+    Baroque: { stab: 'sine', lead: 'sawtooth' },
+    'Sea shanty': { lead: 'sawtooth' },
+    Waltz: { lead: 'square' },
+    March: { lead: 'sawtooth' },
+    'Trip-hop': { lead: 'sine' },
     Salsa: { stab: 'sawtooth', lead: 'square' },
   };
 
   it.each(PRESETS.map((p) => p.name))(
     'gives %s’s pitched notes the sound of the instrument found at its style, every note of the performer, and no drum hit one',
     (name) => {
-      const bars = section(name);
-      const played = playSection(sectionTextOf(sectionAsCells(bars)), bars);
+      // (the first three sections, each stated alone: a song's first may be an intro of the drums, the bass and the
+      // stab, the pad and the lead coming in later, #655; the first section alone before its song forms)
       const waves = new Map<string, Set<string | undefined>>();
-      for (const b of played.bars)
-        b.sounds.forEach((sound, j) => {
-          const line = b.lines[j]!;
-          if (!waves.has(line)) waves.set(line, new Set());
-          waves.get(line)!.add(sound?.wave);
-        });
+      for (const k of [0, 1, 2]) {
+        const bars = section(name, undefined, 1, 3 * SECTION_BARS).slice(
+          k * SECTION_BARS,
+          (k + 1) * SECTION_BARS,
+        );
+        const played = playSection(sectionTextOf(sectionAsCells(bars)), bars);
+        for (const b of played.bars)
+          b.sounds.forEach((sound, j) => {
+            const line = b.lines[j]!;
+            if (!waves.has(line)) waves.set(line, new Set());
+            waves.get(line)!.add(sound?.wave);
+          });
+      }
       const want = WAVES[name] ?? {};
       for (const [line, heard] of waves)
         expect([...heard], `${name}: ${line}`).toEqual([want[line]]);
-      // (and heard: the first section plays the bass and the stab or the pad, the lead coming in later)
-      const early = Object.keys(want).filter((line) => line !== 'lead');
-      expect(Object.keys(want).filter((line) => waves.has(line)).length).toBeGreaterThanOrEqual(
-        Math.min(2, early.length),
-      );
+      // (and heard: every line given an instrument plays in the first three sections)
+      expect(
+        Object.keys(want).filter((line) => !waves.has(line)),
+        name,
+      ).toEqual([]);
     },
   );
 

@@ -98,15 +98,18 @@ describe('the bass held at each preset, at entropy 0 (E41, #423)', () => {
     for (const preset of PROTOTYPE_PRESETS)
       for (const [type, m] of Object.entries(moved[preset.name]!))
         expect(m.after, `${preset.name} ${type}`).toBe(m.before);
+    // (before #655's song forms: Synth-pop 0.794 and 0.775, Techno 0.812 and 0.625, Deep house 0.809 and 0.787, Ambient
+    // 0.876 and 0.876, Lo-fi hip hop 0.575 and 0.565, Funk 0.68 and 0.567, Bossa nova 0.595 and 0.507, Swing jazz 1 and
+    // 0.293)
     expect(kept(HELD)).toEqual({
-      'Synth-pop': { onsets: 0.794, notes: 0.775 },
-      Techno: { onsets: 0.812, notes: 0.625 },
-      'Deep house': { onsets: 0.809, notes: 0.787 },
-      Ambient: { onsets: 0.876, notes: 0.876 },
-      'Lo-fi hip hop': { onsets: 0.575, notes: 0.565 },
-      Funk: { onsets: 0.68, notes: 0.567 },
-      'Bossa nova': { onsets: 0.595, notes: 0.507 },
-      'Swing jazz': { onsets: 1, notes: 0.293 },
+      'Synth-pop': { onsets: 0.781, notes: 0.781 },
+      Techno: { onsets: 0.859, notes: 0.676 },
+      'Deep house': { onsets: 0.828, notes: 0.828 },
+      Ambient: { onsets: 0.946, notes: 0.946 },
+      'Lo-fi hip hop': { onsets: 0.64, notes: 0.64 },
+      Funk: { onsets: 0.667, notes: 0.601 },
+      'Bossa nova': { onsets: 0.595, notes: 0.51 },
+      'Swing jazz': { onsets: 1, notes: 0.258 },
     });
   });
 });
@@ -154,8 +157,8 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     // 15,925 and once before cells v0.21.0, whose bass lines and progressions are filed with their signature, #562;
     // 15,959 and 8 times before the layer kept the composer's groove variations by reference, #553; 15,802 before the walk
     // rule retired on top of cells v0.25.1 and #553, #650; 15,115 before the ostinato on top of cells v0.25.1, #651)
-    // (15,148 before cells v0.26.0's twelve-eight drums, yggi/cells#706)
-    expect(bytes).toBe(14008);
+    // (15,148 before cells v0.26.0's twelve-eight drums, yggi/cells#706; 14,008 before #655's song forms)
+    expect(bytes).toBe(13875);
     expect(bytes).toBeLessThan(LAYER_CAP);
     expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(0);
   });

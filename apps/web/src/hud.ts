@@ -291,6 +291,9 @@ const SECTION_NAMES: Record<SectionType, string> = {
   build: 'Build',
   drop: 'Drop',
   breakdown: 'Breakdown',
+  verse: 'Verse',
+  chorus: 'Chorus',
+  outro: 'Outro',
 };
 
 /** The axes that name a style: those a preset sets, but energy. */
@@ -623,7 +626,7 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
     energy: bar.barEnergy,
     lead: bar.offer
       ? 'motif'
-      : leadRests(bar.plan.section.type, bar.barEnergy)
+      : leadRests(bar.plan.section, bar.barEnergy)
         ? 'resting'
         : 'improvising',
     motif: bar.offer && credited(bar.offer),

@@ -43,7 +43,7 @@ open (confidence). Decided: the prototype, inherited (provenance). Lands in: #3,
 Witness: the key's loop (C9), which follows the players' key wishes and the band's own chords through a fading memory: its bandwidth is three numbers, a time constant, a gain and a bound.
 The time constant is `timeConstant(HISTORY_DECAY)`, about 6.7 bars, less than the 8 bars a key is held for; a reading held every bar settles at itself times it.
 The bound is the style's reach, per jump (C8).
-The gain of the centre, an argmax, is all or nothing: the centre follows a new key 1.2 to 3.9 bars into its section, or not by its end (E19).
+The gain of the centre, an argmax, is all or nothing: the centre follows a new key 0.9 to 3.9 bars into its section, or not by its end (E19).
 The style's loop with nobody in it, the radio (#313, C9), has the same three numbers, its gain 0 by the owner's ruling, since nothing is read (E30): a time constant, `timeConstant` of an axis's correlation a section later, of 53 to 144 sections on the unit axes at entropy 1 (0.3 to 0.8 hours, 63 to 173 times the key's 6.67 bars) and about eleven times that at 0.3, as 1 / entropy²; a pull of 0 within twice its error, at most 5.4e-4 a section; and a bound, the axis, reflected, and a step a section that the entropy scales.
 So the loops nest: the style's is slower than the key's at every entropy above 0, and a walk stepped every bar with steps eight times as wide would not be.
 Counterexample: a loop that runs away (a gain above 1: each reading moves the default further than the one before), or one that never settles on a reading held.

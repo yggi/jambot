@@ -78,7 +78,7 @@ import {
 import type { BarEnv } from './bar.ts';
 import { chordAt, chordsOn } from './chords.ts';
 import { type WrittenNote, halfOf } from './events.ts';
-import type { SectionType } from './form.ts';
+import type { Section } from './form.ts';
 import { keyHelix, melodicHelix } from './key.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick, quantize } from './random.ts';
@@ -470,9 +470,13 @@ function intoRange(
   return { notes: ranged, octaves: best / 12 };
 }
 
-/** Whether the lead rests in a bar: where its section's kind leaves it out (an intro, a breakdown: `section-kinds.ts`), and below energy 0.4. */
-export function leadRests(section: SectionType, barEnergy: number): boolean {
-  return barEnergy < 0.4 || !kindPlays(section, 'lead');
+/**
+ * Whether the lead rests in a bar: where its section's kind leaves it out (an intro, a breakdown, an outro:
+ * `section-kinds.ts`); and in the chain's sections, below energy 0.4. In a song form's (#655) the kind says who plays,
+ * whatever the energy, so a verse at a quiet style still sings its line.
+ */
+export function leadRests(section: Pick<Section, 'type' | 'song'>, barEnergy: number): boolean {
+  return !kindPlays(section.type, 'lead') || (section.song === undefined && barEnergy < 0.4);
 }
 
 /** The phrase's cadence: bar 2 ends open, on the third or fifth, and bar 4 closes on the root. */
@@ -642,7 +646,7 @@ export function playLead(
     };
   }
   const { section, theme } = plan;
-  if (leadRests(section.type, energy))
+  if (leadRests(section, energy))
     return {
       carried: { ...carried, phrase: null, form: null, anchor: null, formAt: null, offered: null },
       output: [],
@@ -738,7 +742,7 @@ export function playLead(
  * that instead, which this doesn't hear.
  */
 export function inventedBar(env: BarEnv): WrittenNote[] {
-  if (env.offer || leadRests(env.plan.section.type, env.barEnergy)) return [];
+  if (env.offer || leadRests(env.plan.section, env.barEnergy)) return [];
   const shape = shapeOf(env);
   const phase = env.barInSection % 4;
   return realize(phase % 2 === 0 ? shape : varied(shape, env), env, FIRST_LAST, true).written;

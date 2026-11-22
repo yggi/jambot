@@ -369,14 +369,16 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
     // [preset, overlap with main's bar, main's hits a bar on other steps, main's hits a bar, clave strokes a bar]
     // (every stroke of the clave's lap: on its own sound, none falls to a rim on its step)
     expect(measured).toEqual([
-      ['Synth-pop', 0.77, 1.53, 14.33, 0],
-      ['Techno', 0.8, 1.91, 18.14, 0],
-      ['Deep house', 0.78, 1.7, 17.05, 0],
-      ['Ambient', 0.75, 0.88, 3.97, 0],
-      ['Lo-fi hip hop', 0.61, 3, 14.67, 0],
-      ['Funk', 0.71, 4.3, 26.02, 2.5],
-      ['Bossa nova', 0.66, 2.81, 14.42, 5],
-      ['Swing jazz', 0.78, 1.44, 12.52, 0],
+      // (each preset's song form since #655: Ambient's, a groove and its breakdown, has no drop, so its drummer plays
+      // fewer hits a bar)
+      ['Synth-pop', 0.76, 1.56, 12.36, 0],
+      ['Techno', 0.83, 1.52, 18.53, 0],
+      ['Deep house', 0.8, 1.52, 10.81, 0],
+      ['Ambient', 0.84, 0.31, 1.7, 0],
+      ['Lo-fi hip hop', 0.67, 2.36, 8.38, 0],
+      ['Funk', 0.65, 5.38, 24.55, 2.5],
+      ['Bossa nova', 0.64, 3.31, 14.08, 5],
+      ['Swing jazz', 0.78, 1.44, 12.66, 0],
     ]);
   });
 });

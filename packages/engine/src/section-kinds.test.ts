@@ -13,12 +13,13 @@ const ENERGY_OFFSET = {
   drop: 0.3,
   breakdown: -0.45,
 } as const;
-const before = (type: (typeof SECTION_TYPES)[number], bar: number) =>
+const CHAIN = SECTION_TYPES.filter((t): t is keyof typeof ENERGY_OFFSET => t in ENERGY_OFFSET);
+const before = (type: keyof typeof ENERGY_OFFSET, bar: number) =>
   type === 'build' ? -0.15 + (0.45 * bar) / (SECTION_BARS - 1) : ENERGY_OFFSET[type];
 
 describe('the section kinds, from cells’ section fragments (#655)', () => {
   it('read each kind’s offset as Jambot had it, bit for bit, a build ramping by the bar', () => {
-    for (const type of SECTION_TYPES)
+    for (const type of CHAIN)
       for (let bar = 0; bar < SECTION_BARS; bar++) {
         expect(kindOffset(type, bar), `${type} ${bar}`).toBe(before(type, bar));
         for (const energy of [0, 0.2, 0.55, 0.8, 1])
@@ -38,11 +39,29 @@ describe('the section kinds, from cells’ section fragments (#655)', () => {
       build: [...BAND_ORDER],
       drop: [...BAND_ORDER],
       breakdown: ['drums', 'bass', 'pad'],
+      // (a song form's own: yggi/cells#814's, cells' numbers)
+      verse: ['drums', 'bass', 'pad', 'lead'],
+      chorus: [...BAND_ORDER],
+      outro: ['drums', 'bass', 'pad', 'stab'],
     });
+    expect([
+      kindOffset('verse', 3),
+      kindOffset('chorus', 3),
+      kindOffset('outro', 0),
+      kindOffset('outro', 7),
+    ]).toEqual([-0.1, 0.15, 0, -0.45]);
     // (the lead rests where its kind leaves it out, as it did, and below 0.4 whatever its kind)
     for (const t of SECTION_TYPES)
       for (const e of [0.39, 0.4, 0.9])
-        expect(leadRests(t, e), `${t} ${e}`).toBe(e < 0.4 || t === 'intro' || t === 'breakdown');
+        expect(leadRests({ type: t }, e), `${t} ${e}`).toBe(
+          e < 0.4 || t === 'intro' || t === 'breakdown' || t === 'outro',
+        );
+    // (in a song form's section the kind alone says it: a verse sings at any energy, #655)
+    const song = { form: 'strophic', at: 1, of: 6 };
+    expect([
+      leadRests({ type: 'verse', song }, 0.1),
+      leadRests({ type: 'outro', song }, 0.9),
+    ]).toEqual([false, true]);
     expect(kindPlays('breakdown', 'stab')).toBe(false);
     expect(kindPlays('intro', 'stab')).toBe(true);
   });

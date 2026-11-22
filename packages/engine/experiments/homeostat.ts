@@ -113,6 +113,9 @@ export interface RegulatedRun {
   readonly sections: readonly (Readonly<Record<Over, number | null>> & {
     readonly inside: boolean | null;
     readonly lean: number;
+    /** The section's kind, and where it stands in its song form where it is a song form's (#655). */
+    readonly kind: string;
+    readonly song?: { readonly at: number; readonly of: number };
   })[];
   readonly homeostat: Homeostat;
   /** Each bar's cost of recognition, every member's together, in ms on this machine. */
@@ -191,6 +194,10 @@ export function regulatedRun(
         ) as Record<Over, number | null>),
         inside: share === null ? null : share >= low && share <= high,
         lean: leanAt(leans, bar),
+        kind: output.plan.section.type,
+        ...(output.plan.section.song
+          ? { song: { at: output.plan.section.song.at, of: output.plan.section.song.of } }
+          : {}),
       });
     }
   }

@@ -181,10 +181,21 @@ describe('the section plan', () => {
     const style = { ...INITIAL_STYLE, energy: 0.8, entropy: 0 };
     for (const seed of range(10)) {
       const plans = run(steady(seed, style, aeolian));
+      // (within a song: a new song writes its own themes, #655)
+      const songs = new Map<number, typeof plans>();
+      let song = -1;
+      for (const p of plans) {
+        if (p.section.song?.at === 0) song++;
+        songs.set(song, [...(songs.get(song) ?? []), p]);
+      }
       for (const kind of ['A', 'B'] as const) {
-        const themes = plans.filter((p) => p.theme.kind === kind).map((p) => p.theme);
-        expect(themes.length).toBeGreaterThan(1);
-        for (const theme of themes) expect(theme).toEqual(themes[0]);
+        let returned = 0;
+        for (const inSong of songs.values()) {
+          const themes = inSong.filter((p) => p.theme.kind === kind).map((p) => p.theme);
+          for (const theme of themes) expect(theme).toEqual(themes[0]);
+          returned += Math.max(0, themes.length - 1);
+        }
+        expect(returned).toBeGreaterThan(0);
       }
       for (const plan of plans.filter((p) => p.theme.kind === 'build'))
         expect(plan.theme.index).toBe(plan.section.index);
@@ -230,16 +241,20 @@ describe('the section plan', () => {
     }
   });
 
-  it('renews a returning theme at random, the more often the higher the entropy (Q8)', () => {
-    const renewed = (entropy: number) => {
+  it('renews a returning theme at random in the chain’s sections, the more often the higher the entropy, and never within a song (Q8, #655)', () => {
+    // (a corner of style space no song form is placed near, where the chain plays: offbeat, moving, paddy and dark)
+    const far = { ...INITIAL_STYLE, sync: 1, harm: 1, artic: 0, mood: 0, energy: 0.8 };
+    const renewed = (entropy: number, at = far) => {
       let returns = 0;
       let fresh = 0;
       for (const seed of range(200)) {
-        const plans = run(steady(seed, { ...INITIAL_STYLE, energy: 0.8, entropy }, aeolian, 24));
+        const plans = run(steady(seed, { ...at, entropy }, aeolian, 24));
         const seen = new Set<string>();
         for (const plan of plans) {
           const { kind } = plan.theme;
           if (kind === 'build') continue;
+          // (a song's first section starts it afresh: its themes are its own)
+          if (plan.section.song?.at === 0) seen.clear();
           if (seen.has(kind)) {
             returns++;
             if (plan.theme.index === plan.section.index) fresh++;
@@ -249,6 +264,8 @@ describe('the section plan', () => {
       }
       return fresh / returns;
     };
+    for (const entropy of [0, 0.5, 1])
+      expect(renewed(entropy, { ...INITIAL_STYLE, energy: 0.8 })).toBe(0);
     expect(renewed(0)).toBe(0);
     expect(renewed(0.5)).toBeGreaterThan(0.1);
     expect(renewed(0.5)).toBeLessThan(0.2);

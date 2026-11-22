@@ -77,7 +77,8 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     Elektro: ['axis_progression'],
     'Dark ambient': ['tonic_vamp'],
     Baroque: ['fifths_sequence'],
-    'Blues shuffle': ['minor_swing', 'ninth_vamp'],
+    // (Blues shuffle's three equals, any of which a song may take as its A since a new song writes its own, #655)
+    'Blues shuffle': ['minor_swing', 'ninth_vamp', 'ninth_loop'],
     'Sea shanty': ['vamp_to_the_seventh'],
     Chiptune: ['korobeiniki_changes'],
     Salsa: ['montuno'],
@@ -94,10 +95,20 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
         expect(
           bar.plan.theme.bars.map((b) => b.map((slot) => ('degree' in slot ? slot.degree : -1))),
         ).toEqual([0, 5, 3, 4, 0, 5, 3, 4].map((d) => [d]));
+    // (one A a song: a new song writes its own themes, and where cells placed several equally near, it may take
+    // another, #655)
     for (const r of runs.filter((r) => r.preset.name in PLACED)) {
-      const taken = new Set(r.loop.map(({ plans }) => plans.themeFragments.A));
-      expect(taken.size, `${r.preset.name}, seed ${r.seed}`).toBe(1);
-      expect(PLACED[r.preset.name], `${r.preset.name}, seed ${r.seed}`).toContain([...taken][0]);
+      // (keyed by the song of the latest section planned, which the carried fragments are: its first section's index)
+      const songs = new Map<number, Set<string | null>>();
+      for (const { plans } of r.loop) {
+        const latest = plans.before?.section;
+        const song = latest ? latest.index - (latest.song?.at ?? 0) : -1;
+        songs.set(song, (songs.get(song) ?? new Set()).add(plans.themeFragments.A));
+      }
+      for (const taken of songs.values()) {
+        expect(taken.size, `${r.preset.name}, seed ${r.seed}`).toBe(1);
+        expect(PLACED[r.preset.name], `${r.preset.name}, seed ${r.seed}`).toContain([...taken][0]);
+      }
     }
     expect(PRESETS.filter((p) => !(p.name in PLACED)).map((p) => p.name)).toEqual([
       'Techno',
@@ -123,12 +134,16 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
             return kind === 'build' || plans.themeFragments[kind] !== null;
           }),
         );
-    // (A and B both from the seeds: the three that vamp, and Blues shuffle, whose B draws another of its three equals)
+    // (A and B both from the seeds: the three that vamp, and Blues shuffle, whose B draws another of its three equals;
+    // and the three whose song form is strophic, verse after verse, which play A alone: #655)
     expect(PRESETS.filter((p) => fromSeed(p.name)).map((p) => p.name)).toEqual([
       'Techno',
       'Ambient',
       'Funk',
+      'Kinderlied',
       'Blues shuffle',
+      'Sea shanty',
+      'Waltz',
     ]);
     // (above the vamps, A is what cells placed and B the tables', for contrast, where nothing else is equally near)
     for (const r of runs.filter(

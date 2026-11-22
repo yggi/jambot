@@ -15,6 +15,9 @@
 import { parse } from '@yggi/cells';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import type { SectionType } from './form.ts';
+import { createRepository } from '@yggi/cells/repository/fragments';
+import { seedFragments } from '@yggi/cells/repository/seed';
+import { MISS_DISTANCE, type QueriedStyle, stylePoint } from './meter-query.ts';
 
 /** The band's entries, in its order (cells' `&band &drums &bass &pad &stab &lead`): what a kind's `Plays` indexes. */
 export const BAND_ORDER = ['drums', 'bass', 'pad', 'stab', 'lead'] as const;
@@ -95,3 +98,51 @@ export function kindOffset(type: SectionType, barInSection: number): number {
   const { offset, ramp } = sectionKind(type);
   return ramp ? offset + (ramp.weight * barInSection) / (ramp.bars - 1) : offset;
 }
+
+/** Cells' song forms (yggi/cells#815, `fragments/songs/`), a repository of their own. */
+const SONGS = createRepository(seedFragments('songs'));
+
+const FOUND = new Map<string, string | null>();
+/**
+ * The song form cells finds first at a style, by id, within the composer's reach (`MISS_DISTANCE`); null on a miss,
+ * where the chain plays. Each of cells' 23 styles finds one at its own point (yggi/cells#815).
+ */
+export function songFormAt(style: QueriedStyle): string | null {
+  const point = stylePoint(style);
+  const key = JSON.stringify(point);
+  if (!FOUND.has(key)) {
+    const [first] = SONGS.query(point, 1, {}, { facet: 'song' });
+    FOUND.set(key, first && first.distance <= MISS_DISTANCE ? first.fragment.id : null);
+  }
+  return FOUND.get(key)!;
+}
+
+const FORMS = new Map<string, readonly SectionType[]>();
+/** A song form's sections, in order, as its head's line splices the kinds (`&verseChorus &intro &verse …`). */
+export function songSections(id: string): readonly SectionType[] {
+  let sections = FORMS.get(id);
+  if (!sections) {
+    const text = resolveSeed(id);
+    const head = text === null ? undefined : /^&(\w+),/.exec(text)?.[1];
+    const line = head === undefined ? undefined : parse(text!).cells.find((c) => c.name === head);
+    const refs =
+      line?.braid.kind === 'list'
+        ? line.braid.tokens.map((t) => (t.atom.kind === 'ref' ? t.atom.name : ''))
+        : [];
+    if (!refs.length || refs.some((r) => !KNOWN.has(r)))
+      throw new Error(`${id}: no song form of the section kinds`);
+    FORMS.set(id, (sections = refs as SectionType[]));
+  }
+  return sections;
+}
+const KNOWN = new Set<string>([
+  'intro',
+  'groove',
+  'bridge',
+  'build',
+  'drop',
+  'breakdown',
+  'verse',
+  'chorus',
+  'outro',
+]);
