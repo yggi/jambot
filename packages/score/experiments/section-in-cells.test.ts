@@ -132,7 +132,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
     }
   });
 
-  it('plays every part of every bar as written, step, pitch, velocity and written length: 512 of 512 bars for the drums, the bass, the comp, the harmony (each chord’s notes) and the lead, 13,684 notes', () => {
+  it('plays every part of every bar as written, step, pitch, velocity and written length: 512 of 512 bars for the drums, the bass, the comp, the harmony (each chord’s notes) and the lead, 13,687 notes (13,684 before a song form climbed the novelty ladder, #547 rung 5)', () => {
     expect(equalBars(SECTIONS)).toEqual({
       drums: 512,
       bass: 512,
@@ -141,7 +141,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
       lead: 512,
     });
     const notes = MEASURED.reduce((n, m) => n + m.notes, 0);
-    expect(notes).toBe(13684); // (18,200 before #655's song forms)
+    expect(notes).toBe(13687); // (18,200 before #655's song forms; 13,684 before a song form climbed the novelty ladder)
     const byPart = (part: string) =>
       SECTIONS.reduce(
         (n, s) =>
@@ -149,11 +149,11 @@ describe('the band writes a whole section as one cells text, every part, the lea
         0,
       );
     // (9,617, 2,336, 4,288 and 1,959 before #655's song forms)
-    expect(['drums', 'bass', 'comp', 'lead'].map(byPart)).toEqual([6822, 1933, 3615, 1314]);
+    expect(['drums', 'bass', 'comp', 'lead'].map(byPart)).toEqual([6822, 1935, 3616, 1314]); // (1,933 and 3,615 before the song ladder)
     for (const s of SECTIONS) expect(s.text.cuts, `${s.run.preset} ${s.section}`).toEqual([]);
   });
 
-  it('places every onset within 1 ms of the transport, 7,907 of them in the 5 swung presets, each section laid where the one before ends as cells holds it', () => {
+  it('places every onset within 1 ms of the transport, 7,908 of them in the 5 swung presets, each section laid where the one before ends as cells holds it', () => {
     for (const row of TABLE) {
       expect(row.timed, row.preset).toBe(
         SECTIONS.filter((s) => s.run.preset === row.preset).reduce(
@@ -164,9 +164,9 @@ describe('the band writes a whole section as one cells text, every part, the lea
       expect(row.within1ms, row.preset).toBe(row.timed);
       expect(row.largest, row.preset).toBeLessThan(1e-11);
     }
-    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(13684); // (18,200 before #655's song forms)
+    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(13687); // (18,200 before #655's song forms)
     const swung = SECTIONS.filter((s) => s.bars[0]!.swing.share !== STRAIGHT.share);
-    expect(swung.reduce((n, s) => n + s.offsets.length, 0)).toBe(7907); // (10,906)
+    expect(swung.reduce((n, s) => n + s.offsets.length, 0)).toBe(7908); // (10,906; 7,907 before the song ladder)
     expect(SECTIONS.every((s) => s.unmatched === 0)).toBe(true);
   });
 
@@ -222,19 +222,20 @@ describe('the band writes a whole section as one cells text, every part, the lea
   // (since cells v0.24.0 each drum line writes its role, `role=kick`, decision 075; since v0.25.0 each pitched line says
   // its part, `part=bass`, yggi/cells#708; since #531 the section is a score: no performer, voice or card, the parts
   // passed to the band, `* from band(…)`, and each level the shortest decimal cells strikes at its velocity, `scoreLevel`)
-  // (2,490, 2,223 and 7,792, 71 %, before #655's song forms)
-  it('states the host’s lines and the harmony once a section: 2,072 characters a section, 1,877 without the lead, against E33’s 6,752 for the same 8 bars, 72 % fewer', () => {
+  // (2,490, 2,223 and 7,792, 71 %, before #655's song forms; 2,072, 1,877 and 6,752 before a song form climbed the
+  // novelty ladder, #547 rung 5)
+  it('states the host’s lines and the harmony once a section: 2,073 characters a section, 1,878 without the lead, against E33’s 6,753 for the same 8 bars, 72 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     // (159,356 in all before #655's song forms: the meter 9,136, the harmony 8,285, the drums 60,238, the bass 23,974,
     // the comp 24,556, the lead 17,097 and the band 13,866)
     expect(e35).toEqual({
-      total: 132593,
+      total: 132642,
       meter: 8368,
       key: 2204,
-      harmony: 8297,
+      harmony: 8311,
       drums: 45884,
-      bass: 20355,
-      comp: 21508,
+      bass: 20366,
+      comp: 21532,
       lead: 12469,
       band: 13508,
     });
@@ -245,31 +246,33 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // (498,676 in all before #655's song forms: the harmony 17,811, the drums 266,759, the bass 90,065, the comp 68,839
     // and the card 24,066)
     expect(e33).toEqual({
-      total: 432144,
+      total: 432191,
       meter: 19648,
       key: 11488,
-      harmony: 17803,
+      harmony: 17819,
       drums: 212479,
-      bass: 82078,
-      comp: 64856,
+      bass: 82103,
+      comp: 64862,
       card: 23792,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2072);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(1877);
-    expect(Math.round(e33.total / 64)).toBe(6752);
+    expect(Math.round(e35.total / 64)).toBe(2073);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(1878);
+    expect(Math.round(e33.total / 64)).toBe(6753);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(72);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
+      // (Deep house 17,245 and 15,579, Ambient 9,658 and 8,804, Lo-fi hip hop 15,471 and 14,011, Bossa nova 18,669 and
+      // 17,121, Swing jazz 16,229 and 14,358 before a song form climbed the novelty ladder, #547 rung 5)
       'Synth-pop': [17523, 15568], // (20,367 and 18,220 before #655's song forms)
       Techno: [19197, 17463], // (19,902 and 17,419)
-      'Deep house': [17245, 15579], // (22,508 and 19,981)
-      Ambient: [9658, 8804], // (13,397 and 12,222)
-      'Lo-fi hip hop': [15471, 14011], // (20,902 and 18,570)
+      'Deep house': [17285, 15619], // (22,508 and 19,981)
+      Ambient: [9659, 8805], // (13,397 and 12,222)
+      'Lo-fi hip hop': [15469, 14009], // (20,902 and 18,570)
       Funk: [18601, 17220], // (22,320 and 20,494)
-      'Bossa nova': [18669, 17121], // (22,308 and 20,196)
-      'Swing jazz': [16229, 14358], // (17,652 and 15,157)
+      'Bossa nova': [18692, 17144], // (22,308 and 20,196)
+      'Swing jazz': [16216, 14345], // (17,652 and 15,157)
     });
   });
 
@@ -560,7 +563,7 @@ describe('what cells could not say (E35: the gaps)', () => {
         );
         notes++;
       }
-    expect(notes).toBe(54);
+    expect(notes).toBe(53); // (54 before a song form climbed the novelty ladder, #547 rung 5)
     // Witness: Bossa nova's section 5 in C, its bass's E♭2 (39) at step 13 of its last bar, over V7 (G7) (Funk's
     // section 5's stab before #655's song forms, its B♭3 over VII in D dorian).
     expect(kept[0]!.p.unreached).toEqual([{ step: 125, note: 39 }]);

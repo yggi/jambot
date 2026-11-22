@@ -52,6 +52,8 @@ export interface FormEnv {
   readonly index: number;
   /** The style where the section starts. */
   readonly style: Style;
+  /** The song forms the composer is tired of (the novelty ladder's, `novelty.ts`): left out where a song starts. */
+  readonly rejected?: readonly string[];
 }
 
 /** Which kinds may follow each. */
@@ -126,7 +128,8 @@ export const chain: Machine<FormEnv, Section | null, null, Section> = {
 /**
  * The sections, a song at a time (#655): a song plays the song form cells finds at the style where it starts, its
  * sections in order (`songFormAt`, the facet `song`, yggi/cells#815), and the next song starts where it ends, at a
- * section boundary, the form asked for again. Where no form lies within the composer's reach, the chain plays.
+ * section boundary, the form asked for again, less the forms the composer is tired of (`FormEnv.rejected`, #547
+ * rung 5: the planner's novelty ladder). Where no form lies within the composer's reach, the chain plays.
  */
 export const form: Machine<FormEnv, Section | null, null, Section> = {
   initial: null,
@@ -137,7 +140,7 @@ export const form: Machine<FormEnv, Section | null, null, Section> = {
       const section = { type: songSections(song.form)[next.at]!, index: env.index, song: next };
       return { carried: section, output: section };
     }
-    const found = songFormAt(env.style);
+    const found = songFormAt(env.style, env.rejected);
     if (!found) return chain.advance(env, before, null);
     const sections = songSections(found);
     const section = {

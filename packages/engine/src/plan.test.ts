@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { form } from './form.ts';
 import { NO_HISTORY, centre } from './history.ts';
+import { rejectedOf } from './novelty.ts';
 import {
   COMPOSER_MODES,
   INITIAL_KEY,
@@ -70,19 +71,78 @@ const drifts = (style: Style, seeds = 200, sections = 24) => {
 
 const aeolian: KeyWish = { tonic: null, mode: 'aeolian', melodic: null };
 
+/** Each song a run of plans plays: its form, and the plans of its sections. */
+const songsOf = (plans: readonly Plan[]) =>
+  plans.reduce<{ form: string; plans: Plan[] }[]>((songs, plan) => {
+    const song = plan.section.song;
+    if (!song) return songs;
+    if (song.at === 0) songs.push({ form: song.form, plans: [] });
+    songs.at(-1)?.plans.push(plan);
+    return songs;
+  }, []);
+
+const SYNTH_POP = PRESETS.find((p) => p.name === 'Synth-pop')!;
+
+describe('a song form on the novelty ladder (#547 rung 5)', () => {
+  const at = (entropy: number) =>
+    songsOf(run(steady(1, { ...SYNTH_POP.style, entropy }, aeolian, 40)));
+  const themes = (song: { plans: Plan[] }) => song.plans.map((p) => p.theme);
+
+  it('repeats a song as it was where the band plays at no entropy: its form and its themes', () => {
+    const songs = at(0);
+    expect(songs.length).toBeGreaterThanOrEqual(5);
+    for (const song of songs.slice(1, -1)) {
+      expect(song.form).toBe(songs[0]!.form);
+      expect(themes(song)).toEqual(themes(songs[0]!));
+    }
+  });
+
+  it('climbs at 0.3: the song repeated, then its themes built anew, then another form fetched', () => {
+    const [first, repeated, renewed, fetched] = at(0.3);
+    expect([first!.form, repeated!.form, renewed!.form]).toEqual([
+      'verse_chorus',
+      'verse_chorus',
+      'verse_chorus',
+    ]);
+    expect(themes(repeated!)).toEqual(themes(first!));
+    expect(themes(renewed!)).not.toEqual(themes(first!));
+    expect(fetched!.form).not.toBe('verse_chorus');
+  });
+
+  it('changes the song only where one ends, never mid-song, at every preset and entropy', () => {
+    for (const preset of PRESETS)
+      for (const entropy of [0, 0.3, 1]) {
+        const plans = run(steady(1, { ...preset.style, entropy }, aeolian, 40));
+        plans.slice(1).forEach((plan, i) => {
+          const before = plans[i]!.section.song;
+          const song = plan.section.song;
+          if (before && before.at + 1 < before.of)
+            expect(song, `${preset.name} ${entropy} ${i + 1}`).toEqual({
+              ...before,
+              at: before.at + 1,
+            });
+          else if (song) expect(song.at, `${preset.name} ${entropy} ${i + 1}`).toBe(0);
+        });
+      }
+  });
+});
+
 describe('the section plan', () => {
   it('keeps the machine laws over a tour of the presets and their modes (F1, Q4a)', () => {
     for (const seed of [1, 2, 3]) expect(lawBreaks(planner, tour(seed))).toEqual([]);
   });
 
-  it('follows the form', () => {
+  it('follows the form, less the song forms the composer is tired of (#547 rung 5)', () => {
     for (const seed of [1, 2, 3]) {
-      let before = form.initial;
-      for (const [index, plan] of run(tour(seed)).entries()) {
-        const { style } = tour(seed)[index]!.env;
-        const section = form.advance({ seed, index, style }, before, null).output;
-        expect(plan.section).toEqual(section);
-        before = section;
+      let carried = planner.initial;
+      for (const { env, input } of tour(seed)) {
+        const { index, style } = env;
+        const rejected = rejectedOf(carried.boredom);
+        const before = carried.before?.section ?? form.initial;
+        const section = form.advance({ seed, index, style, rejected }, before, null).output;
+        const next = planner.advance(env, carried, input);
+        expect(next.output.section).toEqual(section);
+        carried = next.carried;
       }
     }
   });

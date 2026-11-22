@@ -80,7 +80,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
 
   // (the roles the drummer writes of its own, `OWN_ROLES`: Salsa drums' ostinato, which Funk's runs play once tired,
   // plays as written, #651; Funk 0.03 before, where the drummer's own groove played past the drum bar; Deep house 0.01,
-  // Bossa nova 0.02 and Swing jazz 0.05 before #655's song forms)
+  // Bossa nova 0.02 and Swing jazz 0.05 before #655's song forms; Bossa nova 0.02 before a song form climbed the novelty ladder, #547 rung 5)
   it('moves the drummer’s hits a role by section type at most 0.05 from main’s: the variations move hits, the drummer still decides how many', () => {
     expect(drumDistance(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0,
@@ -89,7 +89,7 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
       Ambient: 0,
       'Lo-fi hip hop': 0.01,
       Funk: 0,
-      'Bossa nova': 0.02,
+      'Bossa nova': 0.03,
       'Swing jazz': 0.01,
     });
   });
@@ -97,19 +97,20 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
   // (since cells v0.23.0 the next nearest drum bar is Electro swing drums at Lo-fi hip hop and Bossa nova, on sync harm
   // bite mood, and Acid drums at Techno, where the drummer invented, until cells v0.24.0's March drums, nearer: each
   // plays the drums further from main's; Techno 59 % with Acid drums; Lo-fi hip hop 67 % before cells v0.27.1; 65 % to 95 % before #655's song forms: Synth-pop
-  // 0.92, Techno 0.82, Deep house 0.95, Ambient 0.89, Lo-fi hip hop 0.67, Funk 0.74, Bossa nova 0.65, Swing jazz 0.78)
-  it('keeps 63 % to 92 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
+  // 0.92, Techno 0.82, Deep house 0.95, Ambient 0.89, Lo-fi hip hop 0.67, Funk 0.74, Bossa nova 0.65, Swing jazz 0.78;
+  // 63 % to 92 % before a song form climbed the novelty ladder, #547 rung 5: Synth-pop 0.87, Techno 0.79, Ambient 0.9, Lo-fi hip hop 0.66, Bossa nova 0.63)
+  it('keeps 62 % to 93 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
     );
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
-      'Synth-pop': 0.87,
-      Techno: 0.79,
+      'Synth-pop': 0.88,
+      Techno: 0.75,
       'Deep house': 0.92,
-      Ambient: 0.9,
-      'Lo-fi hip hop': 0.66,
+      Ambient: 0.93,
+      'Lo-fi hip hop': 0.62,
       Funk: 0.72,
-      'Bossa nova': 0.63,
+      'Bossa nova': 0.64,
       'Swing jazz': 0.74,
     });
   });

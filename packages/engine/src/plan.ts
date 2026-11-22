@@ -99,9 +99,11 @@ import {
   NO_BOREDOM,
   NO_CLAVE_OWNERS,
   boredAfter,
+  lineageOf,
   pullOf,
   rejectedOf,
   ownedWith,
+  rungOf,
 } from './novelty.ts';
 import { NO_SHORT_TERM, type ShortTerm, chosenOf, remembered } from './short-term.ts';
 import {
@@ -799,7 +801,18 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     const chosen = chosenOf(memory);
     const env = { ...given, layer };
     const { seed, index, style, wish } = env;
-    const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
+    // (the song forms the composer is tired of are left out where a song starts: #547 rung 5)
+    const section = form.advance(
+      { seed, index, style, rejected: rejectedOf(boredom) },
+      before?.section ?? null,
+      null,
+    ).output;
+    // A song form climbs the novelty ladder as a rhythm does, a lineage of its own in the one boredom (`novelty.ts`),
+    // counted a section at a time by the entropy the band plays at, which the homeostat leans: where a song ends, it
+    // is repeated as it was on the ladder's first rung, its themes built anew on the second (the workbench
+    // recombined), and past it rejected, so the next song is the next form found at the style (fetched nearby), or
+    // the chain where none is near. Nothing changes mid-song: a form is asked for only where a song starts.
+    const songLineage = section.song ? lineageOf(boredom, [section.song.form]) : null;
     const from = before?.key ?? INITIAL_KEY;
     // The players' wish wins: a tonic, or a mode other than the one playing.
     const own =
@@ -815,8 +828,12 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     const rejected = rejectedOf(boredom, claveOwners);
     const kind = themeKind(section.type);
     // (a new song writes its own themes: a chorus returns within its song, and the next song brings its own, #547
-    // rung 5, #655; the chain's sections keep theirs as before)
-    const newSong = section.song?.at === 0 && before !== null;
+    // rung 5, #655, but where it repeats the song before on the ladder's first rung; the chain's sections keep theirs)
+    const repeats =
+      before?.section.song?.form === section.song?.form &&
+      songLineage !== null &&
+      rungOf(songLineage.boredom) === 0;
+    const newSong = section.song?.at === 0 && before !== null && !repeats;
     const songThemes = newSong ? { A: null, B: null } : themes;
     const songThemeFragments = newSong ? { A: null, B: null } : themeFragments;
     const held = kind === 'build' ? null : songThemes[kind];
@@ -950,9 +967,13 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         asked: stylePoint(style),
         boredom: boredAfter(
           boredom,
-          [ladder.playing, lineLadder.playing, leadLadder.playing, harmonyLadder.playing].filter(
-            (l) => l !== null,
-          ),
+          [
+            ladder.playing,
+            lineLadder.playing,
+            leadLadder.playing,
+            harmonyLadder.playing,
+            songLineage,
+          ].filter((l) => l !== null),
           style.entropy,
         ),
         // (a clave is the drum bar's it was first chosen to layer on, where the ladder climbs)

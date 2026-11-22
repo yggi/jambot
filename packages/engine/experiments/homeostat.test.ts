@@ -143,7 +143,8 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
       // 0.607 at the top two before the walk rule retired on top of cells v0.25.1, #650; 0.685 and 0.613 before
       // the ostinato on top of cells v0.25.1, #651, which Funk turns to once tired; 0.814, 0.768, 0.684 and 0.612 over
       // 96 bars of the chain's sections before #655's song forms, which repeat more)
-    ).toEqual([0.824, 0.777, 0.713, 0.627]);
+      // (0.824, 0.777, 0.713 and 0.627 before a song form climbed the novelty ladder, #547 rung 5)
+    ).toEqual([0.823, 0.787, 0.711, 0.63]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
         against(
@@ -168,12 +169,13 @@ describe('the controller closed (E45, #237)', () => {
     // (0.833 at the top before cells v0.24.0; 0.229, 0.698 and 0.802 held, 0.219 and 0.711 walked, before v0.25.0;
     // 0.646 and 0.792 held, and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650; 0.781 held,
     // and 0.68 walked, before the ostinato on top of cells v0.25.1, #651; 0.198, 0.635 and 0.792 held over 96 bars of
-    // the chain's sections before #655's song forms, which the controller holds inside at a patience of 2, its ruling)
+    // the chain's sections before #655's song forms, which the controller holds inside at a patience of 2, its ruling;
+    // 0.181, 0.634 and 0.725 held, and 0.212 and 0.688 walked, before a song form climbed the novelty ladder, #547 rung 5)
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
-      0.181, 0.634, 0.725,
+      0.159, 0.666, 0.709,
     ]);
     // (0.211 and 0.688 walked over 128 bars before #655)
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.212, 0.688]);
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.209, 0.681]);
   });
 
   // (80 % ruled on #536; loosened to 79 % at cells v0.25.0, the owner on #660, 2026-11-12: six of the eight presets play
@@ -182,9 +184,10 @@ describe('the controller closed (E45, #237)', () => {
   // passed 79 % with one section to spare, 76 of 96, and retiring the walk rule (#650) costs one section, at one seed per
   // preset, so 75 of 96. A bound that carries the measure's error, measured over more seeds, is the follow-up, once #666
   // makes the run cheaper. Song forms since #655 repeat more, a chorus returning within its song: at the lean's top 232
-  // of 320 sections are inside, 72.5 %, held over five songs; the bound restated so, for the owner's ruling)
-  it('reaches 232 of 320 sections inside at the lean’s top, open, further than at entropy 1 alone (#536, #660, #650, #655)', () => {
-    expect(insideOf(held.top)).toBeGreaterThanOrEqual(232 / 320);
+  // of 320 sections were inside, 72.5 %; since a song form climbs the novelty ladder (#547 rung 5), repeated, then
+  // its themes renewed, then another form fetched, 227, 70.9 %, held over five songs; the bound restated so, for the owner's ruling)
+  it('reaches 227 of 320 sections inside at the lean’s top, open, further than at entropy 1 alone (#536, #660, #650, #655)', () => {
+    expect(insideOf(held.top)).toBeGreaterThanOrEqual(227 / 320);
     expect(insideOf(held.top)).toBeGreaterThan(insideOf(held.up));
   });
 
@@ -195,7 +198,8 @@ describe('the controller closed (E45, #237)', () => {
     // (0.5 walked before the walk rule retired on top of cells v0.25.1, #650; 0 held before #655's song forms, whose
     // sections swing about the band's edge, at a patience of 1)
     // (and 0.2 held from the bottom, one reversal in five sections, as it comes inside)
-    expect(most).toEqual([0.1, 0.2, 0]);
+    // (0.1 held closed before a song form climbed the novelty ladder, #547 rung 5)
+    expect(most).toEqual([0, 0.2, 0]);
     expect(Math.max(most[0]!, most[1]!)).toBeLessThanOrEqual(0.25);
     expect(most[2]).toBeLessThanOrEqual(0.5);
   });
@@ -220,19 +224,21 @@ describe('the controller on the page’s schedule (#495: read at a section’s l
     // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650; 0.594 held, and 0.609 and
     // 0.68 walked, before the ostinato on top of cells v0.25.1, #651)
     // (0.198, 0.604 and 0.635 over 96 bars of the chain's sections before #655)
+    // (0.181, 0.628 and 0.634 held, and 0.212, 0.669 and 0.688 walked, before a song form climbed the novelty ladder)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.181, 0.628, 0.634,
+      0.159, 0.662, 0.666,
     ]);
     // (0.211, 0.617 and 0.688 walked over 128 bars before #655)
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.212, 0.669, 0.688,
+      0.209, 0.672, 0.681,
     ]);
   });
 
   it('reverses within the ruled one per four sections, held and walked', () => {
     // ([0, 0.25] before #655's song forms, at a patience of 1)
     const most = [held.page, walked.page].map((r) => fixed(reversalsOf(r).most));
-    expect(most).toEqual([0.2, 0]);
+    // ([0.2, 0] before a song form climbed the novelty ladder, #547 rung 5)
+    expect(most).toEqual([0, 0.1]);
     expect(Math.max(...most)).toBeLessThanOrEqual(0.25);
   });
 });

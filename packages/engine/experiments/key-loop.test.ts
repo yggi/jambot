@@ -22,24 +22,25 @@ describe('the key’s loop, left alone (E19)', () => {
     for (const m of still) expect([m.preset, m.jumpRate, m.back]).toEqual([m.preset, 0, 1]);
   });
 
-  it('has no key of its own to return to: where it moves, it ends as far from where it opened as a key drawn at random, but Funk in songs (Q11, #655)', () => {
+  it('has no key of its own to return to: where it moves, it ends as far from where it opened as a key drawn at random, but Synth-pop is back on it in 2 runs of 10 (Q11, #655, #547)', () => {
     // A key drawn evenly round the circle lies 3 fifths from any other on average.
-    // Funk, whose reach is one fifth, ends 2 fifths away and back on its first key in 3 runs of 10 in songs (#655):
-    // more than 2 and at most 1 in 10 before #655's song forms, where it held with the others.
-    for (const m of moving.filter((m) => m.reach > 0 && m.preset !== 'Funk')) {
+    // Funk, whose reach is one fifth, ends 3 fifths away and never back on its first key: it ended 2 fifths away and back
+    // in 3 runs of 10 before a song form climbed the novelty ladder, #547 rung 5, and more than 2 and at most 1 in 10 before #655's song forms.
+    // Synth-pop ends 2.8 fifths away, but back on its first key in 2 runs of 10 (at most 1 in 10 before a song form climbed the novelty ladder, #547 rung 5).
+    for (const m of moving.filter((m) => m.reach > 0 && m.preset !== 'Synth-pop')) {
       expect(m.drift.at(-1), m.preset).toBeGreaterThan(2);
       expect(m.back, m.preset).toBeLessThanOrEqual(0.1);
     }
-    expect([named('Funk').drift.at(-1), named('Funk').back]).toEqual([2, 0.3]);
+    expect([named('Synth-pop').drift.at(-1), named('Synth-pop').back]).toEqual([2.8, 0.2]);
   });
 
   it('reads a key held a section or more back from the band’s chords where the harmony is rich, and not always where it is thin (F3, C9, Q12)', () => {
     const held = (name: string) => still.find((m) => m.preset === name)!.heldError;
     for (const name of ['Deep house', 'Bossa nova', 'Swing jazz']) expect(held(name), name).toBe(0);
-    // (Techno read above 0.01 before #655's song forms; 0.0094 in songs)
-    for (const name of ['Synth-pop', 'Lo-fi hip hop', 'Techno'])
-      expect(held(name), name).toBeLessThan(0.01);
-    for (const name of ['Ambient', 'Funk']) expect(held(name), name).toBeGreaterThan(0.01);
+    // (Techno read above 0.01 before #655's song forms, 0.0094 before a song form climbed the novelty ladder, #547 rung 5, and 0.0117 now)
+    for (const name of ['Synth-pop', 'Lo-fi hip hop']) expect(held(name), name).toBeLessThan(0.01);
+    for (const name of ['Ambient', 'Funk', 'Techno'])
+      expect(held(name), name).toBeGreaterThan(0.01);
   });
 
   it('brings the history’s centre to a new key in under 4 bars, but not by the section’s end where the harmony is thin (A4, C9)', () => {
@@ -54,12 +55,12 @@ describe('the key’s loop, left alone (E19)', () => {
   });
 
   it('still has no home under the radio’s walk: where the key moves it ends more than 1.5 fifths from where it opened (a random key lies 3), and is back on it in at most 1 run in 5, but Funk in songs (Q11, #313, #655)', () => {
-    // (Funk too before #655's song forms; in songs it ends 1.6 fifths away and back in 4 runs of 10)
+    // (Funk too before #655's song forms; it ends 1.7 fifths away and back in 3 runs of 10, and 1.6 and 4 in 10 before a song form climbed the novelty ladder, #547 rung 5)
     for (const m of wandering.filter((m) => m.reach > 0 && m.preset !== 'Funk')) {
       expect(m.drift.at(-1), m.preset).toBeGreaterThan(1.5);
       expect(m.back, m.preset).toBeLessThanOrEqual(0.2);
     }
-    expect([wanders('Funk').drift.at(-1), wanders('Funk').back]).toEqual([1.6, 0.4]);
+    expect([wanders('Funk').drift.at(-1), wanders('Funk').back]).toEqual([1.7, 0.3]);
   });
 
   it('moves a key the preset holds still once the walk has raised its harmony, and then leaves it as wide a jump as the walk’s harmony reaches (#313)', () => {

@@ -331,13 +331,16 @@ describe('the composer plays a progression filed, never varied, and leaves out o
     tags: [HARMONY_TAG],
   });
 
-  it('plays it as A over 16 sections at entropy 1, B and the builds from the tables, and files no variation of it', () => {
+  it('plays it as A over 15 sections at entropy 1, B and the builds from the tables, files no variation of it, and tires of it in the 16th', () => {
     const run = play(
       16 * SECTION_BARS,
       { ...SYNTH_POP.style, entropy: 1 },
       { layer: seeded.layer },
     );
-    const sections = range(16).map((s) => run[s * SECTION_BARS]!);
+    // (16 before a song form climbed the novelty ladder, #547 rung 5: Synth-pop's second song is now another form,
+    // groove and breakdown, whose grooves play A more often, so its sixth section of A comes a section sooner)
+    expect(run[15 * SECTION_BARS]!.carried.plans.themeFragments.A).not.toBe(seeded.id);
+    const sections = range(15).map((s) => run[s * SECTION_BARS]!);
     for (const { carried, bar } of sections) {
       const { kind } = bar.plan.theme;
       if (kind === 'A') expect(carried.plans.themeFragments.A).toBe(seeded.id);

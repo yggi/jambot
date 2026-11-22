@@ -59,6 +59,14 @@
  * far) are not climbed here: a rhythm rejected is the composer asking the
  * repository again without it, which is fetching nearby.
  *
+ * **A song form climbs it too** (#547 rung 5, `plan.ts`): a lineage of its
+ * own, its form's id, played every section of its song. Where a song ends,
+ * on the first rung it repeats as it was, on the second its themes are built
+ * anew (the workbench recombined), and past it the form is rejected, so the
+ * next song is the next form found at the style (`songFormAt`, fetching
+ * nearby), or the chain where none is near. A form is asked for only where a
+ * song starts, so nothing changes mid-song.
+ *
  * **The operators** are cells' (#442, yggi/cells decision 052), asked of
  * the repository (`RhythmRepository.vary`), which reads the rhythm's text:
  * each acts on one line of it, never on the kick or the backbeat, which

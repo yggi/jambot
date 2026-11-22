@@ -105,15 +105,18 @@ const SONGS = createRepository(
 
 const FOUND = new Map<string, string | null>();
 /**
- * The song form cells finds first at a style, by id, within the composer's reach (`MISS_DISTANCE`); null on a miss,
- * where the chain plays. Each of cells' 23 styles finds one at its own point (yggi/cells#815).
+ * The song form cells finds first at a style, by id, within the composer's reach (`MISS_DISTANCE`), leaving out the
+ * forms the composer is tired of (`rejected`, the novelty ladder's, `novelty.ts`); null on a miss, where the chain
+ * plays. Each of cells' 23 styles finds one at its own point (yggi/cells#815).
  */
-export function songFormAt(style: QueriedStyle): string | null {
+export function songFormAt(style: QueriedStyle, rejected: readonly string[] = []): string | null {
   const point = stylePoint(style);
-  const key = JSON.stringify(point);
+  const key = JSON.stringify([point, [...rejected].sort()]);
   if (!FOUND.has(key)) {
-    const [first] = SONGS.query(point, 1, {}, { facet: 'song' });
-    FOUND.set(key, first && first.distance <= MISS_DISTANCE ? first.fragment.id : null);
+    const found = SONGS.query(point, rejected.length + 1, {}, { facet: 'song' }).find(
+      (r) => !rejected.includes(r.fragment.id),
+    );
+    FOUND.set(key, found && found.distance <= MISS_DISTANCE ? found.fragment.id : null);
   }
   return FOUND.get(key)!;
 }

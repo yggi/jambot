@@ -322,8 +322,10 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
       [G2, DRUMMER, undefined, undefined],
     ]);
     // (the band decides a bar ahead: the state after bar 47 has planned section 6, the variation's third)
+    // (beside Funk's song form, the vamp, which climbs the ladder too, #547 rung 5: 7 sections into it at entropy 1)
     expect(run[6 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
       { grooves: [G, V], boredom: 6, rejected: true },
+      { grooves: ['vamp'], boredom: 7, rejected: true },
     ]);
   });
 
@@ -397,8 +399,10 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
       [V, COMPOSER, FUNK_DRUMS, expect.stringMatching(VARIED_BY)],
     ]);
     // (the band decides a bar ahead: the state after bar 39 has planned section 5, the variation's third)
+    // (beside Funk's song form, the vamp, which climbs the ladder too, #547 rung 5)
     expect(run[5 * SECTION_BARS - 1]!.carried.plans.boredom).toEqual([
       { grooves: [FUNK_DRUMS, V], boredom: 6, rejected: true },
+      { grooves: ['vamp'], boredom: 6, rejected: true },
     ]);
     // the clave is the drum bar's it was first chosen to layer on, and stays so after it layered on the drummer's
     expect(run.at(-1)!.carried.plans.claveOwners).toEqual({ [RUMBA]: FUNK_DRUMS });

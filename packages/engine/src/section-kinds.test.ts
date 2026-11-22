@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SECTION_BARS, SECTION_TYPES, barEnergy } from './form.ts';
-import { BAND_ORDER, kindOffset, kindPlays, sectionKind } from './section-kinds.ts';
+import { BAND_ORDER, kindOffset, kindPlays, sectionKind, songFormAt } from './section-kinds.ts';
+import { PRESETS } from './style.ts';
 import { leadRests } from './lead.ts';
 
 // (Jambot's own, before #655 read them from cells: form.ts's ENERGY_OFFSET and its build ramp, the lead resting in an
@@ -64,5 +65,21 @@ describe('the section kinds, from cells’ section fragments (#655)', () => {
     ]).toEqual([false, true]);
     expect(kindPlays('breakdown', 'stab')).toBe(false);
     expect(kindPlays('intro', 'stab')).toBe(true);
+  });
+});
+
+describe('a song form found less the forms the composer is tired of (#547 rung 5)', () => {
+  it('finds the next nearest where the nearest is rejected, and none where every form near is', () => {
+    const style = PRESETS.find((p) => p.name === 'Synth-pop')!.style;
+    const first = songFormAt(style);
+    expect(first).toBe('verse_chorus');
+    const next = songFormAt(style, [first!]);
+    expect(next).not.toBeNull();
+    expect(next).not.toBe(first);
+    const rejected: string[] = [];
+    for (let form = songFormAt(style); form !== null; form = songFormAt(style, rejected))
+      rejected.push(form);
+    expect(rejected.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(rejected).size).toBe(rejected.length);
   });
 });
