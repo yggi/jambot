@@ -536,7 +536,8 @@ describe('the seam, over the bars of every named meter (#261)', () => {
         ...(score.pad?.map((n) => n.step) ?? []),
         ...(score.stab?.map((n) => n.step) ?? []),
       ];
-      expect(all.length).toBeGreaterThan(3);
+      // (more than 3 before #655's song forms, whose intros play as few as 3: a song's intro is the drums' and the pad's)
+      expect(all.length).toBeGreaterThanOrEqual(3);
       for (const step of all) expect([steps, step >= 0 && step < steps]).toEqual([steps, true]);
     }
   });

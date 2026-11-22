@@ -74,11 +74,11 @@ const welcome = {
 };
 
 describe('the session protocol, version 2', () => {
-  it('is protocol 32, minor 2, version 2 from 30; version 1 stays protocol 23', () => {
-    expect([PROTOCOL_V2, FIRST_PROTOCOL_V2]).toEqual([32, 30]);
-    expect(SESSION_V2).toEqual({ protocol: 32, firstProtocol: 30 });
+  it('is protocol 33, minor 3, version 2 from 30; version 1 stays protocol 24', () => {
+    expect([PROTOCOL_V2, FIRST_PROTOCOL_V2]).toEqual([33, 30]);
+    expect(SESSION_V2).toEqual({ protocol: 33, firstProtocol: 30 });
     expect(SESSION_V1).toEqual({ protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL });
-    expect(PROTOCOL).toBe(23);
+    expect(PROTOCOL).toBe(24);
   });
 
   it('admits a peer of each version from its first protocol on, every protocol from 0 to 40', () => {
@@ -90,7 +90,7 @@ describe('the session protocol, version 2', () => {
     }
     expect(sameMajor(30.5, SESSION_V2)).toBe(false);
     expect(refusal({ kind: 'join', protocol: 29, name: 'Ada' }, [], null, SESSION_V2)).toBe(
-      'This host speaks version 32 of the session protocol, which takes 30 on, and this app 29: reload it.',
+      'This host speaks version 33 of the session protocol, which takes 30 on, and this app 29: reload it.',
     );
   });
 

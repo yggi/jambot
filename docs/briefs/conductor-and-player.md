@@ -92,7 +92,7 @@ A client of session version 2, which Jambot speaks since #553's rung 4, plays fr
 ## The order
 
 1. **The wire first: session 2.0 (#553, yggi/music-commons#43).** Done.
-   Jambot speaks version 2, minor 2 (protocol 32): the client plays from the score and the conduct, and tells its host each bar it lacked (`lacked`), which the host counts.
+   Jambot speaks version 2, minor 3 (protocol 33): the client plays from the score and the conduct, and tells its host each bar it lacked (`lacked`), which the host counts.
    Version 1's code, the band's bars, `SentBar.written`, `playBar` and the gap's fallback on a client, is no longer reached outside the tests that make a session speak it, and goes in a pull request of its own.
    This is the debt's largest part, and it doesn't need the cut.
 2. **The cut: `Conductor` out of `Player`**, behind the emissions above, with solo on direct calls.

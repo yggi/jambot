@@ -67,45 +67,50 @@ const inBars = (key: ScoreKey, numerals: readonly Numeral[]): Harmony[] =>
   }));
 
 describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
-  it('reads every preset held, 32 bars each, seed 0: six keys in three modes, secondaries, a next chord and pins among them', () => {
+  it('reads every preset held, 32 bars each, seed 0: eight keys in three modes, secondaries, a next chord and pins among them', () => {
     expect(MEASURED).toHaveLength(256);
     expect(new Set(MEASURED.map((m) => m.preset))).toEqual(
       new Set(PROTOTYPE_PRESETS.map((p) => p.name)),
     );
     const keys = new Set(MEASURED.map((m) => `${m.harmony.key.tonic}:${m.harmony.key.mode}`));
-    expect(keys.size).toBe(6);
+    expect(keys.size).toBe(8); // (6 before #655's song forms: a new song gets new themes)
     expect(new Set(MEASURED.map((m) => m.harmony.key.mode))).toEqual(
       new Set(['aeolian', 'dorian', 'ionian']),
     );
     const chords = MEASURED.flatMap((m) => m.harmony.chords);
-    expect(chords).toHaveLength(262);
+    expect(chords).toHaveLength(265); // (262 before #655's song forms)
     expect(chords.filter((c) => c.numeral.of).map((c) => formatNumeral(c.numeral))).toEqual([
       'V9/V',
       'V7/V',
       'V9/V',
       'V7/V',
-    ]);
+      'V9/V',
+      'V7/V',
+    ]); // (4 before #655's song forms)
     // The band writes no root off the key: every chord's root is a degree of it (U1 is exercised below, over every case).
     expect(chords.filter((c) => c.numeral.accidental !== 0)).toEqual([]);
-    expect(MEASURED.filter((m) => m.harmony.next)).toHaveLength(19);
-    expect(MEASURED.filter((m) => m.harmony.frame?.comp)).toHaveLength(231);
-    expect(MEASURED.filter((m) => m.harmony.frame?.bass !== undefined)).toHaveLength(233);
+    // (19, 231 and 233 before #655's song forms)
+    expect(MEASURED.filter((m) => m.harmony.next)).toHaveLength(17);
+    expect(MEASURED.filter((m) => m.harmony.frame?.comp)).toHaveLength(210);
+    expect(MEASURED.filter((m) => m.harmony.frame?.bass !== undefined)).toHaveLength(237);
   });
 
   it('counts each spelling: its characters, and the bars that read back exactly', () => {
+    // (12,900, 26,156 and 252, 28,401 and 252, 24,553 before #655's song forms)
     expect(table(MEASURED)).toEqual([
-      { name: 'score', characters: 12900, exact: 256 },
-      { name: 'stacks', characters: 26156, exact: 252 },
-      { name: 'shapes', characters: 28401, exact: 252 },
-      { name: 'numerals', characters: 24553, exact: 256 },
+      { name: 'score', characters: 12554, exact: 256 },
+      { name: 'stacks', characters: 25682, exact: 250 },
+      { name: 'shapes', characters: 27970, exact: 250 },
+      { name: 'numerals', characters: 24053, exact: 256 },
     ]);
     // The key and the pin are the same lines in every candidate; the chords are where they part.
-    expect(breakdown(MEASURED, 'stacks')).toEqual({ key: 5744, chords: 9099, frame: 11569 });
-    expect(breakdown(MEASURED, 'shapes')).toEqual({ key: 5744, chords: 11344, frame: 11569 });
-    expect(breakdown(MEASURED, 'numerals')).toEqual({ key: 5744, chords: 7496, frame: 11569 });
-    expect(breakdown(MEASURED, 'score')).toEqual({ key: 3440, chords: 2936, frame: 6780 });
+    // (the chords 9,099, 11,344, 7,496 and 2,936, the pins 11,569 and 6,780, before #655's song forms)
+    expect(breakdown(MEASURED, 'stacks')).toEqual({ key: 5744, chords: 9086, frame: 11108 });
+    expect(breakdown(MEASURED, 'shapes')).toEqual({ key: 5744, chords: 11374, frame: 11108 });
+    expect(breakdown(MEASURED, 'numerals')).toEqual({ key: 5744, chords: 7457, frame: 11108 });
+    expect(breakdown(MEASURED, 'score')).toEqual({ key: 3440, chords: 2919, frame: 6451 });
     // Stated once a run, as a section's text would, the shapes cost less, and still more than the numerals.
-    expect(shapesOnce(MEASURED)).toBe(25206);
+    expect(shapesOnce(MEASURED)).toBe(24713); // (25,206 before #655's song forms)
   });
 
   it('compiles every stacks and shapes text in cells v0.9.0 with no diagnostic, and plays the band’s chords, step for step', () => {
@@ -130,7 +135,8 @@ describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
   });
 
   it('finds what it checks: a chord, a pin or the next key altered in any spelling reads back as another bar', () => {
-    const minor = at('Synth-pop', 6); // V7 in A minor, pinned
+    // V7 in A minor, pinned (bar 6 before #655's song forms: it is an intro's since, whose comp rests, so it pins no comp)
+    const minor = at('Synth-pop', 14);
     const changed = (name: string, from: string | RegExp, to: string) => {
       const text = minor.texts[name]!.replace(from, to);
       expect(text, name).not.toBe(minor.texts[name]);
@@ -174,14 +180,16 @@ describe("the band's harmony as cells text, 8 presets × 32 bars (E32)", () => {
 });
 
 describe('what no candidate can say (E32: the gaps)', () => {
-  it('gap 1: a secondary dominant’s function: stacks and shapes play V7/V’s notes and read back II7, in the band’s 4 bars and every secondary of every key', () => {
+  it('gap 1: a secondary dominant’s function: stacks and shapes play V7/V’s notes and read back II7, in the band’s 6 bars and every secondary of every key', () => {
     const lost = MEASURED.filter((m) => !m.back.stacks);
     expect(lost.map((m) => `${m.preset} ${m.bar}`)).toEqual([
       'Swing jazz 2',
       'Swing jazz 6',
-      'Swing jazz 10',
-      'Swing jazz 14',
-    ]);
+      'Swing jazz 18',
+      'Swing jazz 22',
+      'Swing jazz 26',
+      'Swing jazz 30',
+    ]); // (bars 2, 6, 10 and 14 before #655's song forms)
     expect(MEASURED.filter((m) => !m.back.shapes)).toEqual(lost);
     for (const m of lost)
       for (const name of ['stacks', 'shapes'])
@@ -259,13 +267,14 @@ describe('what no candidate can say (E32: the gaps)', () => {
     );
     const notes = pins.flatMap((line) => line.split(' ').at(-1)!.replace(/[[\]]/gu, '').split(','));
     expect([pins.length, notes.length, notes.filter((n) => /[#b]/u.test(n)).length]).toEqual([
-      464, 1036, 33,
-    ]);
-    // Every bar read its pins back, whatever its chords did (the 4 lost bars above lose a chord, not a pin).
+      447, 959, 38,
+    ]); // (464, 1,036 and 33 before #655's song forms)
+    // Every bar read its pins back, whatever its chords did (the 6 lost bars above lose a chord, not a pin).
     for (const m of MEASURED)
       expect(candidate('stacks').read(m.texts.stacks!).frame).toEqual(m.harmony.frame);
-    // Synth-pop's bar 2: V in A minor, its comp led from the pin, and from none another inversion.
-    const played = PLAYED.find((p) => p.preset === 'Synth-pop' && p.bar.bar === 2)!;
+    // Synth-pop's bar 10: V in A minor, its comp led from the pin, and from none another inversion.
+    // (bar 2 before #655's song forms: it is an intro's since, whose comp rests; bar 10, a verse's, plays the same chords)
+    const played = PLAYED.find((p) => p.preset === 'Synth-pop' && p.bar.bar === 10)!;
     const comp = (from: typeof played.before) =>
       band
         .advance(played.env, from, null)
@@ -276,15 +285,15 @@ describe('what no candidate can say (E32: the gaps)', () => {
       59, 64, 68,
     ]);
     // In cells the pin is a cell nothing plays: it compiles, and nothing reads it.
-    expect(at('Synth-pop', 2).texts.stacks).toContain('&frame over=&key [0,2,5]');
+    expect(at('Synth-pop', 10).texts.stacks).toContain('&frame over=&key [0,2,5]');
   });
 
-  it('gap 4: the next chord is a copy, not a reference: 19 bars state it again, 1 in the next key, 6 across a section’s end', () => {
+  it('gap 4: the next chord is a copy, not a reference: 17 bars state it again, 1 in the next key, 5 across a section’s end', () => {
     const leading = MEASURED.filter((m) => m.harmony.next);
     expect(leading.map((m) => `${m.preset} ${m.bar}`)).toEqual([
       ...[3, 7, 11, 15, 19, 23, 27, 31].map((b) => `Funk ${b}`),
-      ...[8, 9, 10, 11, 12, 13, 14, 15, 29, 30, 31].map((b) => `Bossa nova ${b}`),
-    ]);
+      ...[8, 9, 10, 11, 12, 13, 14, 15, 29].map((b) => `Bossa nova ${b}`),
+    ]); // (Bossa nova's 30 and 31 too before #655's song forms)
     const elsewhere = leading.filter(
       (m) =>
         m.harmony.next!.key.tonic !== m.harmony.key.tonic ||
@@ -292,18 +301,22 @@ describe('what no candidate can say (E32: the gaps)', () => {
     );
     expect(elsewhere.map((m) => `${m.preset} ${m.bar}`)).toEqual(['Funk 23']);
     expect(elsewhere[0]!.texts.numerals).toContain('&next over=scale(dorian, A) i');
-    expect(leading.filter((m) => m.bar % SECTION_BARS === SECTION_BARS - 1)).toHaveLength(6);
+    expect(leading.filter((m) => m.bar % SECTION_BARS === SECTION_BARS - 1)).toHaveLength(5); // (6 before #655's song forms)
   });
 
-  it('gap 5: a chord’s scale as a line’s default (U3): no candidate has one, and every line can state its scale once: 256 of 262 by cells’ names, 6 by tonal’s', () => {
+  it('gap 5: a chord’s scale as a line’s default (U3): no candidate has one, and every line can state its scale once: 255 of 265 by cells’ names, 10 by tonal’s', () => {
     const stated = MEASURED.flatMap((m) =>
       m.harmony.chords.map((c) => chordScaleText(m.harmony.key, c.numeral)!),
     );
     expect(stated.every(Boolean)).toBe(true);
-    expect(stated.filter((s) => s.by === 'cells')).toHaveLength(256);
+    expect(stated.filter((s) => s.by === 'cells')).toHaveLength(255); // (256 before #655's song forms)
     const tonal = stated.filter((s) => s.by === 'tonal');
-    expect([...new Set(tonal.map((s) => s.text))]).toEqual(['scale("E:phrygian:dominant")']);
-    expect(tonal).toHaveLength(6);
+    // (E's alone, 6, before #655's song forms: F♯ minor, one of the new keys, adds C♯'s)
+    expect([...new Set(tonal.map((s) => s.text))]).toEqual([
+      'scale("E:phrygian:dominant")',
+      'scale("C#:phrygian:dominant")',
+    ]);
+    expect(tonal).toHaveLength(10);
     // Each scale stated, once a line, plays the scale the chord implies.
     for (const s of new Map(stated.map((x) => [x.text, x])).values()) {
       const text = [

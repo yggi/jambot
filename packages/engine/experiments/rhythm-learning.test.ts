@@ -63,13 +63,13 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
   // groove filed, before; and with the ostinato on top of 2/4 and 2/2, #651, whose Salsa drums the drummer holds near
   // Salsa's point: 240 grooves, 30 and 210, the misses 1,394 to 30, 12,601 a groove filed, before; and with cells
   // v0.26.0's twelve-eight drums, which weigh 1, not 0.25, yggi/cells#706: 233 grooves, 28 and 205, the misses 1,394 to 28,
-  // 11,942 a groove filed, over 26,986 sections, before)
-  it('files 233 grooves in 120 hours, 24 the drummer’s on a miss and 209 the composer’s variations (#411, #414), and the misses fall from 1,025 sections to 24: what was filed is found again', () => {
+  // 11,942 a groove filed, over 26,986 sections, before; and 233 grooves, 24 and 209, before #655's song forms)
+  it('files 231 grooves in 120 hours, 24 the drummer’s on a miss and 207 the composer’s variations (#411, #414), and the misses fall from 1,025 sections to 24: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26986);
     expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([24, 1025]);
-    expect(FILINGS.length).toBe(233);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([24, 209]);
+    expect(FILINGS.length).toBe(231);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([24, 207]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
     expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11925);
   });
@@ -111,18 +111,20 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     const { before, after, added, error } = lockIn(UNLEARNED, LEARNED);
     // (0.8738 to 0.6987, −17.51 (1.95), before cells v0.24.0; 0.8383 to 0.6656, −17.28 (1.80), before v0.25.0; 0.8320
     // to 0.6656, −16.64 (1.90), before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652; 0.8295 to
-    // 0.6617, −16.78 (1.89), before the ostinato on top of 2/4 and 2/2, #651)
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8270', '0.6535']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.34', '2.02']);
+    // 0.6617, −16.78 (1.89), before the ostinato on top of 2/4 and 2/2, #651; 0.8270 to 0.6535, −17.34 (2.02), before
+    // #655's song forms)
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8270', '0.6538']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.31', '2.01']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0)
-  it(`keeps a layer of at most 9,908 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  it(`keeps a layer of at most 9,775 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
     // (15,114 before the layer kept the composer's groove variations by reference, #553: their texts are most of them;
-    // 11,015 before the ostinato on top of cells v0.25.1, #651; 11,048 before cells v0.26.0's twelve-eight drums, #706)
-    expect(Math.max(...bytes)).toBe(9908);
+    // 11,015 before the ostinato on top of cells v0.25.1, #651; 11,048 before cells v0.26.0's twelve-eight drums, #706;
+    // 9,908 before #655's song forms)
+    expect(Math.max(...bytes)).toBe(9775);
     expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(10);
     // every groove its run filed is still there
     for (const run of LEARNED)

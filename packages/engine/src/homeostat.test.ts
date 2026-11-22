@@ -66,12 +66,12 @@ describe('restlessness past entropy 1 (restlessOf, #536)', () => {
       }
   });
 
-  it('is reached from entropy 0.3 in four moves: 0.8, 1 and restless 0.3, 0.8, then the top', () => {
+  it('is reached from entropy 0.3 in four moves: 0.8, 1 and restless 0.3, 0.8, then the top (a move a reading, at a patience of 1)', () => {
     const { high } = bandOf(0.3);
     let state = NO_LEAN;
     const way: [number, number][] = [];
     for (let i = 0; i < 5; i++) {
-      state = regulated(state, high + 0.1, 0.3);
+      state = regulated(state, high + 0.1, 0.3, LEAN_STEP, 1);
       way.push([leanedEntropy(0.3, state.lean), restlessOf(0.3, state.lean)]);
     }
     expect(way.map(([e, r]) => [+e.toFixed(9), +r.toFixed(9)])).toEqual([
@@ -86,8 +86,8 @@ describe('restlessness past entropy 1 (restlessOf, #536)', () => {
 });
 
 describe('the controller (regulated)', () => {
-  it('moves on one reading out of the band, sixteen bars spanning two sections (#536)', () => {
-    expect(PATIENCE).toBe(1);
+  it('moves on two readings out of the band in a row: a song form’s sections swing about its edge (#655)', () => {
+    expect(PATIENCE).toBe(2);
   });
 
   it('leans the loop’s entropy a step the share’s way where the reading before agreed (a patience of 2), never under 0 nor past 1 and full restlessness, at every entropy, share, lean and reading before', () => {

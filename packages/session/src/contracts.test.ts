@@ -1,7 +1,7 @@
 /**
  * The family's session contract (yggi/music-commons `contracts/session-v1`,
- * version 1, minor 9: protocol 22; and `contracts/session`, version 2,
- * minor 2: protocol 32, the version Jambot speaks) run against this package's readers, as yggi/webmidi
+ * version 1, minor 11: protocol 24, which Jambot spoke before version 2; and `contracts/session`, version 2,
+ * minor 3: protocol 33, the version Jambot speaks) run against this package's readers, as yggi/webmidi
  * and yggi/cells run theirs: each version's hub `vectors.json` is copied into
  * `fixtures/contracts/` (`session.json` for version 1, `session-v2.json` for
  * version 2) with a first field, `lifted`, naming the hub's path and the
@@ -11,7 +11,7 @@
  *
  * Each vector names its reader: `host` reads a client's message
  * (`readClientMessage`, which version 2 shares, its client messages being
- * version 1's at minor 9 with minor 2's `lacked`), `client` a host's (`readHostMessage`, or
+ * version 1's with minor 2's `lacked`), `client` a host's (`readHostMessage`, or
  * `readHostMessageV2` for version 2), `lobby` a page's request
  * (`readToLobby`) and `page` what a lobby says (`readFromLobby`), both
  * versions' alike, as a lobby reads no version. A reader gives a message it
@@ -200,7 +200,7 @@ function differs(run: Run, v: Vector): string | null {
  * Empty for both: a client checks a host message's fields
  * (`readHostMessage`, `readHostMessageV2`), a host's join a protocol that is
  * an integer, and a page a listed session's `away` (`readFromLobby`), as the
- * contract's rule has them.
+ * contract's rule has them, and a host reads a client's `lacked` (minor 2).
  */
 const RECORDED: Readonly<Record<1 | 2, Readonly<Record<string, string>>>> = { 1: {}, 2: {} };
 
@@ -212,8 +212,8 @@ const namesOf = (run: Run) => run.contract.vectors.map((v) => v.name);
 const named = (run: Run, name: string) => run.contract.vectors.find((v) => v.name === name)!;
 
 describe.each([
-  [1, V1, 'session-v1', 9, 360],
-  [2, V2, 'session', 2, 376],
+  [1, V1, 'session-v1', 11, 366],
+  [2, V2, 'session', 3, 381],
 ] as const)(
   'the session contract, version %i (yggi/music-commons contracts/%s, minor %i)',
   (version, run, path, minor, count) => {
@@ -282,13 +282,9 @@ describe.each([
 );
 
 describe('the session contract, version 1, as Jambot spoke it before version 2', () => {
-  it('is the version Jambot spoke, a minor on from the copy', () => {
-    // (Jambot speaks minor 10, protocol 23: a drum hit's role may be `ostinato`, #651, a value the hub records at its
-    // next lift; minor 9's vectors still hold, a minor only adding)
-    expect([V1.contract.protocol + 1, V1.contract.firstProtocol]).toEqual([
-      PROTOCOL,
-      FIRST_PROTOCOL,
-    ]);
+  it('is the version Jambot spoke', () => {
+    // (minor 11, protocol 24: a section a kind of a song form, and its song, #655, yggi/music-commons#76)
+    expect([V1.contract.protocol, V1.contract.firstProtocol]).toEqual([PROTOCOL, FIRST_PROTOCOL]);
     expect(SESSION_V1).toEqual({ protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL });
   });
 
@@ -326,6 +322,7 @@ describe('the session contract, version 1, as Jambot spoke it before version 2',
 
 describe('the session contract, version 2, as Jambot speaks it', () => {
   it("is version 2's own protocol and first", () => {
+    // (minor 3, protocol 33: a score's section a kind of a song form, #655, yggi/music-commons#76)
     expect([V2.contract.protocol, V2.contract.firstProtocol]).toEqual([
       PROTOCOL_V2,
       FIRST_PROTOCOL_V2,
@@ -355,15 +352,15 @@ describe('the session contract, version 2, as Jambot speaks it', () => {
     // Each refusal of version 2's own fields, turned over.
     for (const name of [
       'score, a text: lock.1.id = "band"',
-      'score, a text: section = "chorus"',
+      'score, a text: section = "coda"',
       'conduct: entropy = 1.5',
       'welcome while stopped: band.hash = 7',
       'welcome while playing: song.conducts absent',
     ])
       expect(differs(V2, { ...named(V2, name), reads: true }), name).toBe("client doesn't read it");
-    const own = named(V2, 'handshake: a join at protocol 32, its own');
+    const own = named(V2, 'handshake: a join at protocol 33, its own');
     expect(differs(V2, { ...own, admits: false })).toBe('host admits');
-    // Cell studio's follower joins at 31, a minor before, and is admitted.
+    // Cell studio's follower joins at 31, two minors before, and is admitted.
     const before = named(V2, 'handshake: a join at protocol 31, a minor before');
     expect(differs(V2, { ...before, admits: false })).toBe('host admits');
     // A client's `lacked`, read; one whose `why` the contract doesn't name, turned over, is caught.

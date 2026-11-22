@@ -243,7 +243,7 @@ describe('the band', () => {
   it('carries register into the bass and the comp, but a phrase into the lead: what a resumed band loses (S2)', () => {
     // A band that passes 20 bars of every 40, as after a stall, against one
     // that plays them all: the first bar after each pass.
-    const counts = { bass: 0, pad: 0, stab: 0, lead: 0, bars: 0 };
+    const counts = { bass: 0, pad: 0, stab: 0, lead: 0, bars: 0, leading: 0 };
     for (const seed of range(8)) {
       const at = (bar: number): BandEnv => {
         const preset = PRESETS[Math.floor(bar / 16) % PRESETS.length]!;
@@ -277,12 +277,15 @@ describe('the band', () => {
             .join();
         for (const part of ['bass', 'pad', 'stab', 'lead'] as const)
           if (heard(played.output.dough, part) !== heard(back.output.dough, part)) counts[part]++;
+        if (heard(played.output.dough, 'lead')) counts.leading++;
       }
     }
     // Bass and comp resume in another register only: the same rhythm and
-    // pitch classes. The lead resumes from another phrase.
+    // pitch classes. The lead resumes from another phrase, in most bars where it plays (it rests in an intro, a
+    // breakdown and an outro: #655).
     expect(counts).toMatchObject({ bars: 80, bass: 0, pad: 0, stab: 0 });
-    expect(counts.lead).toBeGreaterThan(40);
+    expect(counts.leading).toBeGreaterThan(20);
+    expect(counts.lead).toBeGreaterThan(counts.leading / 2);
   });
 
   it('plays an offered motif by what it is, not by when, from whom or how loudly it was offered (C6)', () => {

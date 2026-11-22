@@ -17,10 +17,12 @@ import {
   VOICE_OF_NOTE,
   bandDrums,
   cellsDrums,
+  drumsAsCells,
   euclidOf,
   hitsOf,
   levelOf,
   mismatches,
+  presetBars,
   report,
   rolesOf,
   velocitiesOf,
@@ -32,6 +34,23 @@ const WITNESSES = witnesses();
 if (process.env.E31_REPORT) console.log(WITNESSES.map(report).join('\n\n'));
 
 const of = (preset: string) => WITNESSES.find((w) => w.preset === preset)!;
+
+/**
+ * The bar cells' seed drum bars were taken from: each preset's bar 23, the last of its third section, with its fill,
+ * which was every preset's witness before #655's song forms. Since then the witness (the first bar with the most roles)
+ * is Ambient's bar 9 and Bossa nova's bar 31, so the seeds' claims read bar 23 itself.
+ */
+const SEED_BAR = 23;
+const SEEDED = PROTOTYPE_PRESETS.map((preset) => {
+  const bar = presetBars(preset)[SEED_BAR]!;
+  return { preset: preset.name, bar, text: drumsAsCells(bar) };
+});
+/**
+ * The presets whose bar 23 is still cells' seed drum bar: each ends a groove at its preset's energy. Since #655's song
+ * forms Synth-pop's bar 23 ends a chorus and Techno's a build, which play louder, and Ambient's groove plays two roles
+ * where its seed plays four; no bar of the three's first 256 at seeds 0 to 3 is their seed (all 8 before).
+ */
+const SEED_HELD = ['Deep house', 'Lo-fi hip hop', 'Funk', 'Bossa nova', 'Swing jazz'];
 
 /** Each drum voice's General MIDI note, as the kit writes it (`VOICE_OF_NOTE` turned round). */
 const NOTE_OF_VOICE = new Map([...VOICE_OF_NOTE].map(([note, voice]) => [voice, note]));
@@ -58,7 +77,9 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
     expect(new Set(WITNESSES.flatMap((w) => w.band.map((h) => h.note)))).toEqual(
       new Set(Object.values(DRUM_NOTES).filter((n) => n !== DRUM_NOTES.clap)),
     );
-    for (const w of WITNESSES) expect(rolesOf(w.bar).length, w.preset).toBeGreaterThanOrEqual(4);
+    // Every witness plays 4 roles or more but Ambient's, which plays 3: since #655's song forms Ambient's grooves play
+    // at its own energy, 0.2, and none of its first 32 bars plays a fourth role (every witness 4 or more before).
+    expect(WITNESSES.map((w) => rolesOf(w.bar).length)).toEqual([5, 4, 5, 3, 6, 6, 6, 6]);
   });
 
   it('compiles every witness with no diagnostics', () => {
@@ -70,7 +91,7 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
       expect(w.band.length, w.preset).toBeGreaterThan(0);
       expect(mismatches(w.band, w.cells), w.preset).toEqual([]);
     }
-    expect(WITNESSES.reduce((n, w) => n + w.cells.length, 0)).toBe(144);
+    expect(WITNESSES.reduce((n, w) => n + w.cells.length, 0)).toBe(136); // (144 before #655's song forms)
   });
 
   it("states each role as a line of its own name, which plays that role's hits alone", () => {
@@ -192,7 +213,7 @@ describe('what cells could not say (E31: the gaps)', () => {
   it('gap 1: a drum voice that is only its MIDI note: a kit member with no sound is no voice, so the text names one the band never plays', () => {
     // The witness: Synth-pop's bar, its voices given no sound, or only a gain or a hit's envelope.
     const w = of('Synth-pop');
-    expect(w.cells).toHaveLength(12);
+    expect(w.cells).toHaveLength(15); // (12 before #655's song forms: its bar 23 ends a chorus since)
     for (const sound of ['gain=1', 'oneshot', '']) {
       // (each voice's line, which the kit gives it, stripped of its sound and keeping its note, `note=`)
       const text = w.text.replace(/^&(\w+) (note=\d+) s=.*$/gm, (_, voice: string, note: string) =>
@@ -229,18 +250,23 @@ describe('what cells could not say (E31: the gaps)', () => {
 });
 
 describe('E31’s translation as the engine states a groove the Muse files (#401)', () => {
-  it('states each witness bar as cells’ seed drum bar for its preset, character for character, less the bar line and its card, each with the kit it strikes', () => {
-    for (const w of WITNESSES) {
-      const seed = RHYTHM_FRAGMENTS.find((f) => f.id === wordOf(`${w.preset} drums`))!;
+  it('states bar 23 as cells’ seed drum bar for its preset, character for character, less the bar line and its card, each with the kit it strikes, where it ends a groove: 5 presets of 8', () => {
+    const seedOf = (preset: string) =>
       // (the seed's lines: a groove is a template since cells v0.24.0, its drums `gm_kit`'s by default, #634)
-      expect(w.text.split('\n').slice(2).join('\n'), w.preset).toBe(
-        withInstruments(grooveLines(seed.text)),
+      withInstruments(
+        grooveLines(RHYTHM_FRAGMENTS.find((f) => f.id === wordOf(`${preset} drums`))!.text),
       );
-    }
+    const stated = (w: (typeof SEEDED)[number]) => w.text.split('\n').slice(2).join('\n');
+    for (const w of SEEDED.filter((w) => SEED_HELD.includes(w.preset)))
+      expect(stated(w), w.preset).toBe(seedOf(w.preset));
+    // (all 8 before #655's song forms)
+    expect(SEEDED.filter((w) => stated(w) === seedOf(w.preset)).map((w) => w.preset)).toEqual(
+      SEED_HELD,
+    );
   });
 
-  it('files a witness bar as the seed fragment it is: identity adds to it, a use at the point, and files nothing new', () => {
-    for (const w of WITNESSES) {
+  it('files bar 23 as the seed fragment it is where it is one: identity adds to it, a use at the point, and files nothing new; the others file a groove of their own', () => {
+    for (const w of SEEDED) {
       const filed = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, {
         hits: bandDrums(w.bar).map((n) => ({
           role: n.role!,
@@ -254,11 +280,12 @@ describe('E31’s translation as the engine states a groove the Muse files (#401
         created: 'song 0',
         tags: ['groove'],
       });
-      expect([filed.held, filed.id, filed.layer.filed.length], w.preset).toEqual([
-        true,
-        wordOf(`${w.preset} drums`),
-        0,
-      ]);
+      // (every preset's held as its seed before #655's song forms)
+      expect([filed.held, filed.id, filed.layer.filed.length], w.preset).toEqual(
+        SEED_HELD.includes(w.preset)
+          ? [true, wordOf(`${w.preset} drums`), 0]
+          : [false, 'drummer song 0', 1],
+      );
     }
   });
 

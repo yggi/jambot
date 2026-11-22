@@ -1,6 +1,6 @@
 /**
  * What a host says to its clients in version 2 of the session contract
- * (yggi/music-commons `contracts/session`, minor 2: protocol 32), as a client
+ * (yggi/music-commons `contracts/session`, minor 3: protocol 33), as a client
  * reads it: the version Jambot speaks (`SESSION_SPEAKS` in the app, #553),
  * written by the app's host (`host-v2.ts`) and played by its client
  * (`follow-v2.ts`).
@@ -52,10 +52,11 @@ import {
 import type { ForecastDelta } from './forecast.ts';
 
 /**
- * The protocol a peer of version 2, minor 2, carries in its join or welcome: minor 1 (31) takes up version 1's minors
- * 6 to 9, and minor 2 (32) adds a client's `lacked` (yggi/music-commons#74).
+ * The protocol a peer of version 2, minor 3, carries in its join or welcome: minor 1 (31) takes up version 1's minors
+ * 6 to 9, minor 2 (32) adds a client's `lacked` (yggi/music-commons#74), and minor 3 (33) lets a score's section be a
+ * kind of a song form, `verse`, `chorus` or `outro` (yggi/music-commons#76).
  */
-export const PROTOCOL_V2 = 32;
+export const PROTOCOL_V2 = 33;
 
 /** The first protocol of version 2 (the owner's ruling of 2026-11-06): version 1 keeps 13 to 29 for its minors. */
 export const FIRST_PROTOCOL_V2 = 30;

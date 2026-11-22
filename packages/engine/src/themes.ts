@@ -57,7 +57,8 @@ export interface Theme {
 
 /** Which theme a kind of section plays. */
 export function themeKind(type: SectionType): ThemeKind {
-  if (type === 'bridge' || type === 'breakdown') return 'B';
+  // (a song form's chorus is its other theme, so a chorus comes back as it was and a verse as it was: #655)
+  if (type === 'bridge' || type === 'breakdown' || type === 'chorus') return 'B';
   return type === 'build' ? 'build' : 'A';
 }
 

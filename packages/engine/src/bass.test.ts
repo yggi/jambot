@@ -22,17 +22,17 @@ const styleAt = (bar: number): Style => ({
 const presetAt = (bar: number) => PRESETS[Math.floor(bar / 8) % PRESETS.length]!;
 
 /** The bars a band plays over the tour: each is what the bass reads. */
-const tour = (seed: number, bars = 128): BandBar[] => {
+const tour = (seed: number, bars = 128, at = presetAt, style = styleAt): BandBar[] => {
   let carried = band.initial;
   return range(bars).map((bar) => {
-    const preset = presetAt(bar);
+    const preset = at(bar);
     const next = band.advance(
       {
         seed,
         bar,
-        style: styleAt(bar),
+        style: style(bar),
         // The level is asked a bar ahead: a section's plan takes it on the bar before (#360).
-        swing: { level: presetSwing(presetAt(bar + 1))!.level, share: presetSwing(preset)!.share },
+        swing: { level: presetSwing(at(bar + 1))!.level, share: presetSwing(preset)!.share },
         wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         offer: null,
       },
@@ -44,7 +44,18 @@ const tour = (seed: number, bars = 128): BandBar[] => {
   });
 };
 
-const bars = [1, 2, 3].flatMap((seed) => tour(seed));
+// (and a song held at Techno, a build and a drop with its breakdown: the tour's song plays on as its style moves, and a
+// verse–chorus song has none, #655)
+const TECHNO = PRESETS.find((p) => p.name === 'Techno')!;
+const bars = [
+  ...[1, 2, 3].flatMap((seed) => tour(seed)),
+  ...tour(
+    1,
+    64,
+    () => TECHNO,
+    () => ({ ...TECHNO.style, energy: 0.7, entropy: 0.3 }),
+  ),
+];
 
 /** The bass over bars in order, with the note it carried into each. */
 const play = (over: readonly BandBar[]) => {
@@ -56,7 +67,17 @@ const play = (over: readonly BandBar[]) => {
     return { bar, before, events: output };
   });
 };
-const played = [1, 2, 3].flatMap((seed) => play(tour(seed)));
+const played = [
+  ...[1, 2, 3].flatMap((seed) => play(tour(seed))),
+  ...play(
+    tour(
+      1,
+      64,
+      () => TECHNO,
+      () => ({ ...TECHNO.style, energy: 0.7, entropy: 0.3 }),
+    ),
+  ),
+];
 
 const rootOf = (chord: { chord: { helix: { heights: readonly number[] } } }) =>
   wrap(chord.chord.helix.heights[0]!, 12);

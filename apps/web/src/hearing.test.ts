@@ -91,14 +91,15 @@ describe('the homeostat on the page (#495)', () => {
       sections.map((s) => (s.section + LEAN_AHEAD) * SECTION_BARS),
     );
     expect(sections.map((s) => s.entropy)).toEqual(Array(6).fill(ENTROPY));
-    // (bored, above the band at sections 0, 3, 4 and 5, each a step up two sections on, past entropy 1 into restlessness from 6, to the top from 7)
+    // (bored, above the band at sections 0, 2, 3, 4 and 5; at a patience of 2 a step up two sections on from the second
+    // reading in a row, section 3's, and each section after, past entropy 1 into restlessness from 6; before #655's song
+    // forms and its patience of 2, bored at 0, 3, 4 and 5, a step up at 2, 5 and 6, and the top from 7)
     const { high } = bandOf(ENTROPY);
-    expect(sections.map((s) => s.share! > high)).toEqual([true, false, false, true, true, true]);
+    expect(sections.map((s) => s.share! > high)).toEqual([true, false, true, true, true, true]);
     expect(leans).toEqual([
-      { bar: 2 * SECTION_BARS, lean: LEAN_STEP },
-      { bar: 5 * SECTION_BARS, lean: 2 * LEAN_STEP },
-      { bar: 6 * SECTION_BARS, lean: 3 * LEAN_STEP },
-      { bar: 7 * SECTION_BARS, lean: 2 - ENTROPY },
+      { bar: 5 * SECTION_BARS, lean: LEAN_STEP },
+      { bar: 6 * SECTION_BARS, lean: 2 * LEAN_STEP },
+      { bar: 7 * SECTION_BARS, lean: 3 * LEAN_STEP },
     ]);
     expect(leaned.length).toBe(leans.length);
     expect(homeostat.reversals).toBe(0);

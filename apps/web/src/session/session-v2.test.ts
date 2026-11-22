@@ -1,6 +1,6 @@
 /**
  * A host and a client that speak version 2 of the session contract (#553, rungs 3 and 4): the client plays the host's
- * scores on the clock its conducts give, read from the scores alone (yggi/music-commons `contracts/session`, minor 2),
+ * scores on the clock its conducts give, read from the scores alone (yggi/music-commons `contracts/session`, minor 3),
  * held against what the host plays and against a client of version 1 playing the same song, and tells the host each
  * bar it didn't play (`lacked`), which the host counts by client.
  */
@@ -346,7 +346,7 @@ describe('a client of session version 2 playing its host’s scores (#553 rungs 
     const { host, client, hosting, following } = await session({ speaks: 1, follows: 2 });
     await run([host, client], funkSeconds(2));
     expect(following.status).toBe('idle');
-    expect(following.ended).toMatch(/version 23 .* reload the host/);
+    expect(following.ended).toMatch(/version 24 .* reload the host/);
     expect(client.player.played.since().events).toEqual([]);
     // (shown firing: a client of version 1 stays with it)
     const v1 = await session({ speaks: 1, follows: 1 });

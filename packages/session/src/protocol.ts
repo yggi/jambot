@@ -89,13 +89,13 @@ import type { ForecastDelta } from './forecast.ts';
  *
  * From 13 on, a protocol is a minor version of the session contract's major
  * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6, 20 minor 7, 21 minor 8 (a motif's judgement carries its `origin`, #580 rung 3), 22 minor 9 and 23 minor 10. A host admits a join of any
+ * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6, 20 minor 7, 21 minor 8 (a motif's judgement carries its `origin`, #580 rung 3), 22 minor 9, 23 minor 10 and 24 minor 11 (a section a kind of a song form, and its song, #655, yggi/music-commons#76). A host admits a join of any
  * of them, and a client stays with a host of any (`sameMajor`), each
  * ignoring a kind it doesn't know, so a minor that adds a kind deploys
  * without every client in lockstep: a client at 13 drops the `section`
  * messages and the welcome's `song.texts` it can't read, and plays the bars.
  */
-export const PROTOCOL = 23;
+export const PROTOCOL = 24;
 
 /**
  * What a client may be seated as (docs/briefs/session-roles.md): a
@@ -375,7 +375,7 @@ export type ClientMessage =
   /** A ping, stamped with the client's page clock as it was sent, in seconds. */
   | { readonly kind: 'ping'; readonly sent: number }
   /**
-   * A bar the client didn't play, and why (version 2's minor 2, protocol 32, yggi/music-commons#74): one a bar, which
+   * A bar the client didn't play, and why (version 2's minor 2, protocol 32 on, yggi/music-commons#74): one a bar, which
    * a host counts by client (`countLacked`); a host of version 1 has no use for it and ignores it.
    */
   | {
