@@ -390,6 +390,26 @@ export function playingRows(
   return out;
 }
 
+/**
+ * A row's fragment as its line says it: the fragment and its arguments, or, written, what it was derived from where
+ * the page knows (`written from funk_drums`, `written, the band's own`).
+ */
+export function fragmentLine({ id, args, derived }: PlayingRow): string {
+  if (id !== null) return args ? `${id} (${args})` : id;
+  if (derived === null) return 'written';
+  return derived.id === null ? 'written, the band’s own' : `written from ${derived.id}`;
+}
+
+/** How a row's fragment came, or the fragment a written row came from: what its line says beside the fragment. */
+export function cameOfRow(row: PlayingRow): Came | null {
+  return row.came ?? row.derived?.came ?? null;
+}
+
+/** How it came and who made it, as one phrase: "found · The drummer", "a seed". */
+export function cameLine({ how, who }: Came): string {
+  return who === null ? how : `${how} · ${who}`;
+}
+
 /** The card's summary, folded, of the section heard: how many parts it plays, and how many of them are fragments. */
 export function playingSummary(rows: readonly PlayingRow[]): { main: string; sub: string } {
   const taken = rows.filter((r) => r.id !== null).length;

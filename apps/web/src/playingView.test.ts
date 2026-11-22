@@ -19,8 +19,11 @@ import { type FragmentRow, type TakenSection, fragmentRows, logged } from './fra
 import {
   type PlayingRow,
   type SectionDerivation,
+  cameLine,
   cameOf,
+  cameOfRow,
   derivationOf,
+  fragmentLine,
   playingRows,
   playingSummary,
 } from './playingView.ts';
@@ -364,6 +367,38 @@ describe('the Playing tree joined to the Library (#730)', () => {
     expect(row('drums').derived?.id).toBe(s!.fragments.rhythm);
     for (const label of ['bass', 'lead', 'harm']) expect(row(label).derived, label).toBeNull();
     expect(row('clave').came?.how).toBe('a seed');
+  });
+
+  it('says a row’s fragment, what a written one came from, and how either came, on its line', () => {
+    const row = (over: Partial<PlayingRow>): PlayingRow => ({
+      key: 'k',
+      depth: 0,
+      label: 'bass',
+      id: null,
+      args: null,
+      on: [],
+      weight: null,
+      lines: [],
+      came: null,
+      derived: null,
+      ...over,
+    });
+    const seed = cameOf(libraryRow());
+    const found = cameOf(libraryRow({ filed: true, source: 'The bass' }));
+    expect(fragmentLine(row({ id: 'meter', args: 'swing=16n:.6' }))).toBe('meter (swing=16n:.6)');
+    expect(fragmentLine(row({ id: 'diatonic' }))).toBe('diatonic');
+    expect(fragmentLine(row({}))).toBe('written');
+    expect(fragmentLine(row({ derived: { id: null, came: null, why: null } }))).toBe(
+      'written, the band’s own',
+    );
+    expect(fragmentLine(row({ derived: { id: 'funk_bass', came: seed, why: null } }))).toBe(
+      'written from funk_bass',
+    );
+    expect(cameOfRow(row({ id: 'funk_bass', came: found }))).toBe(found);
+    expect(cameOfRow(row({ derived: { id: 'funk_bass', came: seed, why: null } }))).toBe(seed);
+    expect(cameOfRow(row({ derived: { id: null, came: null, why: null } }))).toBeNull();
+    expect(cameLine(seed)).toBe('a seed');
+    expect(cameLine(found)).toBe('found · The bass');
   });
 
   it('derives nothing where it is given nothing, as before', () => {

@@ -78,6 +78,49 @@ describe('the cells card', () => {
     expect(screen.getByText('2 from fragments · 6 written')).toBeInTheDocument();
   });
 
+  it('says how each part came, joined to the Library, and opens its fragment beside its lines (#730)', async () => {
+    const text = [
+      '&bar from meter 120bpm',
+      '&key from diatonic(mode=aeolian) A',
+      '&kick role=kick step=16n &bd:0:.4 ~ ~ ~',
+      '&drumlines [&kick]',
+      '&bassline part=bass over=&key step=16n 0@4 3@4',
+      '&leadline part=lead over=&key step=4n 0 2 4 2',
+      '* from band(drumlines=&drumlines, bassline=&bassline, leadline=&leadline)',
+    ].join('\n');
+    const score = { text, outline: sectionOutline(compileSection(text)) };
+    const line = (label: string) =>
+      within(screen.getAllByRole('table', { name: 'Playing' }).at(-1)!)
+        .getByRole('button', { name: label })
+        .closest('tr')!.textContent;
+    // (a host's: the bass's line and the lead's miss off the band's carried plans, the bass line in mind)
+    render(
+      Cells,
+      props({
+        bar: bar(0, { rhythm: 'funk_drums' }),
+        score,
+        workbench: { inMind: [{ id: 'funk_bass', weight: 0.5 }], boredom: [] },
+        derivations: new Map([[0, { section: 0, bass: 'funk_bass', lead: null }]]),
+      }),
+    );
+    expect(line('drums')).toContain('written from funk_drums');
+    expect(line('drums')).toContain('a seed');
+    expect(line('bass')).toContain('written from funk_bass');
+    expect(line('lead')).toContain('written, the band’s own');
+    await fireEvent.click(screen.getByRole('button', { name: 'drums' }));
+    const detail = screen.getByRole('region', { name: 'drums' });
+    expect(detail).toHaveTextContent(/Derived from\s*funk_drums/);
+    expect(detail).toHaveTextContent('the drummer thins the fragment to its own count');
+    expect(detail).toHaveTextContent('&kick role=kick');
+    // (the Library's detail of funk_drums: its own text, the seed's)
+    expect(within(detail).getByRole('heading', { level: 4 })).toHaveTextContent('funk_drums');
+    // (a client's: the drums off its bar, nothing else derived)
+    render(Cells, props({ bar: bar(0, { rhythm: 'funk_drums' }), score }));
+    expect(line('drums')).toContain('written from funk_drums');
+    expect(line('bass')).not.toContain('from');
+    expect(line('lead')).not.toContain('own');
+  });
+
   it('shows the next section, as built ahead, in a tab of its own (#642)', async () => {
     const at = (tonic: string) => {
       const text = [

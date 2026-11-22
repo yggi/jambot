@@ -3,9 +3,10 @@
   what the band plays in the section heard, as a tree read off its score with
   cells' outline, each part under what it is taken on, or, switched, under
   what plays it; a row a part, the fragment it is taken from or written, what
-  plays it and its weight in the composer's mind, and a row picked opens to
-  the score's lines it is. Folded, it counts the parts the section heard
-  plays; on a phone a row's fragment and what plays it go beneath its part.
+  plays it and its weight in the composer's mind.
+  A row joins the Library's row of its fragment (#730): how it came and who made it; a written row says what it was derived from where the page knows (the drums' rhythm on every page, the bass's, lead's and harmony's line on a host's and solo's, `Player.derivations`), or that it is the band's own.
+  A row picked opens to the score's lines it is, beside the Library's detail of its fragment (`FragmentDetail`).
+  Folded, it counts the parts the section heard plays; on a phone a row's fragment, how it came and what plays it go beneath its part.
   Next §: the same tree for the section built ahead. Library (`fragmentsView.ts`): every cells fragment the band has met,
   as one table told apart by where each has been. Folded, how many over how
   many of each; unfolded, a filter (All, Filed, Retrieved, Muse, In mind)
@@ -25,7 +26,16 @@
 <script lang="ts">
   import type { LearnedLayer } from '@jambot/engine';
   import type { Workbench } from '../fragmentsView.ts';
-  import { type Projection, playingRows, playingSummary } from '../playingView.ts';
+  import {
+    type Came,
+    type Projection,
+    type SectionDerivation,
+    cameLine,
+    cameOfRow,
+    fragmentLine,
+    playingRows,
+    playingSummary,
+  } from '../playingView.ts';
   import type { Score } from '../shadow.ts';
   import { untrack } from 'svelte';
   import {
@@ -42,6 +52,7 @@
   } from '../fragmentsView.ts';
   import type { BarView, MemoryView } from '../hud.ts';
   import Card from './Card.svelte';
+  import FragmentDetail from './FragmentDetail.svelte';
   import Segmented from './Segmented.svelte';
 
   interface Props {
@@ -61,6 +72,8 @@
     score?: Score | null;
     /** The score of the section after it, as built ahead (`Player.nextScore`); none yet. */
     next?: Score | null;
+    /** What the sections planned lately derive their written parts from (`Player.derivations`); a client's is empty. */
+    derivations?: ReadonlyMap<number, SectionDerivation>;
   }
 
   interface Carry {
@@ -83,6 +96,7 @@
     workbench = null,
     score = null,
     next = null,
+    derivations = new Map(),
   }: Props = $props();
 
   /** What the last import said: that it took, or why not. */
@@ -113,19 +127,36 @@
     { value: 'ground', text: 'From the ground', name: 'From the ground' },
     { value: 'outputs', text: 'From the outputs', name: 'From the outputs' },
   ] as const;
+  const rows = $derived(fragmentRows({ layer, log, memory, players, workbench }));
   const heard = $derived(score ? playingRows(score.text, score.outline, 'ground', workbench) : []);
   const shownScore = $derived(tab === 'next' ? next : score);
+  // (what the section shown derives its written parts from: the drums' rhythm off the bar heard, on every page; the
+  // rest as the band's carried plans logged it, a host's and solo's)
+  const derivation = $derived.by((): SectionDerivation | null => {
+    if (!bar) return null;
+    if (tab === 'next') return derivations.get(bar.sectionIndex + 1) ?? null;
+    return {
+      ...derivations.get(bar.sectionIndex),
+      section: bar.sectionIndex,
+      drums: bar.fragments.rhythm,
+    };
+  });
   const tree = $derived(
-    shownScore ? playingRows(shownScore.text, shownScore.outline, projection, workbench) : [],
+    shownScore
+      ? playingRows(shownScore.text, shownScore.outline, projection, workbench, {
+          library: new Map(rows.map((r) => [r.key, r])),
+          derived: derivation,
+        })
+      : [],
   );
   const scoreLines = $derived(shownScore ? shownScore.text.split('\n') : []);
   const summary = $derived(heard.length > 0 ? playingSummary(heard) : null);
   const openRow = $derived(tree.find((r) => r.key === pickedRow) ?? null);
+  const openCame: Came | null = $derived(openRow ? cameOfRow(openRow) : null);
 
   let filter: FragmentFilter = $state('all');
   let picked: string | null = $state(null);
 
-  const rows = $derived(fragmentRows({ layer, log, memory, players, workbench }));
   const shown = $derived(shownRows(rows, filter));
   const open = $derived(shown.find((r) => r.key === picked) ?? null);
 
@@ -178,12 +209,14 @@
             <tr>
               <th scope="col">Part</th>
               <th scope="col" class="frag-head">Fragment</th>
+              <th scope="col" class="came-head">How it came</th>
               <th scope="col" class="on-head">Plays on</th>
               <th scope="col" class="n">In mind</th>
             </tr>
           </thead>
           <tbody>
             {#each tree as row (row.key)}
+              {@const came = cameOfRow(row)}
               <tr class:picked={row.key === pickedRow}>
                 <td class="tree" style:padding-left="{8 + row.depth * 14}px">
                   <i class="chip" class:written={row.id === null}></i>
@@ -196,16 +229,21 @@
                     {row.label}
                   </button>
                   <span class="sub"
-                    >{row.id === null
-                      ? 'written'
-                      : `${row.id}${row.args ? ` (${row.args})` : ''}`}{row.on.length
-                      ? ` · ${row.on.join(' · ')}`
-                      : ''}</span
+                    >{#if came}<i class="dot" style:background={dot(came.row)}></i>{/if}{[
+                      fragmentLine(row),
+                      ...(came ? [cameLine(came)] : []),
+                      ...row.on,
+                    ].join(' · ')}</span
                   >
                 </td>
                 <td class="frag">
-                  {#if row.id === null}<span class="written-word">written</span
+                  {#if row.id === null}<span class="written-word">{fragmentLine(row)}</span
                     >{:else}{row.id}{#if row.args}<span class="args">({row.args})</span>{/if}{/if}
+                </td>
+                <td class="came">
+                  {#if came}<i class="dot" style:background={dot(came.row)}></i>{cameLine(
+                      came,
+                    )}{/if}
                 </td>
                 <td class="on">{row.on.join(' · ')}</td>
                 <td class="n">{row.weight === null ? '' : `${Math.round(row.weight * 100)} %`}</td>
@@ -217,7 +255,24 @@
       {#if openRow}
         <section class="detail" aria-label={openRow.label}>
           <h3>{openRow.label}</h3>
+          {#if openRow.derived}
+            <p class="line">
+              <span>Derived from</span><span
+                >{openRow.derived.id ?? 'nothing found: the band’s own'}</span
+              >
+            </p>
+            {#if openRow.derived.why}<p class="note">Written out: {openRow.derived.why}.</p>{/if}
+          {/if}
           <pre>{openRow.lines.map((n) => scoreLines[n - 1]).join('\n')}</pre>
+          {#if openCame}
+            <h4>
+              {openCame.row.name}
+              <span class="came"
+                ><i class="dot" style:background={dot(openCame.row)}></i>{cameLine(openCame)}</span
+              >
+            </h4>
+            <FragmentDetail row={openCame.row} />
+          {/if}
         </section>
       {/if}
     {/if}
@@ -286,51 +341,7 @@
     {#if open}
       <section class="detail" aria-label={open.name}>
         <h3>{open.name}</h3>
-        {#if open.text !== null}<pre>{open.text}</pre>{/if}
-        {#if open.point.length > 0}
-          <div class="axes" aria-label="Found at">
-            {#each open.point as { axis, value } (axis)}
-              <div class="axis">
-                <span>{axis} {value.toFixed(2)}</span>
-                <span class="track"><i style:left="{value * 100}%"></i></span>
-              </div>
-            {/each}
-          </div>
-        {/if}
-        {#if open.weight !== null}
-          <p class="line">
-            <span>In mind</span><span>{Math.round(open.weight * 100)} %</span>
-          </p>
-        {/if}
-        {#if open.lineage !== null}
-          <p class="line">
-            <span>Boredom</span><span>{open.lineage.boredom.toFixed(1)} · {open.lineage.rung}</span>
-          </p>
-        {/if}
-        {#if open.strength !== null}
-          <p class="line">
-            <span>In her memory</span><span>{Math.round(open.strength * 100)} %</span>
-          </p>
-        {/if}
-        {#if open.varies !== null}
-          <p class="line">
-            <span>Varies</span><span
-              >{open.by === null ? open.varies : `${open.varies} by ${open.by}`}</span
-            >
-          </p>
-        {/if}
-        {#if open.tags.length > 0}
-          <ul class="tags" aria-label="Tags">
-            {#each open.tags as tag (tag)}<li>{tag}</li>{/each}
-          </ul>
-        {/if}
-        {#if open.together.length > 0}
-          <ul class="together" aria-label="Used together with">
-            {#each open.together as { id, count } (id)}
-              <li><span>{id}</span><span>× {count}</span></li>
-            {/each}
-          </ul>
-        {/if}
+        <FragmentDetail row={open} />
       </section>
     {/if}
   {/if}
@@ -384,8 +395,28 @@
   }
   .args,
   .written-word,
-  .on {
+  .on,
+  .came {
     color: var(--muted);
+  }
+  .came {
+    font-size: 12px;
+  }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+  }
+  h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  h4 .came {
+    margin-left: 6px;
+    font-weight: 400;
   }
   .written-word {
     font-family: inherit;
@@ -554,7 +585,7 @@
   }
   /* (on a phone a row takes two lines: the part, what it is taken from and on beneath it, its weight on the right) */
   @container (max-width: 480px) {
-    :is(th, td):is(.frag, .on, .frag-head, .on-head) {
+    :is(th, td):is(.frag, .came, .on, .frag-head, .came-head, .on-head) {
       display: none;
     }
     .sub {
@@ -582,32 +613,7 @@
     font-size: 12px;
     line-height: 1.5;
   }
-  .axes {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 14px;
-    color: var(--muted);
-    font-size: 11px;
-  }
-  .axis {
-    display: grid;
-    gap: 4px;
-  }
-  .track {
-    position: relative;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--line);
-  }
-  .track i {
-    position: absolute;
-    top: -3px;
-    width: 2px;
-    height: 10px;
-    background: var(--teal);
-  }
-  .line,
-  .together li {
+  .line {
     display: flex;
     justify-content: space-between;
     gap: 8px;
@@ -616,24 +622,5 @@
   }
   .line span:first-child {
     color: var(--muted);
-  }
-  ul {
-    display: grid;
-    gap: 4px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .tags li {
-    padding: 1px 8px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    color: var(--muted);
-    font-size: 12px;
   }
 </style>

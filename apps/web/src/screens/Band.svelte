@@ -269,6 +269,7 @@
       workbench={following ? null : player.workbench}
       score={player.heardScore}
       next={player.nextScore}
+      derivations={following ? new Map() : player.derivations}
     />
   {/if}
 {/snippet}
