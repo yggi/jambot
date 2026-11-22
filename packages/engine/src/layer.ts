@@ -128,8 +128,9 @@ export function cappedLayer(layer: LearnedLayer, cap: number = LAYER_CAP): Learn
 }
 
 /**
- * Those of `ids` a repository with a layer still holds: its seeds, and the
- * fragments the layer files. A fragment the layer's cap dropped meanwhile
+ * Those of `ids` a repository with a layer still holds: its seeds, the ids it
+ * knows (another facet's, the library's: cells' `knows`), and the fragments
+ * the layer files. A fragment the layer's cap dropped meanwhile
  * (`cappedLayer`), which a section may still have been playing, is gone, so
  * its use is learned no more.
  */
@@ -139,7 +140,7 @@ export function stillHeld(
   ids: readonly string[],
 ): string[] {
   const held = (id: string) =>
-    repository.fragments.some((f) => f.id === id) || layer.filed.some((f) => f.fragment.id === id);
+    repository.knows(id) || layer.filed.some((f) => f.fragment.id === id);
   return ids.filter(held);
 }
 

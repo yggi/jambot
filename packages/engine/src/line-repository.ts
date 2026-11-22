@@ -21,7 +21,7 @@ import {
   fileFragment,
   useFragments,
 } from '@yggi/cells/repository';
-import { METER_FRAGMENTS } from './library.ts';
+import { isLibraryFragment } from '@yggi/cells/library';
 import { sameMeter } from './events.ts';
 import type { FacetRepository } from './facet.ts';
 import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
@@ -88,9 +88,9 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
 > {
   const { facet, fragments, read, bars = 1 } = kind;
   const varyOptions = kind.vary;
-  // (the lines with cells' meters beside them, which a line query never ranks, its facet theirs alone: so a line and
-  // the meter it was kept with count as used together)
-  const cells = createRepository([...fragments, ...METER_FRAGMENTS]);
+  // (the lines, and every other fragment of the library known, which a line query never ranks: so a line and the meter
+  // it was kept with count as used together, yggi/cells#861)
+  const cells = createRepository(fragments, { known: isLibraryFragment });
   const texts = new Map(fragments.map((f) => [f.id, f.text]));
   const textOf = (id: string, layer?: LearnedLayer) =>
     texts.get(id) ?? layer?.filed.find((f) => f.fragment.id === id)?.fragment.text;
@@ -127,7 +127,7 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
     cells
       .query(
         point,
-        fragments.length + METER_FRAGMENTS.length + (layer?.filed.length ?? 0),
+        fragments.length + (layer?.filed.length ?? 0),
         {},
         {
           facet,

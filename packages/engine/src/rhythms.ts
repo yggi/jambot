@@ -52,7 +52,7 @@ import {
   fileFragment,
   useFragments,
 } from '@yggi/cells/repository';
-import { resolveSeed } from '@yggi/cells/library';
+import { isLibraryFragment, resolveSeed } from '@yggi/cells/library';
 import { collides, unionOn } from './taken.ts';
 import { instrumentsFor, withInstruments } from './instruments.ts';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
@@ -382,9 +382,9 @@ export function rhythmRepository(
   read: (text: string, meter: Meter) => FragmentRead | null = readRhythm,
 ): RhythmRepository {
   fragments = heldRhythms(fragments);
-  // (the rhythms with cells' meters beside them, which a rhythm query never ranks, its facet theirs alone:
-  // so a rhythm and the meter it was kept with count as used together, and a filing finds any text held)
-  const cells = createRepository([...fragments, ...METER_FRAGMENTS]);
+  // (the rhythms, and every other fragment of the library known, which a rhythm query never ranks: so a rhythm and the
+  // meter it was kept with count as used together, yggi/cells#861)
+  const cells = createRepository(fragments, { known: isLibraryFragment });
   const texts = new Map(fragments.map((f) => [f.id, f.text]));
   const textOf = (id: string, layer?: LearnedLayer) =>
     texts.get(id) ?? layer?.filed.find((f) => f.fragment.id === id)?.fragment.text;
@@ -441,7 +441,7 @@ export function rhythmRepository(
     cells
       .query(
         point,
-        fragments.length + METER_FRAGMENTS.length + (layer?.filed.length ?? 0),
+        fragments.length + (layer?.filed.length ?? 0),
         {},
         {
           facet: 'rhythm',

@@ -40,6 +40,7 @@ import {
   useFragments,
 } from '@yggi/cells/repository';
 import { METER_FRAGMENTS, BASS_FRAGMENTS, HARMONY_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
+import { isLibraryFragment } from '@yggi/cells/library';
 import { sameMeter } from './events.ts';
 import { cappedLayer } from './layer.ts';
 import { MOTIF_LEADS, leadsAlone } from './lead-lines.ts';
@@ -109,13 +110,12 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
     const read = readMeterFragment(fragment);
     if (typeof read !== 'string') played.set(fragment.id, read);
   }
-  // (the meters played with cells' rhythms beside them, which a meter query never ranks, its facet theirs alone:
-  // so a meter and the rhythm it was kept with count as used together, #401)
-  const cells = createRepository([
-    ...fragments.filter((f) => played.has(f.id)),
-    ...RHYTHM_FRAGMENTS,
-  ]);
-  const all = played.size + RHYTHM_FRAGMENTS.length;
+  // (the meters played, and every other fragment of the library known, which a meter query never ranks: so a meter and
+  // the rhythm it was kept with count as used together, #401, yggi/cells#861)
+  const cells = createRepository(
+    fragments.filter((f) => played.has(f.id)),
+    { known: isLibraryFragment },
+  );
   return {
     fragments: played,
     query: (point, layer, chosen = [], pull) =>
@@ -123,7 +123,7 @@ export function meterRepository(fragments: readonly Fragment[] = METER_FRAGMENTS
         ? cells
             .query(
               point,
-              all + layer.filed.length,
+              played.size + layer.filed.length,
               {},
               {
                 facet: 'meter',
