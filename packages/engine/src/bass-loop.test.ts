@@ -70,7 +70,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` records them (its `MAIN_RHYTHMS.still`): every part, the presets held at entropy 0. */
-const MAIN_STILL = [15612, '32d83dee'] as const;
+const MAIN_STILL = [13891, '39e61132'] as const;
 
 describe('the drums, the comp and the lead, unchanged by the bass in the loop (#423)', () => {
   const main = held();
@@ -78,7 +78,7 @@ describe('the drums, the comp and the lead, unchanged by the bass in the loop (#
   const part = (all: readonly TimedEvent[], p: string, not = false) =>
     all.filter((e) => (e.event.part === p) !== not);
 
-  it('plays main without the bass lines: 15,612 events', () => {
+  it('plays main without the bass lines: 13,891 events', () => {
     expect([main.length, hashOf(main)]).toEqual(MAIN_STILL);
   });
 

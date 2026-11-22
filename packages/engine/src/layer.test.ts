@@ -91,17 +91,17 @@ const range = (n: number) => [...Array(n).keys()];
  * places the plain and the swung 4/4 at its eight new styles' points too, so the walk finds them where it found other
  * meters; with v0.23.0's meter fragments it plays 940a389c still. The held presets play as before.
  */
-const MAIN = { held: [15061, '98f62766'], walked: [13004, '970c805d'] } as const;
+const MAIN = { held: [13413, 'f2e69c0f'], walked: [13239, 'c5fc0f14'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
-  it('over the 8 presets held, 2 seeds of 32 bars: 15,061 events, each to 1e-9 s', () => {
+  it('over the 8 presets held, 2 seeds of 32 bars: 13,413 events, each to 1e-9 s', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(0.3, false, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.held);
     }
   });
 
-  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,004 events', () => {
+  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,239 events', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);
@@ -113,12 +113,12 @@ describe('the band given an empty learned layer plays exactly what main plays (#
  * Main's events with cells' rhythms and an empty layer, each preset held and swung as it is, as recorded on `main` at 45b6b80 before a seed rhythm climbed the ladder (#414),
  * then under cells v0.7.0, where a clave strikes its own sound, 75, and not the rim's 37 (yggi/cells#140): every stroke at its time, 178 and 146 more where a rim shares its step, and its feel drawn on its own note (velocities within 4, lengths within 5 ms).
  */
-const MAIN_RHYTHMS = { still: [15612, '32d83dee'], bored: [13846, '9e1e9280'] } as const;
+const MAIN_RHYTHMS = { still: [13891, '39e61132'], bored: [14042, '402a007b'] } as const;
 
 describe('a seed rhythm climbs the ladder only where the entropy bores the composer (#414)', () => {
   const rhythms = { rhythms: RHYTHM_REPOSITORY, layer: EMPTY_LAYER };
 
-  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 15,612 events, each to 1e-9 s', () => {
+  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 13,891 events, each to 1e-9 s', () => {
     const all = runs(0, false, rhythms, true).flat();
     expect([all.length, hashOf(all)]).toEqual(MAIN_RHYTHMS.still);
   });

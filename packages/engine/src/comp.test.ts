@@ -8,6 +8,7 @@ import { COMPOSER_MODES, keyHelix } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { PRESETS, type Style } from './style.ts';
 import { presetMode } from './mode-repository.ts';
+import { kindPlays } from './section-kinds.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -201,7 +202,8 @@ describe('the comp', () => {
   });
 
   it('pads legato and stabs staccato', () => {
-    const grooves = bars.filter((b) => b.plan.section.type !== 'breakdown' && b.barEnergy > 0.5);
+    // (the sections whose kind plays the stab: not a breakdown, nor a verse, #655)
+    const grooves = bars.filter((b) => kindPlays(b.plan.section.type, 'stab') && b.barEnergy > 0.5);
     const with_ = (artic: number) =>
       grooves.flatMap(
         (b) => comp.advance({ ...b, style: { ...b.style, artic } }, null, null).output,
@@ -220,8 +222,13 @@ describe('the comp', () => {
     for (const e of staccato) expect(e.length).toBe(1);
   });
 
-  it('pads quietly through a breakdown and at low energy, and stabs there never', () => {
-    const quiet = bars.filter((b) => b.plan.section.type === 'breakdown' || b.barEnergy < 0.3);
+  it('pads quietly where its kind leaves the stab out (a breakdown, a verse) and at low energy, and stabs there never', () => {
+    // (low energy quiets the chain's sections; in a song form's the kind alone says who plays, #655)
+    const quiet = bars.filter(
+      (b) =>
+        !kindPlays(b.plan.section.type, 'stab') ||
+        (b.plan.section.song === undefined && b.barEnergy < 0.3),
+    );
     expect(quiet.length).toBeGreaterThan(0);
     for (const b of quiet)
       for (const artic of [0, 0.5, 1])

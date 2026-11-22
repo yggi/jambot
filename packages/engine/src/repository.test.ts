@@ -120,7 +120,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
     }
   });
 
-  it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 15,061 events, each to 1e-9 s', () => {
+  it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 13,413 events, each to 1e-9 s', () => {
     let count = 0;
     for (const preset of PROTOTYPE_PRESETS)
       for (const seed of [0, 1]) {
@@ -152,7 +152,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
         }
         count += asked.length;
       }
-    expect(count).toBe(15061);
+    expect(count).toBe(13413);
   });
 });
 

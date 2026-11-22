@@ -133,7 +133,17 @@ describe('the view model', () => {
   it('names the sections as the page does', () => {
     const names = new Set(bars.map((_, i) => hudOf({ heard: i * 16, bars, track }).bar!.section));
     for (const name of names)
-      expect(['Intro', 'Groove', 'Bridge', 'Build', 'Drop', 'Breakdown']).toContain(name);
+      expect([
+        'Intro',
+        'Groove',
+        'Bridge',
+        'Build',
+        'Drop',
+        'Breakdown',
+        'Verse',
+        'Chorus',
+        'Outro',
+      ]).toContain(name);
     expect(names.size).toBeGreaterThan(1);
   });
 
@@ -150,9 +160,7 @@ describe('the lead and the key ahead', () => {
     const seen = new Set<string>();
     for (const b of bars) {
       const view = hudOf({ heard: b.bar * 16, bars, track }).bar!;
-      expect(view.lead).toBe(
-        leadRests(b.plan.section.type, b.barEnergy) ? 'resting' : 'improvising',
-      );
+      expect(view.lead).toBe(leadRests(b.plan.section, b.barEnergy) ? 'resting' : 'improvising');
       seen.add(view.lead);
     }
     expect(seen).toEqual(new Set(['resting', 'improvising']));
@@ -422,9 +430,7 @@ describe('the view of the Muse', () => {
 
   it('says the lead plays the motif, whose and from which bar, where a bar has one on offer', () => {
     expect(hudOf({ heard: 16 * 6, bars: offered, track }).bar).toMatchObject({
-      lead: leadRests(offered[6]!.plan.section.type, offered[6]!.barEnergy)
-        ? 'resting'
-        : 'improvising',
+      lead: leadRests(offered[6]!.plan.section, offered[6]!.barEnergy) ? 'resting' : 'improvising',
       motif: null,
     });
     expect(hudOf({ heard: 16 * 7, bars: offered, track }).bar).toMatchObject({

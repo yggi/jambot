@@ -85,12 +85,12 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` and `bass-loop.test.ts` record them: every part, the presets held at entropy 0. */
-const MAIN_STILL = [15612, '32d83dee'] as const;
+const MAIN_STILL = [13891, '39e61132'] as const;
 
 describe('the lead in the loop with no seed and nothing filed plays what main plays (#424)', () => {
   const lead = (all: readonly TimedEvent[]) => all.filter((e) => e.event.part === 'lead');
 
-  it('plays every event main plays with the lead lines and an empty layer, nobody playing: 15,612, each to 1e-9 s, over 8 presets × 2 seeds × 32 bars', () => {
+  it('plays every event main plays with the lead lines and an empty layer, nobody playing: 13,891, each to 1e-9 s, over 8 presets × 2 seeds × 32 bars', () => {
     const loop = held({ leads: FILED });
     expect([loop.length, hashOf(loop)]).toEqual(MAIN_STILL);
   });

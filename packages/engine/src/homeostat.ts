@@ -53,15 +53,16 @@ export const LEAN_STEP = 0.5;
 
 /**
  * How many readings in a row, the latest among them, a move waits for out of
- * the band on one side (`Homeostat.run` counts them): 1, since a reading over
- * `SHARE_BARS`, sixteen bars, already spans two sections (#536). Over eight
- * bars it was 2, so one section's noise (it spread by about 0.13, E45) didn't
- * move it, and with 1 the controller reversed up to 1.75 times per four
- * sections; over sixteen, with 1, at most 0.375, and 81 % of sections are
- * inside against 74 % to 78 % with 2 (E45, on the page's schedule, 2 seeds of
- * 256 bars held and 512 walked).
+ * the band on one side (`Homeostat.run` counts them): 2, the owner's ruling of
+ * 2026-11-22 (#655). A song form's sections differ on purpose, an intro and an
+ * outro thinner than its grooves and choruses, so a reading swings with the
+ * song's own contour about the band's edge; with 1 the controller followed it,
+ * up to 0.667 reversals per four sections against the ruled 0.25, and with 2 it
+ * reverses at most 0.2, 63 % of sections held inside (E45, 8 presets, 320
+ * bars). Before song forms it was 1, a reading over `SHARE_BARS`, sixteen
+ * bars, already spanning two sections (#536).
  */
-export const PATIENCE = 1;
+export const PATIENCE = 2;
 
 /** The band the share is kept in at an entropy, inside 0 to 1. */
 export function bandOf(entropy: number): { readonly low: number; readonly high: number } {

@@ -67,75 +67,96 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
   });
 
   it('recognises nearly every bar once it hears itself, where deaf it recognises about half, and hears a third as many new motifs (E22, Q7b, Q12)', () => {
+    // (0.57, 0.63, 0.55, 0.52, 0.56, 0.51, 0.53, 0.63 before #655's song forms)
     expect(column(middle, 'deaf', 'recognised')).toEqual([
-      0.57, 0.63, 0.55, 0.52, 0.56, 0.51, 0.53, 0.63,
+      0.46, 0.58, 0.75, 0.59, 0.66, 0.59, 0.73, 0.61,
     ]);
+    // (0.93, 0.91, 0.84, 0.86, 0.93, 0.89, 0.92, 0.84 before #655's song forms)
     expect(column(middle, 'hearing', 'recognised')).toEqual([
-      0.93, 0.91, 0.84, 0.86, 0.93, 0.89, 0.92, 0.84,
+      0.92, 0.92, 0.93, 0.89, 0.88, 0.88, 0.87, 0.9,
     ]);
+    // (3.08, 2.75, 1.08, 3.42, 3.17, 3.42, 2.83, 2.75 before #655's song forms)
     expect(column(middle, 'deaf', 'novelty')).toEqual([
-      3.08, 2.75, 1.08, 3.42, 3.17, 3.42, 2.83, 2.75,
+      2.83, 2.25, 1.08, 2.33, 1.58, 1.92, 1.5, 2.33,
     ]);
-    expect(column(middle, 'hearing', 'novelty')).toEqual([0.5, 0.67, 1, 1, 0.5, 0.83, 0.58, 1.17]);
+    // (0.5, 0.67, 1, 1, 0.5, 0.83, 0.58, 1.17 before #655's song forms)
+    expect(column(middle, 'hearing', 'novelty')).toEqual([
+      0.58, 0.58, 0.5, 0.83, 0.92, 0.92, 0.92, 0.75,
+    ]);
   });
 
   it('hears what it recognises of itself mostly as exact repeats, as it does deaf (E22, Q7b, Q12)', () => {
     expect(column(middle, 'hearing', 'exact')).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
-    expect(column(middle, 'deaf', 'exact')).toEqual([
-      0.84, 0.87, 0.88, 0.87, 0.92, 0.95, 0.89, 0.93,
-    ]);
+    // (0.84, 0.87, 0.88, 0.87, 0.92, 0.95, 0.89, 0.93 before #655's song forms)
+    expect(column(middle, 'deaf', 'exact')).toEqual([0.93, 0.95, 0.71, 0.83, 0.86, 1, 0.9, 0.89]);
   });
 
-  it('doesn’t stall on one bar, but oscillates: the first motif it heard on every other bar, a few others between (E22, Q7b)', () => {
-    expect(column(middle, 'hearing', 'longestAny')).toEqual([5, 5, 1, 7, 9, 7, 3, 5]);
-    expect(column(middle, 'hearing', 'stalled')).toEqual([0, 0, 0, 0, 0.1, 0, 0, 0]);
+  it('doesn’t stall on one bar where its harmony moves, but oscillates: the first motif it heard on every other bar, a few others between; over a chord that holds, it stalls (E22, Q7b, #655)', () => {
+    // A song plays its lead wherever its kind does (#655), so Ambient's lead plays its grooves, where the chain's quiet
+    // bars rested it: an offer it hears there is replayed over Ambient's vamp, one chord, so every bar realizes it the
+    // same, and the loop stalls. Lo-fi's second song does the same over its new theme's first bars.
+    // ([5, 5, 1, 7, 9, 7, 3, 5] and [0, 0, 0, 0, 0.1, 0, 0, 0] before #655's song forms)
+    expect(column(middle, 'hearing', 'longestAny')).toEqual([5, 5, 25, 1, 3, 21, 3, 5]);
+    expect(column(middle, 'hearing', 'stalled')).toEqual([0, 0, 0.7, 0, 0, 0.24, 0, 0]);
+    // (0.62, 0.49, 0.65, 0.44, 0.44, 0.59, 0.49, 0.38 before #655's song forms)
     expect(column(middle, 'hearing', 'oscillating')).toEqual([
-      0.62, 0.49, 0.65, 0.44, 0.44, 0.59, 0.49, 0.38,
+      0.63, 0.45, 0.11, 0.81, 0.42, 0.48, 0.52, 0.38,
     ]);
+    // (0.28, 0.37, 0.45, 0.36, 0.36, 0.38, 0.35, 0.38 before #655's song forms)
     expect(column(middle, 'deaf', 'oscillating')).toEqual([
-      0.28, 0.37, 0.45, 0.36, 0.36, 0.38, 0.35, 0.38,
+      0.24, 0.41, 0.24, 0.34, 0.52, 0.5, 0.52, 0.44,
     ]);
+    // (0.59, 0.66, 0.5, 0.58, 0.6, 0.55, 0.54, 0.64 before #655's song forms)
     expect(column(middle, 'hearing', 'commonest')).toEqual([
-      0.59, 0.66, 0.5, 0.58, 0.6, 0.55, 0.54, 0.64,
+      0.58, 0.68, 0.9, 0.51, 0.58, 0.65, 0.55, 0.63,
     ]);
+    // (0.28, 0.4, 0.52, 0.1, 0.33, 0.11, 0.13, 0.36 before #655's song forms)
     expect(column(middle, 'deaf', 'commonest')).toEqual([
-      0.28, 0.4, 0.52, 0.1, 0.33, 0.11, 0.13, 0.36,
+      0.16, 0.3, 0.27, 0.22, 0.29, 0.29, 0.18, 0.19,
     ]);
     expect(column(middle, 'hearing', 'firstHeld')).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
-    expect(column(middle, 'deaf', 'firstHeld')).toEqual([1, 1, 0, 0, 1, 0, 0, 1]);
+    // (1, 1, 0, 0, 1, 0, 0, 1 before #655's song forms)
+    expect(column(middle, 'deaf', 'firstHeld')).toEqual([0, 1, 1, 0, 1, 1, 0, 0]);
     // Deaf, the lead's own phrase puts its shape on a phrase's first and third bars too.
-    expect(column(middle, 'deaf', 'oneParity')).toEqual([
-      0.88, 0.8, 0.8, 0.89, 0.97, 0.89, 0.89, 0.88,
-    ]);
+    // (0.88, 0.8, 0.8, 0.89, 0.97, 0.89, 0.89, 0.88 before #655's song forms)
+    expect(column(middle, 'deaf', 'oneParity')).toEqual([0.8, 0.84, 0.93, 0.93, 1, 1, 1, 0.86]);
+    // (0.85, 0.76, 1, 0.86, 0.83, 0.92, 0.94, 0.79 before #655's song forms)
     expect(column(middle, 'hearing', 'oneParity')).toEqual([
-      0.85, 0.76, 1, 0.86, 0.83, 0.92, 0.94, 0.79,
+      0.86, 0.73, 0.56, 1, 0.86, 0.77, 0.92, 0.8,
     ]);
   });
 
   it('doesn’t drift: once it hears itself, half or more of its last section is heard as its first, where deaf, in most presets, none of it is (E22, Q7b)', () => {
+    // (0.63, 0.88, 0.88, 0.75, 0.88, 0.5, 0.88, 0.63 before #655's song forms)
     expect(column(middle, 'hearing', 'returns')).toEqual([
-      0.63, 0.88, 0.88, 0.75, 0.88, 0.5, 0.88, 0.63,
+      0.5, 0.88, 0.88, 1, 0.63, 0.88, 0.63, 0.63,
     ]);
-    expect(column(middle, 'deaf', 'returns')).toEqual([0, 0, 0.5, 0, 0, 0, 0, 0]);
-    expect(column(middle, 'hearing', 'distinct')).toEqual([6, 6, 10, 9, 6, 9, 6, 10]);
-    expect(column(middle, 'deaf', 'distinct')).toEqual([37, 31, 14, 45, 32, 41, 37, 31]);
+    // (0, 0, 0.5, 0, 0, 0, 0, 0 before #655's song forms)
+    expect(column(middle, 'deaf', 'returns')).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    // (6, 6, 10, 9, 6, 9, 6, 10 before #655's song forms)
+    expect(column(middle, 'hearing', 'distinct')).toEqual([6, 6, 5, 6, 9, 9, 8, 9]);
+    // (37, 31, 14, 45, 32, 41, 37, 31 before #655's song forms)
+    expect(column(middle, 'deaf', 'distinct')).toEqual([35, 27, 18, 31, 18, 18, 21, 31]);
   });
 
   it('recognises less as the entropy rises, deaf, but not monotonically less as the licence widens (E22, Q7b)', () => {
     const licence = BY_LICENCE.map((p) => p.style.harm);
-    expect(round(kendall(licence, exactly(middle, 'deaf', 'recognised')))).toBe(-0.18);
-    expect(round(kendall(licence, exactly(middle, 'hearing', 'recognised')))).toBe(-0.18);
+    // (-0.18 deaf and -0.18 hearing before #655's song forms)
+    expect(round(kendall(licence, exactly(middle, 'deaf', 'recognised')))).toBe(0.43);
+    expect(round(kendall(licence, exactly(middle, 'hearing', 'recognised')))).toBe(-0.5);
     const at = (rows: readonly LoopMeasure[], condition: Condition) => [
       round(rows.find((m) => m.condition === condition && m.preset === 'Techno')!.recognised),
       round(rows.find((m) => m.condition === condition && m.preset === 'Swing jazz')!.recognised),
     ];
+    // ([0.57, 0.63], [0.46, 0.49] before #655's song forms)
     expect([at(middle, 'deaf'), at(wide, 'deaf')]).toEqual([
-      [0.57, 0.63],
-      [0.46, 0.49],
+      [0.46, 0.61],
+      [0.46, 0.5],
     ]);
+    // ([0.93, 0.84], [0.89, 0.83] before #655's song forms)
     expect([at(middle, 'hearing'), at(wide, 'hearing')]).toEqual([
-      [0.93, 0.84],
-      [0.89, 0.83],
+      [0.92, 0.9],
+      [0.85, 0.82],
     ]);
   });
 });
@@ -147,14 +168,16 @@ describe('the variants: the lock is the delay’s, not the hold’s, E22 (#237)'
   it('still locks without the hold: the first motif it heard is the commonest, all on bars of one parity (E22, Q7b)', () => {
     expect(column(sample, 'no hold', 'firstHeld')).toEqual([1, 1]);
     expect(column(sample, 'no hold', 'oneParity')).toEqual([1, 1]);
-    expect(column(sample, 'no hold', 'recognised')).toEqual([0.93, 0.89]);
-    expect(column(sample, 'hearing', 'recognised')).toEqual([0.93, 0.84]);
+    // (0.93, 0.89 without the hold and 0.93, 0.84 with it before #655's song forms)
+    expect(column(sample, 'no hold', 'recognised')).toEqual([0.94, 0.85]);
+    expect(column(sample, 'hearing', 'recognised')).toEqual([0.92, 0.9]);
   });
 
   it('recognises less and repeats less exactly when the lead varies an offer on its phrase’s second and fourth bars, but the first motif still holds the other bars (E22, Q7b)', () => {
-    expect(column(sample, 'varied', 'recognised')).toEqual([0.78, 0.76]);
-    expect(column(sample, 'varied', 'exact')).toEqual([0.81, 0.9]);
-    expect(column(sample, 'varied', 'distinct')).toEqual([19, 20]);
+    // (0.78, 0.76 recognised, 0.81, 0.9 exact, 19, 20 distinct before #655's song forms)
+    expect(column(sample, 'varied', 'recognised')).toEqual([0.74, 0.72]);
+    expect(column(sample, 'varied', 'exact')).toEqual([0.86, 0.89]);
+    expect(column(sample, 'varied', 'distinct')).toEqual([17, 23]);
     expect(column(sample, 'varied', 'firstHeld')).toEqual([1, 1]);
     expect(column(sample, 'varied, no hold', 'firstHeld')).toEqual([1, 1]);
   });
@@ -164,14 +187,16 @@ describe('the variants: the lock is the delay’s, not the hold’s, E22 (#237)'
       expect(column(sample, condition, 'firstHeld'), condition).toEqual([0, 0]);
       expect(column(sample, condition, 'returns'), condition).toEqual([0, 0]);
     }
-    expect(column(sample, 'every bar', 'recognised')).toEqual([0.63, 0.58]);
-    expect(column(sample, 'every bar', 'exact')).toEqual([0.48, 0.49]);
-    expect(column(sample, 'every bar', 'oscillating')).toEqual([0.15, 0.15]);
-    expect(column(sample, 'every bar', 'commonest')).toEqual([0.14, 0.1]);
-    // Deaf, beside it: recognised about as much, but nearly all exactly, and oscillating more.
-    expect(column(sample, 'deaf', 'recognised')).toEqual([0.57, 0.63]);
-    expect(column(sample, 'deaf', 'exact')).toEqual([0.84, 0.93]);
-    expect(column(sample, 'deaf', 'oscillating')).toEqual([0.28, 0.38]);
+    // (0.63, 0.58 recognised, 0.48, 0.49 exact, 0.15, 0.15 oscillating, 0.14, 0.1 commonest before #655's song forms)
+    expect(column(sample, 'every bar', 'recognised')).toEqual([0.64, 0.66]);
+    expect(column(sample, 'every bar', 'exact')).toEqual([0.51, 0.51]);
+    expect(column(sample, 'every bar', 'oscillating')).toEqual([0.14, 0.16]);
+    expect(column(sample, 'every bar', 'commonest')).toEqual([0.07, 0.15]);
+    // Deaf, beside it: recognised less, but nearly all exactly, and oscillating more.
+    // (0.57, 0.63 recognised, about as much, 0.84, 0.93 exact, 0.28, 0.38 oscillating before #655's song forms)
+    expect(column(sample, 'deaf', 'recognised')).toEqual([0.46, 0.61]);
+    expect(column(sample, 'deaf', 'exact')).toEqual([0.93, 0.89]);
+    expect(column(sample, 'deaf', 'oscillating')).toEqual([0.24, 0.44]);
   });
 });
 
@@ -186,7 +211,7 @@ describe('the rate the lead varies an offer at, p (E22, #237)', () => {
     for (const p of [0.25, 0.5, 0.75, 1.5]) expect(mean(times(p)), `p=${p}`).toBeCloseTo(p, 1);
   });
 
-  it('recognises less and oscillates less as p rises, from the locked loop to below the deaf band at two variations a bar (E22, Q7b)', () => {
+  it('recognises less and oscillates less as p rises, overall, from the locked loop to below the deaf band at two variations a bar (E22, Q7b)', () => {
     /** The rates at entropy 0.3, at the ends of the licence, one seed of 96 bars. */
     const sample = loops(0.3, 1, 96, ENDS, RATES);
     const rates = RATES.map((r) => Number(r.slice(2)));
@@ -197,19 +222,24 @@ describe('the rate the lead varies an offer at, p (E22, #237)', () => {
           return Math.round(100 * (m[field] as number)) / 100;
         }),
       );
+    // ([0.93, 0.72, 0.66, 0.65, 0.63, 0.55, 0.43], [0.84, 0.67, 0.66, 0.63, 0.58, 0.56, 0.39] before #655's song forms)
     expect(along('recognised')).toEqual([
-      [0.93, 0.72, 0.66, 0.65, 0.63, 0.55, 0.43],
-      [0.84, 0.67, 0.66, 0.63, 0.58, 0.56, 0.39],
+      [0.92, 0.76, 0.66, 0.65, 0.64, 0.47, 0.43],
+      [0.9, 0.72, 0.65, 0.62, 0.66, 0.58, 0.48],
     ]);
+    // ([0.62, 0.25, 0.28, 0.17, 0.15, 0.08, 0.08], [0.38, 0.29, 0.3, 0.2, 0.15, 0.08, 0.04] before #655's song forms)
     expect(along('oscillating')).toEqual([
-      [0.62, 0.25, 0.28, 0.17, 0.15, 0.08, 0.08],
-      [0.38, 0.29, 0.3, 0.2, 0.15, 0.08, 0.04],
+      [0.63, 0.38, 0.31, 0.21, 0.14, 0.08, 0.08],
+      [0.38, 0.35, 0.28, 0.19, 0.16, 0.12, 0.08],
     ]);
-    for (const shares of along('recognised')) expect(kendall(rates, shares)).toBe(-1);
-    // A quarter of the bars varied at random reaches both of the delay's chains: the first motif no longer holds Techno.
+    // (falling at every step, a Kendall's τ of −1 at both ends, before #655's song forms: Swing jazz now recognises 0.66 at
+    // p=1, above its 0.62 at p=0.75, one pair out of 21 against)
+    expect(along('recognised').map((shares) => round(kendall(rates, shares)))).toEqual([-1, -0.81]);
+    // A quarter of the bars varied at random reaches both of the delay's chains: the first motif no longer holds either
+    // preset (it held Swing jazz at p=0.25 before #655's song forms).
     expect(along('firstHeld')).toEqual([
       [1, 0, 0, 0, 0, 0, 0],
-      [1, 1, 0, 0, 0, 0, 0],
+      [1, 0, 0, 0, 0, 0, 0],
     ]);
   });
 
@@ -297,12 +327,13 @@ describe('the offer trimmed to its first k notes, E22 (#237)', () => {
     expect(column(sample, 'p=1 k=2', 'playing')).toEqual([0.02, 0.02]);
     expect(column(sample, 'p=0 k=2', 'leadNotes')).toEqual([2, 2]);
     expect(column(sample, 'p=1 k=3', 'playing')).toEqual([0.72, 0.72]);
-    expect(column(sample, 'p=1 k=3', 'recognised')).toEqual([0.68, 0.71]);
+    // (0.68, 0.71 before #655's song forms)
+    expect(column(sample, 'p=1 k=3', 'recognised')).toEqual([0.62, 0.65]);
   });
 });
 
 describe('the rates past two variations a bar, E22 (#237)', () => {
-  it('hears fewer bars as motifs and recognises less of them as p rises past 2 (E22, Q7b)', () => {
+  it('hears fewer bars as motifs and recognises less of them as p rises past 2, overall (E22, Q7b)', () => {
     const rates = ['p=2', ...PAST] as const;
     const sample = loops(0.3, 1, 96, ENDS, rates);
     const along = (field: keyof LoopMeasure) =>
@@ -311,15 +342,20 @@ describe('the rates past two variations a bar, E22 (#237)', () => {
           round(sample.find((m) => m.preset === p.name && m.condition === r)![field] as number),
         ),
       );
+    // ([0.71, 0.61, 0.52, 0.39], [0.72, 0.6, 0.46, 0.35] before #655's song forms)
     expect(along('playing')).toEqual([
       [0.71, 0.61, 0.52, 0.39],
-      [0.72, 0.6, 0.46, 0.35],
+      [0.64, 0.56, 0.57, 0.35],
     ]);
+    // ([0.43, 0.42, 0.46, 0.22], [0.39, 0.45, 0.45, 0.29] before #655's song forms)
     expect(along('recognised')).toEqual([
-      [0.43, 0.42, 0.46, 0.22],
-      [0.39, 0.45, 0.45, 0.29],
+      [0.43, 0.44, 0.42, 0.3],
+      [0.48, 0.46, 0.31, 0.21],
     ]);
-    for (const shares of along('playing')) expect(kendall([2, 2.5, 3, 4], shares)).toBe(-1);
+    // (falling at every step at both ends before #655's song forms; Swing jazz now plays 0.57 at p=3, above its 0.56 at 2.5)
+    expect(along('playing').map((shares) => round(kendall([2, 2.5, 3, 4], shares)))).toEqual([
+      -1, -0.67,
+    ]);
   });
 });
 

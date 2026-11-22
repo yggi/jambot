@@ -112,7 +112,9 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
     );
     const syncopated = readOnMeter(STABS_SYNCOPATED, meter, 'cycle', bar);
     // (a kind that leaves the stab out, a breakdown, pads only: `section-kinds.ts`, #655)
-    const quiet = !kindPlays(plan.section.type, 'stab') || energy < 0.3;
+    // (in a song form's section the kind says who plays, whatever the energy; in the chain's, below 0.3 it pads only)
+    const quiet =
+      !kindPlays(plan.section.type, 'stab') || (plan.section.song === undefined && energy < 0.3);
     const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
     const stabDensity = quiet
       ? 0

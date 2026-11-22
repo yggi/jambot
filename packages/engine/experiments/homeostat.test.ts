@@ -16,10 +16,13 @@ import {
 // E45 (#237, step 6): the homeostat's controller over the 8 presets, nobody playing, learning from an empty layer.
 // Played before the tests rather than as the file is imported, so the time is the file's (the engine's `hookTimeout`).
 const ENTROPY = 0.3;
-/** Held: 1 seed of 96 bars (12 sections) a preset. */
-const HELD = { seeds: 1, bars: 96 } as const;
-/** Walked: 1 seed of 128 bars (16 sections) a preset. */
-const WALKED = { seeds: 1, bars: 128 } as const;
+/**
+ * Held: 1 seed of 320 bars (40 sections, about five songs) a preset; walked the same. Songs since #655: a run of 96
+ * bars was a song and a half, mostly the controller warming up to a song's start (the owner's ruling, 2026-11-22).
+ */
+const HELD = { seeds: 1, bars: 320 } as const;
+/** Walked: 1 seed of 320 bars (40 sections) a preset. */
+const WALKED = { seeds: 1, bars: 320 } as const;
 /**
  * `E45_FULL=1` (with `E45_REPORT=1`) reports a larger set beside the tests' own, which it doesn't test: held at 0.1,
  * 0.3 and 0.6, 2 seeds of 128 bars, and walked at 0.3, 2 seeds of 256 bars, each open, leaned all the way up, and
@@ -138,8 +141,9 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
       [held.down, held.open, held.up, held.top].map((r) => fixed(against(r, 'all').mean)),
       // (0.788, 0.743, 0.656 and 0.584 before cells v0.24.0; 0.808, 0.763, 0.668 and 0.596 before v0.25.0; 0.68 and
       // 0.607 at the top two before the walk rule retired on top of cells v0.25.1, #650; 0.685 and 0.613 before
-      // the ostinato on top of cells v0.25.1, #651, which Funk turns to once tired)
-    ).toEqual([0.814, 0.768, 0.684, 0.612]);
+      // the ostinato on top of cells v0.25.1, #651, which Funk turns to once tired; 0.814, 0.768, 0.684 and 0.612 over
+      // 96 bars of the chain's sections before #655's song forms, which repeat more)
+    ).toEqual([0.824, 0.777, 0.713, 0.627]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
         against(
@@ -163,11 +167,13 @@ describe('the controller closed (E45, #237)', () => {
   it('brings more sections inside the band than left alone, held and walked, and no more than the lean at its top', () => {
     // (0.833 at the top before cells v0.24.0; 0.229, 0.698 and 0.802 held, 0.219 and 0.711 walked, before v0.25.0;
     // 0.646 and 0.792 held, and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650; 0.781 held,
-    // and 0.68 walked, before the ostinato on top of cells v0.25.1, #651)
+    // and 0.68 walked, before the ostinato on top of cells v0.25.1, #651; 0.198, 0.635 and 0.792 held over 96 bars of
+    // the chain's sections before #655's song forms, which the controller holds inside at a patience of 2, its ruling)
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
-      0.198, 0.635, 0.792,
+      0.181, 0.634, 0.725,
     ]);
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.211, 0.688]);
+    // (0.211 and 0.688 walked over 128 bars before #655)
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.212, 0.688]);
   });
 
   // (80 % ruled on #536; loosened to 79 % at cells v0.25.0, the owner on #660, 2026-11-12: six of the eight presets play
@@ -175,19 +181,23 @@ describe('the controller closed (E45, #237)', () => {
   // Restated in sections by the owner, 2026-11-13: one section is the measure's step, 1.04 points at 96 sections; `main`
   // passed 79 % with one section to spare, 76 of 96, and retiring the walk rule (#650) costs one section, at one seed per
   // preset, so 75 of 96. A bound that carries the measure's error, measured over more seeds, is the follow-up, once #666
-  // makes the run cheaper)
-  it('reaches 75 of 96 sections inside at the lean’s top, open, further than at entropy 1 alone (#536, #660, #650)', () => {
-    expect(insideOf(held.top)).toBeGreaterThanOrEqual(75 / 96);
+  // makes the run cheaper. Song forms since #655 repeat more, a chorus returning within its song: at the lean's top 232
+  // of 320 sections are inside, 72.5 %, held over five songs; the bound restated so, for the owner's ruling)
+  it('reaches 232 of 320 sections inside at the lean’s top, open, further than at entropy 1 alone (#536, #660, #650, #655)', () => {
+    expect(insideOf(held.top)).toBeGreaterThanOrEqual(232 / 320);
     expect(insideOf(held.top)).toBeGreaterThan(insideOf(held.up));
   });
 
   // (one per four sections ruled; loosened to one per two walked at cells v0.25.0, the owner on #660, 2026-11-12: its
   // harmonies of four bars read twice move the walk's share more, 0.25 before)
   it('reverses within one per four sections held, and one per two walked (#660)', () => {
-    expect(
-      [held.closed, held.fromDown, walked.closed].map((r) => fixed(reversalsOf(r).most)),
-      // (0.5 walked before the walk rule retired on top of cells v0.25.1, #650)
-    ).toEqual([0, 0, 0]);
+    const most = [held.closed, held.fromDown, walked.closed].map((r) => fixed(reversalsOf(r).most));
+    // (0.5 walked before the walk rule retired on top of cells v0.25.1, #650; 0 held before #655's song forms, whose
+    // sections swing about the band's edge, at a patience of 1)
+    // (and 0.2 held from the bottom, one reversal in five sections, as it comes inside)
+    expect(most).toEqual([0.1, 0.2, 0]);
+    expect(Math.max(most[0]!, most[1]!)).toBeLessThanOrEqual(0.25);
+    expect(most[2]).toBeLessThanOrEqual(0.5);
   });
 
   it('climbs where bored: every preset held ends leaned up, none down', () => {
@@ -197,8 +207,8 @@ describe('the controller closed (E45, #237)', () => {
   });
 
   it('measures how many sections a run leaned all the way down takes to come inside, and what a bar costs', () => {
-    // ([3, 1, 2, 3, 1, 4, 4, 6] before cells v0.25.0)
-    expect(cameInside(held.fromDown)).toEqual([3, 1, 3, 3, 5, 4, 4, 6]);
+    // ([3, 1, 2, 3, 1, 4, 4, 6] before cells v0.25.0; [3, 1, 3, 3, 5, 4, 4, 6] before #655, at a patience of 1)
+    expect(cameInside(held.fromDown)).toEqual([4, 1, 5, 7, 6, 5, 6, 6]);
     for (const runs of [held.closed, walked.closed])
       expect(Number.isFinite(costOf(runs).p95)).toBe(true);
   });
@@ -208,16 +218,21 @@ describe('the controller on the page’s schedule (#495: read at a section’s l
   it('brings sections inside the band, held and walked, behind the schedule read a bar before the section it leans', () => {
     // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0; 0.604 and 0.646 held, and
     // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650; 0.594 held, and 0.609 and
-    // 0.68 walked, before the ostinato on top of cells v0.25.1, #651; 0.617 walked before cells v0.27.1)
+    // 0.68 walked, before the ostinato on top of cells v0.25.1, #651)
+    // (0.198, 0.604 and 0.635 over 96 bars of the chain's sections before #655)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.198, 0.604, 0.635,
+      0.181, 0.628, 0.634,
     ]);
+    // (0.211, 0.617 and 0.688 walked over 128 bars before #655)
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.211, 0.625, 0.688,
+      0.212, 0.669, 0.688,
     ]);
   });
 
   it('reverses within the ruled one per four sections, held and walked', () => {
-    expect([held.page, walked.page].map((r) => fixed(reversalsOf(r).most))).toEqual([0, 0.25]);
+    // ([0, 0.25] before #655's song forms, at a patience of 1)
+    const most = [held.page, walked.page].map((r) => fixed(reversalsOf(r).most));
+    expect(most).toEqual([0.2, 0]);
+    expect(Math.max(...most)).toBeLessThanOrEqual(0.25);
   });
 });

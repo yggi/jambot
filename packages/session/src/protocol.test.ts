@@ -312,12 +312,12 @@ describe('the session protocol', () => {
   });
 
   it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([23, 13]);
-    for (const protocol of [13, 14, 15, 16, 17, 18, 19, 20, 21, 22])
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([24, 13]);
+    for (const protocol of [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
     for (const protocol of [12, 1, 13.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 23 .* takes 13 on/,
+        /version 24 .* takes 13 on/,
       );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
     expect(sameMajor('14')).toBe(false);
@@ -416,13 +416,14 @@ describe('the session protocol', () => {
       played: shapeOf(playedBars()),
       section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
-    // The session contract, version 1 (yggi/music-commons `contracts/session-v1`, minor 9) holds the same
+    // The session contract, version 1 (yggi/music-commons `contracts/session-v1`, minor 11) holds the same
     // shapes, which it states at protocol 15: 16 adds a listed session's `away` (#496), a
     // lobby's word, 17 a host's `role` (#567), 18 a player's `nudge`, 19 its key and meter, and
     // 20 the log's `event`, read by field, none adding a shape here; 21 adds a judgement's
     // `origin` and 22 the style's `mood` (cells v0.23.0), which the hub's shapes carry. 23 has a drum hit's role be
-    // `ostinato` (#651), a value and no shape, which the hub records at its next lift.
-    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([22, 15, 23]);
+    // `ostinato` (#651), a value and no shape; 24 a section's `song` and the song forms' kinds (#655,
+    // yggi/music-commons#76).
+    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([24, 15, 24]);
     expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
   });
 
@@ -478,7 +479,7 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 23,
+  protocol: 24,
   bar: [
     'bar.bar: number',
     'bar.barEnergy: number',
@@ -516,6 +517,9 @@ const SHAPES = {
     'bar.plan.meterFragment: string',
     'bar.plan.rhythmFragment: string',
     'bar.plan.section.index: number',
+    'bar.plan.section.song.at: number',
+    'bar.plan.section.song.form: string',
+    'bar.plan.section.song.of: number',
     'bar.plan.section.type: string',
     'bar.plan.share: number',
     'bar.plan.swing: string',

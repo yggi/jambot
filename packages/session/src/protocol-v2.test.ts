@@ -74,7 +74,7 @@ describe('the session protocol, version 2 (read, not yet spoken)', () => {
     expect([PROTOCOL_V2, FIRST_PROTOCOL_V2]).toEqual([31, 30]);
     expect(SESSION_V2).toEqual({ protocol: 31, firstProtocol: 30 });
     expect(SESSION_V1).toEqual({ protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL });
-    expect(PROTOCOL).toBe(23);
+    expect(PROTOCOL).toBe(24);
   });
 
   it('admits a peer of each version from its first protocol on, every protocol from 0 to 40', () => {
