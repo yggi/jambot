@@ -32,7 +32,7 @@ import {
   BAR_STEPS,
   type BandBar,
   type BandCarried,
-  DRUM_ROLES,
+  DRUM_ORDER,
   type DrumRole,
   PROTOTYPE_PRESETS,
   SONG_METER,
@@ -66,7 +66,7 @@ export const bandDrums = (bar: BandBar) => bar.dough.filter((n) => n.part === 'd
 
 /** The roles a bar's drums play, in the band's order (the stronger first). */
 export const rolesOf = (bar: BandBar): DrumRole[] =>
-  DRUM_ROLES.filter((role) => bandDrums(bar).some((n) => n.role === role));
+  DRUM_ORDER.filter((role) => bandDrums(bar).some((n) => n.role === role));
 
 /**
  * The cells text of a bar's drums: the bar, then the engine's statement of

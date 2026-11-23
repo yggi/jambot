@@ -13,13 +13,13 @@
  */
 
 import { parse } from '@yggi/cells';
-import { resolveSeed, LIBRARY } from '@yggi/cells/library';
+import { FEEL_PARTS, resolveSeed, LIBRARY, SECTION_KINDS } from '@yggi/cells/library';
 import type { SectionType } from './form.ts';
 import { createRepository } from '@yggi/cells/repository';
 import { MISS_DISTANCE, type QueriedStyle, stylePoint } from './meter-query.ts';
 
-/** The band's entries, in its order (cells' `&band &drums &bass &pad &stab &lead`): what a kind's `Plays` indexes. */
-export const BAND_ORDER = ['drums', 'bass', 'pad', 'stab', 'lead'] as const;
+/** The band's entries, in its order (cells' `&band &drums &bass &pad &stab &lead`, its `FEEL_PARTS`): what a kind's `Plays` indexes. */
+export const BAND_ORDER = FEEL_PARTS;
 export type BandPart = (typeof BAND_ORDER)[number];
 
 /** A kind as its fragment says it. */
@@ -136,14 +136,5 @@ export function songSections(id: string): readonly SectionType[] {
   }
   return sections;
 }
-const KNOWN = new Set<string>([
-  'intro',
-  'groove',
-  'bridge',
-  'build',
-  'drop',
-  'breakdown',
-  'verse',
-  'chorus',
-  'outro',
-]);
+/** The kinds a song form may name: cells' library's (`SECTION_KINDS`), each a `SectionType` (`form.test.ts`). */
+const KNOWN = new Set<string>(SECTION_KINDS);

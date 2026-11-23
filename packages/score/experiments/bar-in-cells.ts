@@ -68,7 +68,7 @@
 import {
   presetMode,
   type BandBar,
-  DRUM_ROLES,
+  DRUM_ORDER,
   type DrumRole,
   LOOKAHEAD,
   type MelodicScale,
@@ -319,7 +319,7 @@ function drumLines(
   const lines: string[] = [];
   const terms: string[] = [];
   const written = bar.written.filter((w) => w.part === 'drums');
-  for (const role of DRUM_ROLES as readonly DrumRole[]) {
+  for (const role of DRUM_ORDER as readonly DrumRole[]) {
     const hits = notes.filter((n) =>
       written.some((w) => w.role === role && w.step === n.step && w.note === n.note),
     );

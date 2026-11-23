@@ -5,7 +5,7 @@ import { resolveSeed } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
 import { CLAVES_NOTE, DRUM_NOTES, TOM_NOTES } from './drums.ts';
-import { DRUM_ROLES } from './events.ts';
+import { DRUM_ORDER } from './events.ts';
 import {
   BENCH,
   BENCH_FRAGMENT,
@@ -104,7 +104,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     for (const r of drumBars) expect(r.hits.length, r.id).toBeGreaterThan(0);
     // (every role among them: Salsa drums' tumbao the ostinato and its son clave the clave, #651)
     expect(new Set(drumBars.flatMap((r) => r.hits.map((h) => h.role)))).toEqual(
-      new Set(DRUM_ROLES),
+      new Set(DRUM_ORDER),
     );
     for (const r of read.filter((x) => isClave(x.id))) {
       expect(
@@ -339,7 +339,7 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
     for (const { preset, bars } of PAIRS) {
       const types = [...new Set(bars.map((b) => b.main.plan.section.type))];
       for (const type of types)
-        for (const role of DRUM_ROLES.filter((r) => r !== 'clave')) {
+        for (const role of DRUM_ORDER.filter((r) => r !== 'clave')) {
           const of = bars.filter((b) => b.main.plan.section.type === type);
           const count = (bar: BandBar) => drums(bar).filter((w) => w.role === role).length;
           const apart = Math.abs(

@@ -59,7 +59,7 @@ import {
 import { isLibraryFragment, resolveSeed } from '@yggi/cells/library';
 import { instrumentsFor, withInstruments } from './instruments.ts';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
-import { DRUM_ROLES, type DrumRole, sameMeter } from './events.ts';
+import { DRUM_ORDER, type DrumRole, sameMeter } from './events.ts';
 import { type Ask, askOptions } from './facet.ts';
 import { BENCH, BENCH_FRAGMENT, HASH, type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
@@ -157,7 +157,7 @@ export function benchText({ meter, meterFragment }: RhythmBench): string | null 
  * backbeat its meter doesn't name), so reading it would change what the band plays (#742).
  */
 const roleOf = ({ line, note, step }: Hit, meter: Meter): DrumRole | null =>
-  (DRUM_ROLES as readonly string[]).includes(line)
+  (DRUM_ORDER as readonly string[]).includes(line)
     ? (line as DrumRole)
     : roleOfSound(note, step % stepsOf(meter), meter);
 

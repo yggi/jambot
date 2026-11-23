@@ -58,7 +58,7 @@
  */
 
 import type { Meter } from '@jambot/theory';
-import { DRUM_ROLES, type DrumRole } from './events.ts';
+import { DRUM_ORDER, type DrumRole } from './events.ts';
 import {
   type Bench,
   type FacetRepository,
@@ -142,7 +142,7 @@ export const RHYTHM_HOLD = METER_HOLD;
 export const LAYER_DISTANCE = 0.1;
 
 /** The roles of a drum bar's lines: all but the clave, which plays as a line of its own, layered on a drum bar; an ostinato is a drum bar's (#651). */
-export const GROOVE_ROLES: readonly DrumRole[] = DRUM_ROLES.filter((role) => role !== 'clave');
+export const GROOVE_ROLES: readonly DrumRole[] = DRUM_ORDER.filter((role) => role !== 'clave');
 
 /** Whether a fragment names none of the drummer's roles: a line of its own, as a clave is. */
 export const isOwnLine = (read: FragmentRead): boolean =>

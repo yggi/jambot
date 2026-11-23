@@ -1,3 +1,4 @@
+import { SECTION_KINDS, SECTION_TYPES as FEEL_SECTIONS } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import {
   type Section,
@@ -41,6 +42,9 @@ describe('the chain, the generator on a miss', () => {
       'chorus',
       'outro',
     ]);
+    // (cells’ own: the feel’s six, then the library’s other kinds, #737)
+    expect(SECTION_TYPES.slice(0, 6)).toEqual(FEEL_SECTIONS);
+    expect(new Set(SECTION_TYPES)).toEqual(new Set(SECTION_KINDS));
     expect(SECTION_BARS).toBe(8);
   });
 

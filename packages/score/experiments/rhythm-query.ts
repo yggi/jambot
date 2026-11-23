@@ -52,7 +52,7 @@ import {
   type BandBar,
   type BandCarried,
   DRUM_NOTES,
-  DRUM_ROLES,
+  DRUM_ORDER,
   GROOVE_ROLES,
   type DrumSound,
   heldRhythms,
@@ -401,11 +401,11 @@ export function entered(
   return merged([...groove, ...fill, ...own]);
 }
 
-/** Hits on one sound and step kept once, the stronger role's (the drummer's rule, `DRUM_ROLES`' order; a role it doesn't name, weakest). */
+/** Hits on one sound and step kept once, the stronger role's (the drummer's rule, `DRUM_ORDER`' order; a role it doesn't name, weakest). */
 function merged(hits: readonly DrumHit[]): DrumHit[] {
   const rank = (role: string) => {
-    const i = (DRUM_ROLES as readonly string[]).indexOf(role);
-    return i < 0 ? DRUM_ROLES.length : i;
+    const i = (DRUM_ORDER as readonly string[]).indexOf(role);
+    return i < 0 ? DRUM_ORDER.length : i;
   };
   const kept = new Map<number, DrumHit>();
   for (const h of hits) {

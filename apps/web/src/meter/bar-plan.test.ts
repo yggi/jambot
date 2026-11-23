@@ -1,5 +1,5 @@
-import { DRUM_NOTES, backbeatOf } from '@jambot/engine';
-import { METERS, type MeterName, gaps, meterOnSteps, parallel } from '@jambot/theory';
+import { DRUM_NOTES, backbeatSteps } from '@jambot/engine';
+import { METERS, type MeterName, gaps, meterOnSteps, parallel, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { HEMIOLA, LAYERS, type Layer, type Setting, barPlan } from './bar-plan.ts';
 
@@ -99,13 +99,13 @@ describe('the bar’s plan', () => {
 
   it('gives every meter a backbeat of pulses after the downbeat, in order and inside the bar (finite: every meter)', () => {
     for (const name of names) {
-      const pulses = METERS[name].heights.length;
-      const backbeat = backbeatOf(METERS[name]);
+      const starts = meterOnSteps(METERS[name]).heights;
+      const backbeat = backbeatSteps(METERS[name]);
       expect(backbeat.length).toBeGreaterThan(0);
       expect(backbeat).toEqual([...new Set(backbeat)].sort((a, b) => a - b));
-      for (const pulse of backbeat) {
-        expect(pulse).toBeGreaterThanOrEqual(1);
-        expect(pulse).toBeLessThan(pulses);
+      for (const step of backbeat) {
+        expect(starts.indexOf(step)).toBeGreaterThanOrEqual(1);
+        expect(step).toBeLessThan(stepsOf(METERS[name]));
       }
     }
   });
@@ -113,11 +113,10 @@ describe('the bar’s plan', () => {
   it('plays the snare on the backbeat’s pulse starts, the kick on the downbeat, and hats on every eighth', () => {
     for (const name of names) {
       const meter = METERS[name];
-      const starts = meterOnSteps(meter).heights;
       const drums = barPlan(setting(name, { layers: only('drums') }));
       const at = (note: number) =>
         drums.flatMap((o) => (o.layer === 'drums' && o.note === note ? [o.step] : []));
-      expect(at(DRUM_NOTES.snare)).toEqual(backbeatOf(METERS[name]).map((p) => starts[p]!));
+      expect(at(DRUM_NOTES.snare)).toEqual(backbeatSteps(METERS[name]));
       expect(at(DRUM_NOTES.kick)[0]).toBe(0);
       expect(at(DRUM_NOTES.closedHat)).toHaveLength(meter.cycle);
     }

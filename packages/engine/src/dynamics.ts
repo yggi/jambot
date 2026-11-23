@@ -14,7 +14,7 @@
 
 import { meterOnSteps, stepsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
-import { backbeatOf } from './drums.ts';
+import { backbeatSteps } from './drums.ts';
 import { type DrumRole, type WrittenNote, halfOf, lateOf } from './events.ts';
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
@@ -30,8 +30,7 @@ function roleAccent(env: BarEnv, role: DrumRole, step: number): number {
     case 'kick':
       return step === 0 || step === half ? 112 : 92;
     case 'backbeat': {
-      const starts = meterOnSteps(env.meter).heights;
-      return step === starts[backbeatOf(env.meter).at(-1)!] ? 106 : 100;
+      return step === backbeatSteps(env.meter).at(-1) ? 106 : 100;
     }
     case 'ghost':
       return 32 + 14 * env.style.sync;

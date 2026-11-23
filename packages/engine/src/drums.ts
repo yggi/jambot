@@ -39,29 +39,57 @@ import {
   positions,
   stepsOf,
   accentsOf,
+  gaps,
 } from '@jambot/theory';
+import { backbeatOf } from '@yggi/cells/library';
+import { gmDrumNote } from '@yggi/cells/midi';
 import type { BarEnv } from './bar.ts';
-import { DRUM_ROLES, type DrumRole, type WrittenNote, halfOf, lateOf } from './events.ts';
+import {
+  DRUM_ORDER,
+  DRUM_PRIORITY,
+  type DrumRole,
+  type WrittenNote,
+  halfOf,
+  lateOf,
+} from './events.ts';
 import { SECTION_BARS } from './form.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { type Regroup, readOnMeter } from './regroup.ts';
 import { eighthSwing } from './swing.ts';
 
 /**
- * The General MIDI drum notes the band plays. The drummer's own bars strike
- * all but the clap, which comes from a fragment's line (cells' `Electro
- * swing drums`, #508) and plays the backbeat or a ghost, as the snare does.
+ * The voice each of the kit's sounds is written with, a member of cells' General MIDI kit (`GM_KIT`): the score's
+ * words (`DRUM_WORDS`), and cells' `sd` and `cp` for the snare and the clap, which the score has none for.
  */
-export const DRUM_NOTES = {
-  kick: 36,
-  rim: 37,
-  snare: 38,
-  clap: 39,
-  closedHat: 42,
-  pedalHat: 44,
-  openHat: 46,
-  ride: 51,
+export const DRUM_VOICES = {
+  kick: 'bd',
+  rim: 'rim',
+  snare: 'sd',
+  clap: 'cp',
+  closedHat: 'hh',
+  pedalHat: 'ph',
+  openHat: 'oh',
+  ride: 'rd',
 } as const;
+
+/** One of the drums' physical sounds, as `DRUM_NOTES` names it: not a groove `DrumRole`. */
+export type DrumSound = keyof typeof DRUM_VOICES;
+
+/** A member of cells' General MIDI kit by its name (`gmDrumNote`), which must be one. */
+function kitNote(name: string): number {
+  const note = gmDrumNote(name);
+  if (note === null) throw new Error(`kitNote: ${name} is no member of cells' kit`);
+  return note;
+}
+
+/**
+ * The General MIDI drum notes the band plays, each its voice's in cells' kit (`DRUM_VOICES`, `gmDrumNote`). The
+ * drummer's own bars strike all but the clap, which comes from a fragment's line (cells' `Electro swing drums`, #508)
+ * and plays the backbeat or a ghost, as the snare does.
+ */
+export const DRUM_NOTES: Readonly<Record<DrumSound, number>> = Object.fromEntries(
+  (Object.keys(DRUM_VOICES) as DrumSound[]).map((sound) => [sound, kitNote(DRUM_VOICES[sound])]),
+) as Record<DrumSound, number>;
 
 /**
  * The General MIDI claves, which the composer's clave line strikes: cells'
@@ -71,25 +99,26 @@ export const DRUM_NOTES = {
  * note no drum sound remaps as itself.
  * It is no drum sound of the drummer's own, which `DRUM_NOTES` holds.
  */
-export const CLAVES_NOTE = 75;
+export const CLAVES_NOTE = kitNote('claves');
 
 /**
  * The General MIDI toms, which a fragment's ostinato strikes (cells' `salsa_drums`: the conga's tumbao on `&lt`, `&mt`
  * and `&ht`, `gm_kit`'s notes, #651). Like the claves, they pass to the drums as they are (`groove.ts`), the built-in
  * kit voices them, and MIDI out sends them as themselves; none is a drum sound of the drummer's own.
  */
-export const TOM_NOTES = { lowTom: 41, midTom: 45, highTom: 48 } as const;
+export const TOM_NOTES = {
+  lowTom: kitNote('lt'),
+  midTom: kitNote('mt'),
+  highTom: kitNote('ht'),
+} as const;
 
 /**
  * The roles the drummer writes of its own (`drums`): all but the ostinato and the clave, which only a fragment's line
  * plays, so the drummer plays those as the fragment writes them (`grooveBar`).
  */
-export const OWN_ROLES: readonly DrumRole[] = DRUM_ROLES.filter(
+export const OWN_ROLES: readonly DrumRole[] = DRUM_ORDER.filter(
   (role) => role !== 'ostinato' && role !== 'clave',
 );
-
-/** One of the drums' physical sounds, as `DRUM_NOTES` names it: not a groove `DrumRole`. */
-export type DrumSound = keyof typeof DRUM_NOTES;
 
 /** The drums' held draws and their odd-bar variation. */
 const HELD: readonly [Stream, Stream] = ['drumHit', 'drumVariation'];
@@ -120,16 +149,20 @@ const smooth = (u: number) => {
 };
 
 /**
- * The pulses, from 0, the snare's backbeat falls on: every pulse after the
- * downbeat in a bar of two or three, the odd ones from four up, so 4/4's
- * second and fourth, 12/8's second and fourth, 6/8's second and 3/4's second
- * and third.
+ * The steps of the bar the snare's backbeat falls on: cells' `backbeatOf`, every pulse after the downbeat in a bar of
+ * two or three, the odd ones from four up, so 4/4's second and fourth (steps 4 and 12), 12/8's second and fourth, 6/8's
+ * second and 3/4's second and third. Cells reads a meter's beats and gives each in whole notes from the bar's start: the
+ * meter's pulses are its beats, each its eighths long, and a whole note is the bar's 16 steps.
  */
-export function backbeatOf(meter: Meter): number[] {
-  const pulses = meter.heights.length;
-  return Array.from({ length: pulses }, (_, pulse) => pulse).filter((pulse) =>
-    pulses <= 3 ? pulse > 0 : pulse % 2 === 1,
-  );
+export function backbeatSteps(meter: Meter): number[] {
+  const beats = {
+    levels: [],
+    written: 'meter',
+    pulses: meter.cycle,
+    unit: 8,
+    beats: gaps(meter),
+  } as const;
+  return backbeatOf(beats).map((whole) => Math.round(whole * 8 * STEPS_PER_EIGHTH));
 }
 
 /**
@@ -189,7 +222,7 @@ export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
   const starts = meterOnSteps(meter).heights;
   const pulseAt = new Set(starts);
   const accents = accentsOf(meter);
-  const backbeat = new Set(backbeatOf(meter).map((pulse) => starts[pulse]!));
+  const backbeat = new Set(backbeatSteps(meter));
   const offbeatAfter = (on: (step: number) => boolean) =>
     new Set(starts.filter(on).map((step) => step + 2));
   const afterBackbeat = offbeatAfter((step) => backbeat.has(step));
@@ -203,7 +236,7 @@ export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
   const add = (step: number, note: number, role: DrumRole) => {
     const key = step * 128 + note;
     const there = hits.get(key);
-    if (!there || DRUM_ROLES.indexOf(role) < DRUM_ROLES.indexOf(there.role!))
+    if (!there || DRUM_PRIORITY[role] < DRUM_PRIORITY[there.role!])
       hits.set(
         key,
         role === 'euclid'

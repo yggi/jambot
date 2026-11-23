@@ -25,32 +25,43 @@ import {
   meterOnSteps,
   mod,
 } from '@jambot/theory';
+import type { DrumRole } from '@yggi/cells';
+import { DRUM_ROLES, FEEL_PARTS } from '@yggi/cells/library';
 
-export const PARTS = ['drums', 'bass', 'pad', 'stab', 'lead'] as const;
+/** The band's parts: cells' feel parts (`FEEL_PARTS`), in its order. */
+export const PARTS = FEEL_PARTS;
 export type Part = (typeof PARTS)[number];
 
 /**
- * What a drum hit does in the groove, which sets its accent. Where two land
- * on one sound and step, the one listed first stays: of the drummer's own,
- * only the snare's backbeat, fill and ghost ever meet. Two come only from a
- * fragment's line, the drummer having no part of its own for them
- * (`OWN_ROLES`): the ostinato, a pitched figure repeated on the toms or the
- * congas (cells' `salsa_drums`' tumbao, #651, yggi/cells#717), and last the
- * clave, a line the composer chose from the repository (#397), so the rim's
- * Euclid wins a step they share.
+ * What a drum hit does in the groove, which sets its accent: cells' drum roles (`DrumRole`, `DRUM_ROLES` in the feel
+ * contract's order), so a role cells adds is one the band reads once it has a row in `DRUM_PRIORITY`.
  */
-export const DRUM_ROLES = [
-  'kick',
-  'backbeat',
-  'fill',
-  'ghost',
-  'hat',
-  'pedal',
-  'euclid',
-  'ostinato',
-  'clave',
-] as const;
-export type DrumRole = (typeof DRUM_ROLES)[number];
+export type { DrumRole };
+
+/**
+ * The drummer's priority over the roles: where two land on one sound and step, the one ranked first stays (`DRUM_ORDER`).
+ * Of the drummer's own, only the snare's backbeat, fill and ghost ever meet. Two come only from a fragment's line, the
+ * drummer having no part of its own for them (`OWN_ROLES`): the ostinato, a pitched figure repeated on the toms or the
+ * congas (cells' `salsa_drums`' tumbao, #651, yggi/cells#717), and last the clave, a line the composer chose from the
+ * repository (#397), so the rim's Euclid wins a step they share. It is the band's own order, not the contract's: the
+ * fill ranks third, where cells lists it last.
+ */
+export const DRUM_PRIORITY: Readonly<Record<DrumRole, number>> = {
+  kick: 0,
+  backbeat: 1,
+  fill: 2,
+  ghost: 3,
+  hat: 4,
+  pedal: 5,
+  euclid: 6,
+  ostinato: 7,
+  clave: 8,
+};
+
+/** Cells' roles in the drummer's priority (`DRUM_PRIORITY`): the order the band writes a groove's lines in, too. */
+export const DRUM_ORDER: readonly DrumRole[] = [...DRUM_ROLES].sort(
+  (a, b) => DRUM_PRIORITY[a] - DRUM_PRIORITY[b],
+);
 
 export interface WrittenNote {
   readonly part: Part;
@@ -324,7 +335,7 @@ export function doughProblems(note: DoughNote, steps = BAR_STEPS): string[] {
   if (!isIntegerIn(velocity, 1, 127)) problems.push(`velocity ${velocity} is not a velocity 1–127`);
   if (!(gain >= 0 && gain <= 1)) problems.push(`gain ${gain} is not a gain 0–1`);
   if (part === 'drums' && role === undefined) problems.push('a drum hit has a role');
-  if (part === 'drums' && role !== undefined && !DRUM_ROLES.includes(role))
+  if (part === 'drums' && role !== undefined && !DRUM_ORDER.includes(role))
     problems.push(`role ${role} is not a drum role`);
   if (part !== 'drums' && role !== undefined) problems.push(`a ${part} note has no role`);
   if (accent !== undefined && !Number.isInteger(accent))
@@ -345,7 +356,7 @@ export function writtenProblems(written: WrittenNote, steps = BAR_STEPS): string
     problems.push(`length ${length} is not a whole number of steps`);
   if ('velocity' in written) problems.push('a written note has no velocity');
   if (part === 'drums' && role === undefined) problems.push('a drum hit has a role');
-  if (part === 'drums' && role !== undefined && !DRUM_ROLES.includes(role))
+  if (part === 'drums' && role !== undefined && !DRUM_ORDER.includes(role))
     problems.push(`role ${role} is not a drum role`);
   if (part !== 'drums' && role !== undefined) problems.push(`a ${part} note has no role`);
   if (accent !== undefined && !Number.isInteger(accent))

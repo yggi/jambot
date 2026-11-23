@@ -35,7 +35,7 @@ import {
   presetMode,
   type BandCarried,
   DRUM_NOTES,
-  DRUM_ROLES,
+  DRUM_ORDER,
   type DrumRole,
   type DrumSound,
   type KeyWish,
@@ -121,7 +121,7 @@ console.table(
   Object.fromEntries(
     sounds.map((s) => [
       s,
-      Object.fromEntries(DRUM_ROLES.map((r) => [r, bySound.get(s)?.get(r) ?? 0])),
+      Object.fromEntries(DRUM_ORDER.map((r) => [r, bySound.get(s)?.get(r) ?? 0])),
     ]),
   ),
 );
@@ -129,7 +129,7 @@ const byRole = nested(all.map((h) => [h.role, h.sound]));
 console.log('roles by sound:');
 for (const s of sounds) console.log(`  ${s}: ${[...(bySound.get(s)?.keys() ?? [])].join(', ')}`);
 console.log('sounds by role:');
-for (const r of DRUM_ROLES) console.log(`  ${r}: ${[...(byRole.get(r)?.keys() ?? [])].join(', ')}`);
+for (const r of DRUM_ORDER) console.log(`  ${r}: ${[...(byRole.get(r)?.keys() ?? [])].join(', ')}`);
 
 console.log('\nE16.2 what determines the role: hits on a key seen with more than one role');
 const keys: [string, (h: (typeof all)[number]) => string][] = [
@@ -171,7 +171,7 @@ const forms = {
     marked: () => true,
   },
   '(ii) a line per role': {
-    lines: (b: Bar) => DRUM_ROLES.map((r) => b.hits.filter((h) => h.role === r)),
+    lines: (b: Bar) => DRUM_ORDER.map((r) => b.hits.filter((h) => h.role === r)),
     marked: (h: Hit) => (byRole.get(h.role)?.size ?? 0) > 1,
   },
   '(iii) a line per sound': {

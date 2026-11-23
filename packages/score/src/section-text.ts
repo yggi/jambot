@@ -88,7 +88,7 @@
 import {
   BAR_STEPS,
   type BandBar,
-  DRUM_ROLES,
+  DRUM_ORDER,
   type DrumRole,
   type Key,
   VOICE_OF_NOTE,
@@ -843,7 +843,7 @@ function drumLines(
 ): { lines: string[]; terms: string[]; voices: string[] } {
   const lines: string[] = [];
   const terms: string[] = [];
-  for (const role of DRUM_ROLES as readonly DrumRole[]) {
+  for (const role of DRUM_ORDER as readonly DrumRole[]) {
     const hits = notes.filter((n) => n.role === role);
     if (hits.length === 0) continue;
     const ofBar = (i: number) => hits.filter((h) => Math.floor(h.at / steps) === i);

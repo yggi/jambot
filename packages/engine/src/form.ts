@@ -15,20 +15,22 @@ import type { Machine } from './machine.ts';
 import { draw, pick } from './random.ts';
 import { kindOffset, songFormAt, songSections } from './section-kinds.ts';
 import type { Style } from './style.ts';
+import { SECTION_KINDS, SECTION_TYPES as FEEL_SECTIONS } from '@yggi/cells/library';
 
-/** The chain's six, then the three a song form adds (yggi/cells#814): a verse, a chorus and an outro. */
-export const SECTION_TYPES = [
-  'intro',
-  'groove',
-  'bridge',
-  'build',
-  'drop',
-  'breakdown',
-  'verse',
-  'chorus',
-  'outro',
-] as const;
-export type SectionType = (typeof SECTION_TYPES)[number];
+/** The three kinds a song form adds to the chain's six (yggi/cells#814), which cells lists only as strings (`SECTION_KINDS`). */
+type SongKind = 'verse' | 'chorus' | 'outro';
+
+/** A section's kind: one of the feel's six (cells' `SECTION_TYPES`), the chain's, or one a song form adds. */
+export type SectionType = (typeof FEEL_SECTIONS)[number] | SongKind;
+
+/**
+ * Every kind of section, cells' library's (`SECTION_KINDS`): the chain's six, as the feel frames them (cells'
+ * `SECTION_TYPES`), then the three a song form adds, a verse, a chorus and an outro, in the library's order.
+ */
+export const SECTION_TYPES: readonly SectionType[] = [
+  ...FEEL_SECTIONS,
+  ...SECTION_KINDS.filter((kind) => !(FEEL_SECTIONS as readonly string[]).includes(kind)),
+] as SectionType[];
 
 export const SECTION_BARS = 8;
 
