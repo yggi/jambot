@@ -64,16 +64,17 @@ describe('the harmony on the radio’s walk, learning (E43, #425)', () => {
     // and 2,675 before v0.25.0, whose harmonies placed at the presets that had none, and its progressions of four bars
     // read twice, lie along it too; 8,408, 3,191 and 5,360 before 2/4 and 2/2 were among the band's meters on top of
     // v0.25.0, #652, where 250 sections now play 2/4, which lasts half a 4/4, and none plays 2/2; 3,182 and 5,460
-    // before #655's song forms)
-    expect([sections, mostUsed, fromRepository]).toEqual([8533, 3411, 6852]);
+    // before #655's song forms; 3,411 and 6,852 before the station's rotation, #547 rung 5, whose songs keep their themes)
+    expect([sections, mostUsed, fromRepository]).toEqual([8533, 3793, 6688]);
     expect(share).toBeLessThan(0.6);
   });
 
   it('moves the share of sections among a run’s 3 most used themes within 5 points, with twice its error (cells decision 048)', () => {
     const { added, error } = lockIn(asThemes(UNLEARNED), asThemes(LEARNED));
     // (0.54 and 0.32 before cells v0.24.0; 2.01 and 0.83 before v0.25.0; −0.99 and 0.44 before 2/4 and 2/2 were among
-    // the band's meters on top of v0.25.0, #652; −0.99 and 0.43 before #655's song forms)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['0.13', '0.72']);
+    // the band's meters on top of v0.25.0, #652; −0.99 and 0.43 before #655's song forms; 0.13 and 0.72 before
+    // the station's rotation, #547 rung 5, whose songs keep their themes)
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-1.65', '1.14']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 });
@@ -82,21 +83,22 @@ describe('the harmony on the radio’s walk, a player playing progressions one s
   it('plays its run’s most used theme in under 60 % of its sections', () => {
     const { sections, mostUsed, share } = mostUsedTheme(PLAYED);
     // (8,459 and 2,455 before cells v0.24.0; 2,442 before v0.25.0; 8,408 and 2,559 before 2/4 and 2/2 were among the
-    // band's meters on top of v0.25.0, #652; 2,596 before #655's song forms)
-    expect([sections, mostUsed]).toEqual([8533, 2553]);
+    // band's meters on top of v0.25.0, #652; 2,596 before #655's song forms; 2,553 before the station's rotation, #547 rung 5, whose songs keep their themes)
+    expect([sections, mostUsed]).toEqual([8533, 3549]);
     expect(share).toBeLessThan(0.6);
   });
 
-  it('moves the share among a run’s 3 most used themes −6.6 points (2.8 error) with the player’s progressions filed: cells’ harmonies placed above VAMP_HARM outrank them', () => {
+  it('moves the share among a run’s 3 most used themes −1.7 points (1.6 error) with the player’s progressions filed: cells’ harmonies placed above VAMP_HARM outrank them', () => {
     // (until cells v0.25.0 the player's progressions, filed, were the only fits above VAMP_HARM but where the walk came
     // near Spooky's haunted progression, yggi/cells#409, and each section that played one was a use: the share rose
     // 12.93 points (2.66), 13.42 (2.69) before v0.24.0, what was heard returning, the loop doing its job, as the owner
     // ruled on #484, 2026-10-23; since v0.25.0 a harmony of cells' lies at every preset's point, yggi/cells#540, nearer
     // than a progression filed while the walk passed near it, so the walk plays cells' and the player's less: #660;
     // −5.69 and 1.36 before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652; −5.67 and 1.35 before
-    // #655's song forms)
+    // #655's song forms; −6.61 and 2.80 before the station's rotation, #547 rung 5, whose songs keep their themes, which plays a song's themes again and so a run's
+    // most used more alike played or not)
     const { added, error } = lockIn(asThemes(PLAYED_UNLEARNED), asThemes(PLAYED));
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-6.61', '2.80']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-1.70', '1.56']);
   });
 
   it('files the player’s progressions under the player’s name, each reading back as filed', () => {

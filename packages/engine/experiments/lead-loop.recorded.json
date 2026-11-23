@@ -1,8 +1,8 @@
 {
-  "sections that play a lead line, and those that play their run’s most used": [8533,1855],
-  "points added to the share among a run’s 3 most used lead lines, and their error": ["-41.93","1.43"],
-  "lines filed by the player, by the lead, by the composer, and held": [332,0,214,258],
+  "sections that play a lead line, and those that play their run’s most used": [8533,1898],
+  "points added to the share among a run’s 3 most used lead lines, and their error": ["-40.19","1.22"],
+  "lines filed by the player, by the lead, by the composer, and held": [332,0,165,258],
   "lines filed that an hour’s cap dropped": 0,
-  "the heaviest layer’s bytes over 3 hours, and the sections whose filing dropped the oldest": [15994,64],
-  "sections over the 3 hours": 5364
+  "the heaviest layer’s bytes over 3 hours, and the sections whose filing dropped the oldest": [15997,57],
+  "sections over the 3 hours": 5358
 }

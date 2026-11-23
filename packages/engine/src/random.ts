@@ -119,6 +119,8 @@ export const STREAMS = {
   harmonyVariation: 33,
   /** Whether a held part varies an even bar as it varies its odd ones, per part's stream, role and bar, where the homeostat leans past entropy 1 (#536, `restless`). */
   restless: 34,
+  /** Which song of the rotation the station plays next, at a song's end, per section (#547 rung 5, `rotation.ts`). */
+  song: 35,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

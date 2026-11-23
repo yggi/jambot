@@ -52,6 +52,11 @@ export interface FormEnv {
   readonly index: number;
   /** The style where the section starts. */
   readonly style: Style;
+  /**
+   * The song form a song starting here is played on, where the station chose one (`rotation.ts`, #547 rung 5): a form
+   * by id, or null for the chain. With none, the form cells finds at the style. Read only where a song starts.
+   */
+  readonly form?: string | null;
 }
 
 /** Which kinds may follow each. */
@@ -137,7 +142,7 @@ export const form: Machine<FormEnv, Section | null, null, Section> = {
       const section = { type: songSections(song.form)[next.at]!, index: env.index, song: next };
       return { carried: section, output: section };
     }
-    const found = songFormAt(env.style);
+    const found = env.form === undefined ? songFormAt(env.style) : env.form;
     if (!found) return chain.advance(env, before, null);
     const sections = songSections(found);
     const section = {

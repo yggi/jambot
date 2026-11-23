@@ -234,6 +234,7 @@ import { type Ear, browserEar } from './ear.ts';
 import { Hearing } from './hearing.ts';
 import { PlayedLog } from './played.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
+import { NO_SONGS, songsAfter } from './stationView.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
 import { PATTERN_BARS, Pattern, type PatternBar, patternBarOf } from './pattern.ts';
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
@@ -495,6 +496,8 @@ export class Player {
    * solo's, read once a section; null for a client, or before a song.
    */
   workbench: Workbench | null = $state.raw(null);
+  /** The song each section plans to play in, by its index, named (#547 rung 5, `stationView.ts`): a host's and solo's; none for a client. */
+  songs: ReadonlyMap<number, string> = $state.raw(NO_SONGS);
   /**
    * The score of the section heard and cells' outline of it, as the shadow took it (#642): a host's and a band
    * alone's as built, a client's as given. None before a section's score is taken, or where none states it.
@@ -1735,6 +1738,7 @@ export class Player {
     if (carried!.finale.bar !== this.lastBar) this.lastBar = carried!.finale.bar;
     this.#learned(carried!.source.plans.layer);
     this.#mindful(carried!.source.plans);
+    this.#stationed(carried!.source.plans);
     // The band decided its next bar in another meter: from now the bpm counts
     // that meter's beats, every step as long as it was (#367).
     const decided = carried!.source.next;
@@ -1844,6 +1848,12 @@ export class Player {
     const was = this.workbench;
     if (was?.inMind === shortTerm && was.boredom === boredom) return;
     this.workbench = { inMind: shortTerm, boredom };
+  }
+
+  /** The song the section the plans planned last plays in, kept as each section is planned. */
+  #stationed(plans: Pick<PlanCarried, 'before' | 'song'>) {
+    const songs = songsAfter(this.songs, plans);
+    if (songs !== this.songs) this.songs = songs;
   }
 
   /** Whether the song's last bar has ended and its last chord has rung out, at `now` on the transport's clock. */

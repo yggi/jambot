@@ -17,6 +17,9 @@ import { type Plan, type PlanEnv, bandWish, planner } from './plan.ts';
 import { INITIAL_STYLE, PRESETS, type Style } from './style.ts';
 import { themeKind } from './themes.ts';
 import { presetMode } from './mode-repository.ts';
+import { HARMONY_REPOSITORY } from './progressions.ts';
+import { LEAD_REPOSITORY } from './lead-lines.ts';
+import { EMPTY_LAYER } from './layer.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -202,24 +205,39 @@ describe('the section plan', () => {
     }
   });
 
-  it('builds a theme anew when the harmony has moved more than 0.2 from it (Q8)', () => {
+  it('builds a theme anew when the harmony has moved more than 0.2 from it, where the chain plays (Q8)', () => {
+    // (a corner no song form lies near, so no song holds its themes: offbeat, paddy and dark, #547 rung 5)
+    const corner = { ...INITIAL_STYLE, sync: 1, artic: 0, mood: 0, entropy: 0 };
     for (const seed of range(10))
       for (const [step, fresh] of [
         [0.1875, false],
         [0.25, true],
       ] as const) {
-        const script = steady(seed, { ...INITIAL_STYLE, harm: 0.375, entropy: 0 }, aeolian).map(
-          ({ env, input }) => ({
-            env: { ...env, style: { ...env.style, harm: 0.375 + (env.index >= 20 ? step : 0) } },
-            input,
-          }),
-        );
+        const script = steady(seed, { ...corner, harm: 0.6875 }, aeolian).map(({ env, input }) => ({
+          env: { ...env, style: { ...env.style, harm: 0.6875 + (env.index >= 20 ? step : 0) } },
+          input,
+        }));
         const plans = run(script);
         const before = plans.slice(0, 20).findLast((p) => p.theme.kind === 'A')!.theme;
         const after = plans.slice(20).find((p) => p.theme.kind === 'A')!;
         expect(after.theme.index === after.section.index).toBe(fresh);
         if (!fresh) expect(after.theme).toEqual(before);
       }
+  });
+
+  it('keeps a song’s theme though the harmony moved more than 0.2, while the song still fits (#547 rung 5)', () => {
+    for (const seed of range(10)) {
+      const script = steady(seed, { ...INITIAL_STYLE, harm: 0.375, entropy: 0 }, aeolian).map(
+        ({ env, input }) => ({
+          env: { ...env, style: { ...env.style, harm: 0.375 + (env.index >= 20 ? 0.25 : 0) } },
+          input,
+        }),
+      );
+      const plans = run(script);
+      expect(plans.every((p) => p.section.song !== undefined)).toBe(true);
+      const before = plans.slice(0, 20).findLast((p) => p.theme.kind === 'A')!.theme;
+      expect(plans.slice(20).find((p) => p.theme.kind === 'A')!.theme).toEqual(before);
+    }
   });
 
   it('builds a theme anew when the mode changes (Q8)', () => {
@@ -357,5 +375,122 @@ describe('the melodic scale a section plays', () => {
           expect({ ...plan, melodic: 'plain' }).toEqual(plain[i]);
         });
       }
+  });
+});
+
+describe('the station (#547 rung 5, the owner’s rulings of 2026-11-23): songs in a rotation', () => {
+  /** Each section's plan and the song the station plays it in, by id, held at a preset with the repositories. */
+  const station = (presetName: string, entropy: number, sections: number, seed = 1) => {
+    const preset = PRESETS.find((p) => p.name === presetName)!;
+    const style = { ...preset.style, entropy };
+    let carried = planner.initial;
+    return range(sections).map((index) => {
+      const env: PlanEnv = {
+        seed,
+        index,
+        style,
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+        history: NO_HISTORY,
+        harmonies: HARMONY_REPOSITORY,
+        leads: LEAD_REPOSITORY,
+      };
+      const next = planner.advance(env, carried, null);
+      carried = next.carried;
+      return {
+        plan: next.output,
+        song: carried.song,
+        rotation: carried.rotation,
+        lead: carried.leadFragment,
+      };
+    });
+  };
+  /** Each song's plays: its sections' plans, play by play. */
+  const playsOf = (run: ReturnType<typeof station>) => {
+    const plays = new Map<number, Plan[][]>();
+    for (const { plan, song } of run) {
+      if (song === null) continue;
+      const list = plays.get(song) ?? [];
+      if (plan.section.song?.at === 0) list.push([]);
+      list.at(-1)?.push(plan);
+      plays.set(song, list);
+    }
+    return plays;
+  };
+
+  it('never plays a song twice in a row above entropy 0, and plays songs again once its rotation is full', () => {
+    for (const name of ['Synth-pop', 'Techno', 'Deep house', 'Swing jazz']) {
+      const run = station(name, 0.3, 160);
+      const starts = run.filter((s) => s.plan.section.song?.at === 0).map((s) => s.song);
+      expect(starts.length, name).toBeGreaterThan(10);
+      for (let i = 1; i < starts.length; i++) expect(starts[i], name).not.toBe(starts[i - 1]);
+      // (8 songs at entropy 0.3, each new until the rotation is full; then again)
+      expect(new Set(starts).size, name).toBe(8);
+      expect(run.every((s) => s.rotation.songs.length <= 8)).toBe(true);
+    }
+  });
+
+  it('plays a song again with its own themes, their progressions and its lead line, whatever it played between', () => {
+    for (const name of ['Synth-pop', 'Swing jazz', 'Kinderlied']) {
+      const run = station(name, 0.3, 160);
+      let again = 0;
+      for (const [id, plays] of playsOf(run)) {
+        const themesOf = (play: Plan[]) =>
+          play.map((p) => (p.theme.kind === 'build' ? null : JSON.stringify(p.theme)));
+        const kindsOf = (play: Plan[]) => play.map((p) => p.section.type);
+        const first = plays[0]!;
+        for (const play of plays.slice(1)) {
+          if (play.length !== first.length) continue;
+          again++;
+          expect(themesOf(play), `${name}, song ${id}`).toEqual(themesOf(first));
+          expect(kindsOf(play)).toEqual(kindsOf(first));
+        }
+      }
+      expect(again, name).toBeGreaterThan(5);
+      // (each play of a song starts from its lead line, once it has one; within the play the ladder may vary it)
+      let starts = 0;
+      for (const { plan, song, rotation, lead } of run) {
+        const kept = rotation.songs.find((s) => s.id === song)?.lead ?? null;
+        if (kept === null || plan.section.song?.at !== 0) continue;
+        starts++;
+        expect(lead, `${name}, song ${song}`).toBe(kept);
+      }
+      expect(starts, name).toBeGreaterThan(10);
+    }
+  });
+
+  it('gives a new song another lead line once the composer tired of the last song’s, where it learns', () => {
+    // (with a layer, as a host plays: 160 sections at entropy 0.3 make 8 songs; their leads, a preset's own line, its
+    // variations and the next nearest)
+    for (const name of ['Synth-pop', 'Techno', 'Swing jazz', 'Kinderlied', 'Ambient']) {
+      const preset = PRESETS.find((p) => p.name === name)!;
+      let carried = planner.initial;
+      for (const index of range(160))
+        carried = planner.advance(
+          {
+            seed: 1,
+            index,
+            style: { ...preset.style, entropy: 0.3 },
+            wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+            history: NO_HISTORY,
+            harmonies: HARMONY_REPOSITORY,
+            leads: LEAD_REPOSITORY,
+            layer: EMPTY_LAYER,
+          },
+          carried,
+          null,
+        ).carried;
+      const leads = new Set(carried.rotation.songs.map((s) => s.lead));
+      expect(carried.rotation.songs.length, name).toBe(8);
+      expect(leads.size, name).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('plays one song over and over at entropy 0, the same plans every time', () => {
+    const run = station('Synth-pop', 0, 48);
+    expect(new Set(run.map((s) => s.song))).toEqual(new Set([1]));
+    const plays = playsOf(run).get(1)!;
+    expect(plays.length).toBe(6);
+    const shape = (play: Plan[]) => play.map((p) => [p.section.type, JSON.stringify(p.theme)]);
+    for (const play of plays.slice(1)) expect(shape(play)).toEqual(shape(plays[0]!));
   });
 });

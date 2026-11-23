@@ -54,6 +54,7 @@ export * from './recognised.ts';
 export * from './repository.ts';
 export * from './rhythm-query.ts';
 export * from './rhythms.ts';
+export * from './rotation.ts';
 export * from './short-term.ts';
 export * from './sound.ts';
 export * from './style.ts';

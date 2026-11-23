@@ -35,6 +35,7 @@
   import type { Player } from '../player.svelte.ts';
   import { tracksOf } from '../tracks.ts';
   import { transportCells, transportHeard, transportLine } from '../transportView.ts';
+  import { nowPlaying } from '../stationView.ts';
 
   interface Props {
     player: Player;
@@ -225,7 +226,11 @@
 
 {#snippet stage(id: string)}
   {#if id === 'song'}
-    <Song hud={player.hud} meter={player.hud.bar?.meter} />
+    <Song
+      hud={player.hud}
+      meter={player.hud.bar?.meter}
+      playing={nowPlaying(player.songs, player.hud.bar?.sectionIndex)}
+    />
   {:else if id === 'melody'}
     <Melody
       {tracks}
