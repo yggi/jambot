@@ -208,13 +208,14 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
 
   it('counts the characters of every part, the bass and the comp over the chord in force 683 more than over the key (#387)', () => {
     // (305,740 in all before #655's song forms: the harmony 12,921, the drums 154,249, the bass 54,278, the comp 44,287
-    // and the card 17,701)
+    // and the card 17,701; 291,814 in all and the drums 146,522 before the drummer wrote the rim's metric accent, #749,
+    // which a line of levels states)
     expect(characters(MEASURED)).toEqual({
-      total: 291814,
+      total: 297848,
       meter: 13664,
       key: 8640,
       harmony: 12962,
-      drums: 146522,
+      drums: 152556,
       bass: 53055,
       comp: 39637,
       card: 17334,
@@ -225,8 +226,9 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     const overKey = [...RUN_OF.values()].flatMap((r) =>
       r.bars.map((bar) => ({ text: barAsCells(bar, { table: 'key' }) })),
     );
+    // (291,131 before the drummer wrote the rim's metric accent, #749)
     expect(characters(overKey)).toMatchObject({
-      total: 291131,
+      total: 297165,
       harmony: 12962,
       bass: 52993,
       comp: 39016,
@@ -240,23 +242,24 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       Object.fromEntries(TABLE.map((row) => [`${row.preset} ${row.meter}`, row.characters.total])),
     ).toEqual({
       // (26,022, 27,643, 26,964, 16,072, 27,532, 36,367, 25,730, 27,038, 23,543, 23,084, 22,699 and 23,046 before #655's
-      // song forms)
+      // song forms; Bossa nova's 25,728, 23,406 and 22,993 before the drummer wrote the rim's metric accent, #749, a line of
+      // levels where its rim is a Euclid)
       'Synth-pop 4/4': 24703,
       'Techno 4/4': 28000,
       'Deep house 4/4': 22806,
       'Ambient 4/4': 14085,
       'Lo-fi hip hop 4/4': 22014,
       'Funk 4/4': 35811,
-      'Bossa nova 4/4': 25728,
+      'Bossa nova 4/4': 27806,
       'Swing jazz 4/4': 27304,
       'Synth-pop 3/4': 22405,
       'Synth-pop 7/8': 22559,
-      'Bossa nova 3/4': 23406,
-      'Bossa nova 7/8': 22993,
+      'Bossa nova 3/4': 25340,
+      'Bossa nova 7/8': 25015,
     });
   });
 
-  it('taps the chords by the clock of their coarsest unit, and writes the rim as one Euclid on the bar in every straight meter, at one level a bar', () => {
+  it('taps the chords by the clock of their coarsest unit, and writes the rim as one Euclid on the bar in every straight meter, its metric accent a line of levels', () => {
     const clocks = new Set(
       MEASURED.map(
         (m) => `${m.run.meter} ${/^&harm over=&key step=(\S+)/m.exec(textOf(m.text))![1]}`,
@@ -273,7 +276,8 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       expect(textOf(m.text)).toMatch(
         new RegExp(`^&euclid step=1m &rim\\([357],${stepsOf(m.bar.meter)},\\d+\\)$`, 'm'),
       );
-    expect(rims.filter((m) => /&euclid \* \.\d+\]/.test(textOf(m.text)))).toHaveLength(66);
+    // (its levels the drummer's metric accent, a line of levels, since #749: at one level a bar before)
+    expect(rims.filter((m) => /&euclid \* &euclidLevel\]/.test(textOf(m.text)))).toHaveLength(66);
   });
 
   it('finds what it checks: a hit dropped, a bass note moved, a level changed, a chord respelled (and the comp with it), a line read over the key, a share changed, 7/8 at its quarters a minute, or a swing left out or moved, is a difference', () => {

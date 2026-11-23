@@ -85,7 +85,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` and `bass-loop.test.ts` record them: every part, the presets held at entropy 0. */
-const MAIN_STILL = [13891, 'a4e5cd39'] as const;
+const MAIN_STILL = [13891, 'dd722c5f'] as const;
 
 describe('the lead in the loop with no seed and nothing filed plays what main plays (#424)', () => {
   const lead = (all: readonly TimedEvent[]) => all.filter((e) => e.event.part === 'lead');

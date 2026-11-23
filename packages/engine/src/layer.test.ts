@@ -90,8 +90,10 @@ const range = (n: number) => [...Array(n).keys()];
  * meters and parts; the held presets play as before. And at cells v0.24.0 (13,074 events, 940a389c, before): cells
  * places the plain and the swung 4/4 at its eight new styles' points too, so the walk finds them where it found other
  * meters; with v0.23.0's meter fragments it plays 940a389c still. The held presets play as before.
+ * And since the drummer writes the rim's metric accent (#749): every event at its time, the rim's velocities moved
+ * (f2e69c0f and c5fc0f14 before).
  */
-const MAIN = { held: [13413, 'f2e69c0f'], walked: [13239, 'c5fc0f14'] } as const;
+const MAIN = { held: [13413, 'aaef7663'], walked: [13239, 'e0f991ae'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
   it('over the 8 presets held, 2 seeds of 32 bars: 13,413 events, each to 1e-9 s', () => {
@@ -112,9 +114,11 @@ describe('the band given an empty learned layer plays exactly what main plays (#
 /**
  * Main's events with cells' rhythms and an empty layer, each preset held and swung as it is, as recorded on `main` at 45b6b80 before a seed rhythm climbed the ladder (#414),
  * then under cells v0.7.0, where a clave strikes its own sound, 75, and not the rim's 37 (yggi/cells#140): every stroke at its time, 178 and 146 more where a rim shares its step, and its feel drawn on its own note (velocities within 4, lengths within 5 ms);
- * then under cells v0.29.0, where the funk, lo-fi and bossa drums take their euclid's levels from `metric_accent` (yggi/cells#890, the owner accepted it): every stroke at its time, the levels of those three drum bars' euclid lines moved.
+ * then under cells v0.29.0, where the funk, lo-fi and bossa drums take their euclid's levels from `metric_accent` (yggi/cells#890, the owner accepted it): every stroke at its time, the levels of those three drum bars' euclid lines moved (a4e5cd39 and 07a4cc45);
+ * then the drummer writing the rim's metric accent (#749): every stroke at its time, the rim's velocities moved (a4e5cd39 and
+ * 07a4cc45 before, under v0.29.0).
  */
-const MAIN_RHYTHMS = { still: [13891, 'a4e5cd39'], bored: [14042, '07a4cc45'] } as const;
+const MAIN_RHYTHMS = { still: [13891, 'dd722c5f'], bored: [14042, 'd36a0dc8'] } as const;
 
 describe('a seed rhythm climbs the ladder only where the entropy bores the composer (#414)', () => {
   const rhythms = { rhythms: RHYTHM_REPOSITORY, layer: EMPTY_LAYER };

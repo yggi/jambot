@@ -30,7 +30,16 @@
  * another meter by the rule (`regroup.ts`). In 4/4 every bar is what it was.
  */
 
-import { type Meter, even, meterOnSteps, positions, stepsOf, accentsOf } from '@jambot/theory';
+import {
+  type AccentGrade,
+  type Meter,
+  STEPS_PER_EIGHTH,
+  even,
+  meterOnSteps,
+  positions,
+  stepsOf,
+  accentsOf,
+} from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { DRUM_ROLES, type DrumRole, type WrittenNote, halfOf, lateOf } from './events.ts';
 import { SECTION_BARS } from './form.ts';
@@ -123,6 +132,45 @@ export function backbeatOf(meter: Meter): number[] {
   );
 }
 
+/**
+ * How the meter contract's grades weigh a step, as cells' `metric_accent` weighs a 4/4 bar's (`metricWeights(16)`,
+ * yggi/cells#799): the downbeat 1, the half bar 0.8, another pulse 0.6, another eighth 0.4, and a sixteenth 0.2.
+ */
+const GRADE_WEIGHT: Readonly<Record<AccentGrade, number>> = {
+  downbeat: 1,
+  half: 0.8,
+  pulse: 0.6,
+  between: 0.4,
+};
+const SIXTEENTH_WEIGHT = 0.2;
+
+/**
+ * The rim's floor, a share of its peak level, as the seed grooves that take `metric_accent` write it: .16 of .23, .18 of
+ * .22 and .23 of .3, averaged (yggi/cells#890).
+ */
+const RIM_FLOOR = 0.76;
+
+/** The rim's base accent before the energy, `dynamics.ts`'s for a Euclid, which the feel contract states. */
+const RIM_BASE = 72;
+
+/**
+ * The accent the drummer writes on a rim hit (#749, the owner: the drummer takes `metric_accent`'s shape, not its
+ * levels): its level runs from `RIM_FLOOR` to the peak across the step's metric weight, heard as a level is (its square
+ * root), as an offset from the flat base whose mean over the bar's steps is 0, scaled by the energy as the base is, and
+ * a whole number, as a written accent is. Written, not the performer's: the base stays the feel contract's 72, and the
+ * score states the accent in the text, as a seed groove states its `&euclidLevel`.
+ */
+export function rimAccentOf(meter: Meter, step: number, energy: number): number {
+  const grades = accentsOf(meter);
+  const weight = (at: number) =>
+    at % STEPS_PER_EIGHTH ? SIXTEENTH_WEIGHT : GRADE_WEIGHT[grades[at / STEPS_PER_EIGHTH]!];
+  const heard = (at: number) => Math.sqrt(RIM_FLOOR + (1 - RIM_FLOOR) * weight(at));
+  const steps = stepsOf(meter);
+  let sum = 0;
+  for (let at = 0; at < steps; at++) sum += heard(at);
+  return Math.round(RIM_BASE * ((heard(step) * steps) / sum - 1) * (0.65 + 0.35 * energy));
+}
+
 /** The drum hits a bar writes, in order of step and note. `regroup` is how a table written on 4/4's steps is read in another meter. */
 export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
   const { seed, bar, barInSection, style, barEnergy: energy, meter } = env;
@@ -156,7 +204,12 @@ export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
     const key = step * 128 + note;
     const there = hits.get(key);
     if (!there || DRUM_ROLES.indexOf(role) < DRUM_ROLES.indexOf(there.role!))
-      hits.set(key, { part: 'drums', role, step, note, length: 1 });
+      hits.set(
+        key,
+        role === 'euclid'
+          ? { part: 'drums', role, step, note, length: 1, accent: rimAccentOf(meter, step, energy) }
+          : { part: 'drums', role, step, note, length: 1 },
+      );
   };
   const played = () => [...hits.entries()].sort(([a], [b]) => a - b).map(([, e]) => e);
 
