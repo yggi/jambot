@@ -44,6 +44,8 @@ import {
   keyHelix,
   SONG_CLOCK,
   phrasesOf,
+  onKey,
+  withoutMissteps,
 } from '../src/index.ts';
 import { METERS, heightOf } from '@jambot/theory';
 const METERS_4_4 = METERS['4/4'];
@@ -741,4 +743,143 @@ export function formFiledRate(
     if (distilledLead(bars, BAR_STEPS, '4/4')?.text === TUNES_WHOLE[tune]) right++;
   }
   return { seeds, right };
+}
+
+/** How soon a slip is corrected, in milliseconds: the fewest and the most a planted slip takes (#747). */
+export const SLIP_MS = [15, 60] as const;
+
+/** The share of a pattern's notes a slip is planted before: one in two. */
+export const SLIP_SHARE = 0.5;
+
+/** A bar with slips planted: what was heard, and which of its notes are the slips. */
+export interface Slipped {
+  readonly heard: HeardNote[];
+  readonly slips: ReadonlySet<HeardNote>;
+}
+
+/**
+ * A pattern played at `sloppiness` with slips (#747): before about half its notes the hand strikes a neighbour off the
+ * key, one or two semitones away, where it meant the note, and strikes the note meant `SLIP_MS` later, the slip released
+ * as it does. A slip and its correction are one motion, so they share the note's place as the hand played it. Keyed by
+ * `seed` and `trial`, as `humanise` is.
+ */
+export function slipped(
+  exact: readonly HeardNote[],
+  sloppiness: number,
+  key: Key,
+  seed: number,
+  trial: number,
+): Slipped {
+  const heard: HeardNote[] = [];
+  const slips = new Set<HeardNote>();
+  for (const [i, n] of humanise(exact, sloppiness, seed, trial).entries()) {
+    const rng = keyedRng(seed, trial, 1000 + i);
+    const off = [-1, 1, -2, 2].map((d) => n.note + d).filter((m) => !onKey(m, key));
+    if (off.length === 0 || rng() >= SLIP_SHARE) {
+      heard.push(n);
+      continue;
+    }
+    const late = (SLIP_MS[0] + rng() * (SLIP_MS[1] - SLIP_MS[0])) / stepMs();
+    const slip = { ...n, note: off[Math.floor(rng() * off.length)]!, end: n.position + late };
+    slips.add(slip);
+    heard.push(slip, { ...n, position: n.position + late });
+  }
+  return { heard, slips };
+}
+
+/** What the slips measure made of the patterns at one sloppiness. */
+export interface SlipRate {
+  /** Slips planted, and those left out. */
+  readonly planted: number;
+  readonly dropped: number;
+  /** Notes meant that were left out as slips. */
+  readonly meantDropped: number;
+  /** Bars, and those the Muse read as their target, with the slips and with none planted. */
+  readonly bars: number;
+  readonly right: number;
+  readonly rightUnslipped: number;
+}
+
+/**
+ * The slips measure (#747) over `PATTERNS` patterns × `TRIALS` hands at `sloppiness`: how many planted slips
+ * `withoutMissteps` leaves out, how many notes meant it leaves out too, and the bars the Muse's own judgement (`judgeBar`,
+ * which leaves them out) reads as the pattern played exactly, slipped and not.
+ */
+export function slipRate(sloppiness: number, key: Key, seed = 1): SlipRate {
+  let [planted, dropped, meantDropped, bars, right, rightUnslipped] = [0, 0, 0, 0, 0, 0];
+  for (let index = 0; index < PATTERNS; index++) {
+    const exact = played(pattern(index), BAR, index);
+    const target = motifOf(judgeBar(exact, BAR, key, 'nearest'));
+    if (!target) continue;
+    const same = (read: ReturnType<typeof motifOf>) =>
+      read !== null &&
+      rhythmOf(read) === rhythmOf(target) &&
+      read.degrees.join() === target.degrees.join() &&
+      read.accidentals.join() === target.accidentals.join();
+    for (let trial = 0; trial < TRIALS; trial++) {
+      const { heard, slips } = slipped(exact, sloppiness, key, seed, index * TRIALS + trial);
+      const kept = new Set(withoutMissteps(heard, key));
+      planted += slips.size;
+      for (const n of heard)
+        if (!kept.has(n)) {
+          if (slips.has(n)) dropped++;
+          else meantDropped++;
+        }
+      bars++;
+      if (same(motifOf(judgeBar(heard, BAR, key)))) right++;
+      const plain = humanise(exact, sloppiness, seed, index * TRIALS + trial);
+      if (same(motifOf(judgeBar(plain, BAR, key)))) rightUnslipped++;
+    }
+  }
+  return { planted, dropped, meantDropped, bars, right, rightUnslipped };
+}
+
+/**
+ * A bar of sixteenths walking the key's scale from A4 a step at a time, a chromatic passing note between each two
+ * notes a whole tone apart (#747): what a player who means them plays. Keyed by `index`; the passing notes are those off
+ * the key.
+ */
+export function passingRun(index: number, key: Key): HeardNote[] {
+  const rng = keyedRng(23, index);
+  const notes: number[] = [69];
+  let up = rng() < 0.5;
+  while (notes.length < BAR_STEPS) {
+    const at = notes.at(-1)!;
+    if (rng() < 0.15) up = !up;
+    const next = [1, 2].map((d) => at + (up ? d : -d)).find((m) => onKey(m, key))!;
+    if (Math.abs(next - at) === 2 && notes.length < BAR_STEPS - 1) notes.push((at + next) / 2);
+    notes.push(next);
+  }
+  return notes.slice(0, BAR_STEPS).map((note, i) => ({
+    note,
+    velocity: 100,
+    source: 'a hand',
+    position: barStart(BAR) + i,
+    end: barStart(BAR) + i + 1,
+  }));
+}
+
+/**
+ * The passing notes measure (#747): over `PATTERNS` runs × `TRIALS` hands of `hand`, the chromatic passing notes meant,
+ * and those `withoutMissteps` leaves out.
+ */
+export function passingRate(
+  hand: Hand,
+  key: Key,
+  seed = 1,
+): { readonly passing: number; readonly dropped: number } {
+  let [passing, dropped] = [0, 0];
+  for (let index = 0; index < PATTERNS; index++) {
+    const run = passingRun(index, key);
+    for (let trial = 0; trial < TRIALS; trial++) {
+      const heard = handed(run, hand, seed, index * TRIALS + trial);
+      const kept = new Set(withoutMissteps(heard, key));
+      for (const n of heard)
+        if (!onKey(n.note, key)) {
+          passing++;
+          if (!kept.has(n)) dropped++;
+        }
+    }
+  }
+  return { passing, dropped };
 }

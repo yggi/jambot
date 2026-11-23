@@ -54,6 +54,7 @@ import {
 import { SONG_CLOCK, type SongClock } from './events.ts';
 import { fold } from './fading.ts';
 import { type Key, keyHelix } from './key.ts';
+import { withoutMissteps } from './missteps.ts';
 import type { Machine } from './machine.ts';
 import { A_HAND, phrasesOf, readHeardWithMargins } from './phrase.ts';
 import { type Hands, NO_HANDS, priorOf } from './hand.ts';
@@ -161,6 +162,8 @@ export interface HeardBar {
  * later (F7); then those read into the bar. What a player's lane shows and
  * what is judged are this. Each source is read under its hand's memory
  * where `hands` has one (`hand.ts`, #580), else as a hand not yet heard.
+ * Where the key is given, a misstep the player corrected at once is left out
+ * first (`withoutMissteps`, #747).
  */
 export function heardInBar(
   notes: readonly HeardNote[],
@@ -168,9 +171,11 @@ export function heardInBar(
   reading: Reading = 'phrases',
   clock: SongClock = SONG_CLOCK,
   hands: Hands = NO_HANDS,
+  key?: Key,
 ): HeardBar[] {
   const edge = clock.barStart(bar + 1);
-  const upTo = notes.filter((n) => n.position < edge);
+  const before = notes.filter((n) => n.position < edge);
+  const upTo = key ? withoutMissteps(before, key) : before;
   const sources = [...new Set([...heardIn(upTo, bar, clock), ...upTo].map((n) => n.source))];
   return sources.flatMap((source): HeardBar[] => {
     const own = upTo.filter((n) => n.source === source);
@@ -199,8 +204,8 @@ export function judgeBar(
   clock: SongClock = SONG_CLOCK,
   hands: Hands = NO_HANDS,
 ): Judgement[] {
-  return heardInBar(notes, bar, reading, clock, hands).map(({ source, notes: heard, confidence }) =>
-    judge(source, heard, bar, key, clock, confidence),
+  return heardInBar(notes, bar, reading, clock, hands, key).map(
+    ({ source, notes: heard, confidence }) => judge(source, heard, bar, key, clock, confidence),
   );
 }
 
