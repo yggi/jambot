@@ -64,8 +64,9 @@ describe('the learned layer a host keeps (#398)', () => {
     expect(again.warnings).toEqual([]);
   });
 
-  it('reads a layer kept at cells v0.15.0, which names the seed ids before they were words, as the same layer in words (#558)', () => {
-    const before: LearnedLayer = {
+  it('reads a layer kept in an older form as it was kept: cells reads no retired form before its 1.0.0, and rewrites none (yggi/cells#643)', () => {
+    // (kept at cells v0.15.0, its seed ids before they were words, #558)
+    const ids: LearnedLayer = {
       filed: [],
       points: [
         { ...LEARNED.points[0]!, id: '4/4 leaning on 16n' },
@@ -73,10 +74,19 @@ describe('the learned layer a host keeps (#398)', () => {
       ],
       together: [{ ids: ['4/4', '5/4'], count: 3 }],
     };
-    const read = readLayerText(layerText(before));
-    expect(read.problem).toBeNull();
-    // (the same points and pairs, none left out as unheld)
-    expect(read.layer).toEqual(LEARNED);
+    // (kept before cells v0.23.0, its points on sync harm artic energy, decision 076)
+    const axes = {
+      ...LEARNED,
+      points: LEARNED.points.map((p) => ({
+        ...p,
+        point: { sync: p.point.sync, harm: p.point.harm, artic: 0.5, energy: 0.5 },
+      })),
+    } as unknown as LearnedLayer;
+    for (const before of [ids, axes]) {
+      const read = readLayerText(layerText(before));
+      expect(read.problem).toBeNull();
+      expect(read.layer).toEqual(before);
+    }
   });
 
   it('reads a layer kept before #580, its lead lines carrying the lead’s voice and card, with the lines alone', () => {
@@ -102,40 +112,6 @@ describe('the learned layer a host keeps (#398)', () => {
     const read = readLayerText(layerText(before));
     expect(read.problem).toBeNull();
     expect(read.layer).toEqual(filed);
-  });
-
-  it('reads a layer kept before cells v0.23.0, its points on sync harm artic energy, on sync harm bite mood: a meter’s with no mood, a lead line’s with the mood cells’ Migrate reads there (decision 076)', () => {
-    const old = (p: { sync: number; harm: number; bite: number }, energy: number) => ({
-      sync: p.sync,
-      harm: p.harm,
-      artic: p.bite,
-      energy,
-    });
-    const before: LearnedLayer = {
-      ...LEARNED,
-      points: LEARNED.points.map((p, i) => ({
-        ...p,
-        point: old(p.point as { sync: number; harm: number; bite: number }, [0.5, 0.45][i]!),
-      })),
-    };
-    const read = readLayerText(layerText(before));
-    expect(read.problem).toBeNull();
-    expect(read.layer).toEqual(LEARNED);
-    // (a lead line filed at Lo-fi hip hop's old point takes Lo-fi hip hop's mood, .5)
-    const line = leadRepository().file!(EMPTY_LAYER, {
-      notes: [{ step: 0, degree: 0, alter: 0 }],
-      bench: { meter: METERS['4/4'], meterFragment: 'meter' },
-      point: { sync: 0.5, harm: 0.75, artic: 0.35, energy: 0.5 },
-      source: 'Ada',
-      created: 'song 1, bar 0',
-      tags: ['lead line'],
-    }).layer;
-    expect(readLayerText(layerText(line)).layer!.filed[0]!.fragment.association[0]!.point).toEqual({
-      sync: 0.5,
-      harm: 0.75,
-      bite: 0.35,
-      mood: 0.5,
-    });
   });
 
   it('loads nothing kept as the empty layer, without a warning', async () => {

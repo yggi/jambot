@@ -70,7 +70,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` records them (its `MAIN_RHYTHMS.still`): every part, the presets held at entropy 0. */
-const MAIN_STILL = [13891, '39e61132'] as const;
+const MAIN_STILL = [13891, 'a4e5cd39'] as const;
 
 describe('the drums, the comp and the lead, unchanged by the bass in the loop (#423)', () => {
   const main = held();

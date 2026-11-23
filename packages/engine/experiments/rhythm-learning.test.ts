@@ -63,15 +63,17 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
   // groove filed, before; and with the ostinato on top of 2/4 and 2/2, #651, whose Salsa drums the drummer holds near
   // Salsa's point: 240 grooves, 30 and 210, the misses 1,394 to 30, 12,601 a groove filed, before; and with cells
   // v0.26.0's twelve-eight drums, which weigh 1, not 0.25, yggi/cells#706: 233 grooves, 28 and 205, the misses 1,394 to 28,
-  // 11,942 a groove filed, over 26,986 sections, before; and 233 grooves, 24 and 209, before #655's song forms)
-  it('files 231 grooves in 120 hours, 24 the drummer’s on a miss and 207 the composer’s variations (#411, #414), and the misses fall from 1,025 sections to 24: what was filed is found again', () => {
+  // 11,942 a groove filed, over 26,986 sections, before; and 233 grooves, 24 and 209, before #655's song forms; and 231
+  // grooves, 24 and 207, the misses 1,025 to 24, 11,925 a groove filed, before cells v0.29.0, whose breathing drums the
+  // drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799 and #890)
+  it('files 229 grooves in 120 hours, 23 the drummer’s on a miss and 206 the composer’s variations (#411, #414), and the misses fall from 1,025 sections to 23: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26986);
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([24, 1025]);
-    expect(FILINGS.length).toBe(231);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([24, 207]);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([23, 1025]);
+    expect(FILINGS.length).toBe(229);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([23, 206]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11925);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11470);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -104,7 +106,7 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −17.3 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −16.5 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
@@ -112,9 +114,9 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     // (0.8738 to 0.6987, −17.51 (1.95), before cells v0.24.0; 0.8383 to 0.6656, −17.28 (1.80), before v0.25.0; 0.8320
     // to 0.6656, −16.64 (1.90), before 2/4 and 2/2 were among the band's meters on top of v0.25.0, #652; 0.8295 to
     // 0.6617, −16.78 (1.89), before the ostinato on top of 2/4 and 2/2, #651; 0.8270 to 0.6535, −17.34 (2.02), before
-    // #655's song forms)
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8270', '0.6538']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-17.31', '2.01']);
+    // #655's song forms; 0.8270 to 0.6538, −17.31 (2.01), before cells v0.29.0)
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8219', '0.6570']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-16.50', '1.99']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 

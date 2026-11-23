@@ -745,12 +745,9 @@ describe('a part the composer took, written as its `from` line with the band’s
       ['diatonic', ['&key'], []],
       ['styles', ['&funk'], []],
       ['vamp_to_the_seventh', ['&harm'], []],
-      // (the groove's sum and its rim's levels, which no line of the band's reads, the take gives unread)
-      [
-        'funk_drums',
-        ['&euclidLevel', '&groove'],
-        ['&kick', '&backbeat', '&fill', '&ghost', '&hat', '&euclid'],
-      ],
+      // (the groove's sum, which no line of the band's reads, the take gives unread; its rim's levels, `metric_accent`'s
+      // since cells v0.29.0, a head its nested `from` line gives, listed there, yggi/cells#890)
+      ['funk_drums', ['&groove'], ['&kick', '&backbeat', '&fill', '&ghost', '&hat', '&euclid']],
       ['rumba_clave_3_2', ['&clave'], []],
       ['funk_bass', [], ['&bassline']],
       ['riff', [], ['&riff']],

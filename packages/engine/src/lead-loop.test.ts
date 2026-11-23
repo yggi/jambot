@@ -23,7 +23,6 @@ import { SOLOIST, leadOf } from './muse-lead.ts';
 import { BY, VARIES } from './novelty.ts';
 import { LEAD_TAG } from './plan.ts';
 import { METER_REPOSITORY, keptLayer, presetSwing } from './repository.ts';
-import { movedText } from '@yggi/cells/repository';
 import keptTwinkle from './kept-twinkle.fixture.json';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
@@ -86,7 +85,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` and `bass-loop.test.ts` record them: every part, the presets held at entropy 0. */
-const MAIN_STILL = [13891, '39e61132'] as const;
+const MAIN_STILL = [13891, 'a4e5cd39'] as const;
 
 describe('the lead in the loop with no seed and nothing filed plays what main plays (#424)', () => {
   const lead = (all: readonly TimedEvent[]) => all.filter((e) => e.event.part === 'lead');
@@ -412,72 +411,21 @@ describe('the Muse files Twinkle played whole as the ternary over twinkle, and i
   });
 });
 
-describe('a layer kept at cells v0.24.0, holding the filed Twinkle, loads and plays as it did (#660)', () => {
-  // (the fixture: on main at cells v0.24.0, `song(3, 'Cy', 0, TWINKLE_WHOLE)`'s layer through JSON, and the notes the
-  // band played with it over 16 bars near Synth-pop at entropy 0, seed 1, each bar's `part:step:note:length:velocity`)
+describe('a layer kept at cells v0.24.0, holding the filed Twinkle, loads as it was kept: cells reads no retired id before 1.0.0 (yggi/cells#643)', () => {
+  // (the fixture: on main at cells v0.24.0, `song(3, 'Cy', 0, TWINKLE_WHOLE)`'s layer through JSON, and the leads the
+  // band played with it over 16 bars near Synth-pop at entropy 0, seed 1)
   const kept = keptTwinkle.layer as unknown as LearnedLayer;
   const style: Style = { ...SYNTH_POP.style, sync: SYNTH_POP.style.sync + 0.05, entropy: 0 };
-  const notesOf = (run: ReturnType<typeof play>) =>
-    run.map(({ bar }) =>
-      bar.written
-        .map((n, i) => [n.part, n.step, n.note, n.length, bar.dough[i]!.velocity].join(':'))
-        .join(' '),
-    );
 
-  it('reads the filed Twinkle’s takes of twinkle and wonder as Kinderlieder’s parts, and plays the same notes, 16 bars at entropy 0, seed 1', () => {
-    const filed = kept.filed.find((f) => f.meta.source === 'Cy')!;
-    expect(filed.fragment.text).toMatch(/^&twinkle from twinkle &key$/m);
+  it('plays another lead than it did: its texts take ids cells refuses now', () => {
     const loaded = keptLayer(kept);
-    expect(loaded.filed.find((f) => f.meta.source === 'Cy')!.fragment.text).toBe(
-      [
-        '&twinkle from kinderlied &key',
-        '&wonder from kinderlied &key',
-        '&lead from ternary(answer=&wonder) &twinkle',
-      ].join('\n'),
+    expect(loaded.filed.find((f) => f.meta.source === 'Cy')!.fragment.text).toMatch(
+      /^&twinkle from twinkle &key$/m,
     );
     const run = play(16, style, { layer: loaded }, 1);
-    expect(run.map(({ carried }) => carried.plans.leadFragment ?? '-')).toEqual(keptTwinkle.leads);
-    expect(notesOf(run)).toEqual(keptTwinkle.notes);
-  });
-
-  it('plays another lead where the layer is read as it was kept: its texts take ids cells refuses now', () => {
-    const run = play(16, style, { layer: kept }, 1);
     expect(run.map(({ carried }) => carried.plans.leadFragment ?? '-')).not.toEqual(
       keptTwinkle.leads,
     );
-  });
-
-  it('moves the ids in its points, its pairs and a line’s varies chain, and takes the two motifs renamed by their ids now, under the names its lines read', () => {
-    const at = { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 };
-    const layer: LearnedLayer = {
-      ...EMPTY_LAYER,
-      points: [{ id: 'twinkle', point: at, weight: 1, facet: 'lead' }],
-      together: [{ ids: ['meter', 'waltz'], count: 2 }],
-      filed: [
-        {
-          fragment: {
-            id: 'Ed song 1, bar 0',
-            text: '&lead over=&key step=8n 0 2 4',
-            association: [{ point: at, weight: 1, facet: 'lead' }],
-          },
-          meta: { source: 'Ed', created: 'song 1, bar 0', varies: 'korobeiniki' },
-          prose: '',
-        },
-      ],
-    } as unknown as LearnedLayer;
-    const moved = keptLayer(layer);
-    expect(moved.points.map((p) => p.id)).toEqual(['kinderlied/twinkle']);
-    expect(moved.together.map((p) => p.ids)).toEqual([['meter', 'waltzBar']]);
-    expect(moved.filed[0]!.meta['varies']).toBe('korobeinikiBar');
-    expect(keptLayer(EMPTY_LAYER)).toBe(EMPTY_LAYER);
-    const waltz = '&waltz from waltz &key\n&lead from call_and_answer &waltz';
-    expect(movedText(waltz)).toBe(
-      '&waltz=waltzBar from waltzBar &key\n&lead from call_and_answer &waltz',
-    );
-    expect(readLead(waltz, METERS['3/4'])).toBeNull();
-    expect(readLead(movedText(waltz), METERS['3/4'])?.bars).toBe(2);
-    // (a text that takes nothing moved is as it was)
-    expect(movedText('&lead over=&key step=8n 0 2 4')).toBe('&lead over=&key step=8n 0 2 4');
   });
 });
 
