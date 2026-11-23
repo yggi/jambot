@@ -76,6 +76,7 @@ import { perform } from './performer.ts';
 import { KEPT_BARS, type Loop, replayOf } from './replay.ts';
 import { type Plan, type PlanCarried, planner } from './plan.ts';
 import { type Style, writtenStyle } from './style.ts';
+import { styleShifted } from './rotation.ts';
 import { type MeterSwing, STRAIGHT } from './swing.ts';
 
 export interface BandEnv {
@@ -335,18 +336,25 @@ const barSwing = ({ swing = STRAIGHT }: BandEnv, plan: Plan): MeterSwing => ({
   share: plan.share ?? swing.share,
 });
 
-/** A bar's environment as its parts read it, from the band's and the bar decided; `next` the chords of the bar after. */
+/**
+ * A bar's environment as its parts read it, from the band's and the bar decided; `next` the chords of the bar after. A
+ * mix's style shift moves the style the bar is written and played at (#547 step 2b), on the score's grid, so the band
+ * resolves and performs there; the planner composed it at the style unshifted.
+ */
 function barEnvOf(env: BandEnv, here: DecidedBar, next: readonly BarChord[]): BarEnv {
   const barInSection = env.bar % SECTION_BARS;
+  const style = here.plan.mix
+    ? writtenStyle(styleShifted(env.style, here.plan.mix.shift))
+    : env.style;
   return {
     seed: env.seed,
     bar: env.bar,
     meter: here.plan.meter,
     plan: here.plan,
     barInSection,
-    style: env.style,
+    style,
     swing: barSwing(env, here.plan),
-    barEnergy: barEnergy(env.style.energy, here.plan.section.type, barInSection),
+    barEnergy: barEnergy(style.energy, here.plan.section.type, barInSection),
     chords: here.chords,
     next,
     offer: env.offer,

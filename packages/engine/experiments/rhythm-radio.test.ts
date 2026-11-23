@@ -26,10 +26,10 @@ if (process.env.E37_REPORT) {
 }
 
 describe('the composer asks the repository for its rhythm while the radio walks (E37)', () => {
-  it('changes the rhythm 358 times in 8,704 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
+  it('changes the rhythm 295 times in 8,704 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
     expect(RUNS).toHaveLength(40);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
-    // (but 5 times: a drum bar at the edge of its reach, taken where the drummer invented and let go at the next section,
+    // (but 3 times: a drum bar at the edge of its reach, taken where the drummer invented and let go at the next section,
     // past the miss distance, or the other way round: Bossa nova drums once, since cells v0.24.0 the quiet pulse 5 times
     // and Waltz drums once, yggi/cells#675 and #679, and since v0.25.0 the twelve-eight drums twice, yggi/cells#707 (8
     // before v0.25.0, Happy hardcore drums once among them; 2 before v0.24.0; 5 before v0.23.0, Spooky drums 4 times and
@@ -37,7 +37,8 @@ describe('the composer asks the repository for its rhythm while the radio walks 
     // of Bossa nova's 12/8: two fewer of them go back); the hold keeps a rhythm against a nearer one, not against a miss)
     const back = RUNS.flatMap(wentBack);
     // (7 before the station's mixes, #547 step 2: a song's play holds its drum bar, so two fewer of the quiet pulse's go back)
-    expect(back).toHaveLength(5);
+    // (5 with the station's key and groove mixes alone, #547 step 2a)
+    expect(back).toHaveLength(3);
     for (const b of back)
       expect([b.from, b.to].sort(), JSON.stringify(b)).toEqual([
         '- + -',
@@ -54,7 +55,8 @@ describe('the composer asks the repository for its rhythm while the radio walks 
     // the drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799 and #890; 261 before
     // the station's mixes, #547 step 2, where each play of a song takes its version's drum bar and a groove mix the next
     // nearest)
-    expect([changes.length, sections]).toEqual([358, 8704]);
+    // (358 with the station's key and groove mixes alone, #547 step 2a: a mix of four kinds changes the groove less often)
+    expect([changes.length, sections]).toEqual([295, 8704]);
   });
 
   // (112 before cells v0.24.0, 136 before v0.25.0, 137 before 2/4 and 2/2 were among the band's meters on top of it, #652,
@@ -80,11 +82,12 @@ describe('the composer asks the repository for its rhythm while the radio walks 
   // (349 before cells v0.24.0, whose seven new drum bars the drummer holds fill some of the space; 260 before v0.25.0,
   // whose aksak and twelve-eight drums fill more; 190 before v0.26.0, whose twelve-eight drums weigh 1, not 0.25,
   // yggi/cells#706, and fill more still; 152 before the station's mixes, #547 step 2, where a play holds its drum bar)
-  it('misses in 121 sections, each past the distance of every rhythm that fits the meter, and none where none fits: Spooky drums fits every meter the walk reaches but 7/8 (cells v0.12.0), Ghost drums 7/8 (v0.15.0), and the Happy hardcore, Acid and Elektro drums every one (v0.23.0), and the drummer invents past them (E37)', () => {
+  it('misses in 122 sections, each past the distance of every rhythm that fits the meter, and none where none fits: Spooky drums fits every meter the walk reaches but 7/8 (cells v0.12.0), Ghost drums 7/8 (v0.15.0), and the Happy hardcore, Acid and Elektro drums every one (v0.23.0), and the drummer invents past them (E37)', () => {
     const missed = RUNS.reduce(
       (m, r) => ({ fit: m.fit + r.missed.fit, distance: m.distance + r.missed.distance }),
       { fit: 0, distance: 0 },
     );
-    expect(missed).toEqual({ fit: 0, distance: 121 });
+    // (121 with the key and groove mixes alone, #547 step 2a)
+    expect(missed).toEqual({ fit: 0, distance: 122 });
   });
 });

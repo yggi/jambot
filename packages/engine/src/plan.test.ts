@@ -567,20 +567,53 @@ describe('the station (#547 rung 5, the owner’s rulings of 2026-11-23): songs 
       expect(Math.abs(mixed / again - 0.3)).toBeLessThan(0.1);
     });
 
-    it('changes the key or the groove of the original in every mix, never a theme or the mode', () => {
+    it('changes the key, the groove, the speed or the style of the original in every mix, never a theme or the mode', () => {
       let mixes = 0;
+      const kinds = new Set<string>();
       for (const name of NAMES) {
         for (const { song, version, original } of startsOf(station(name, 0.3, 200, 1, true))) {
           if (version.id === 0) continue;
           mixes++;
           const key = version.tonic !== original.tonic;
           const groove = grooveOf(version).join() !== grooveOf(original).join();
-          expect(key || groove, `${name}, song ${song.id} mix ${version.id}`).toBe(true);
+          const speed = version.tempo !== original.tempo;
+          const style = JSON.stringify(version.shift) !== JSON.stringify(original.shift);
+          expect(
+            key || groove || speed || style,
+            `${name}, song ${song.id} mix ${version.id}`,
+          ).toBe(true);
           if (version.changes.includes('key')) expect(key).toBe(true);
           if (version.changes.includes('groove')) expect(groove).toBe(true);
+          if (version.changes.includes('speed')) expect(speed).toBe(true);
+          if (version.changes.includes('style')) expect(style).toBe(true);
+          for (const kind of version.changes) kinds.add(kind);
         }
       }
       expect(mixes).toBeGreaterThan(15);
+      expect([...kinds].sort()).toEqual(['groove', 'key', 'speed', 'style']);
+    });
+
+    it('marks every section of a play with its version’s tempo and style shift, and an original’s with none', () => {
+      let marked = 0;
+      for (const name of NAMES) {
+        const run = station(name, 0.3, 200, 1, true);
+        for (const { plan, song, version, rotation } of run) {
+          const v = rotation.songs
+            .find((x) => x.id === song)
+            ?.versions.find((x) => x.id === version);
+          if (!v) {
+            expect(plan.mix, `${name}, section ${plan.section.index}`).toBeUndefined();
+            continue;
+          }
+          const plain = v.tempo === 1 && Object.keys(v.shift).length === 0;
+          if (plain) expect(plan.mix).toBeUndefined();
+          else {
+            marked++;
+            expect(plan.mix).toEqual({ tempo: v.tempo, shift: v.shift });
+          }
+        }
+      }
+      expect(marked).toBeGreaterThan(20);
     });
 
     it('moves a mix’s tonic within the harmony’s reach on the wheel of fifths, the song’s mode kept', () => {

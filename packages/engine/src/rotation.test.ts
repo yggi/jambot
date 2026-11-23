@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   MIXES_KEPT,
-  MIX_BOTH,
+  MIX_CHANGES,
+  MIX_SECOND,
+  SPEED_LEAST,
+  SPEED_REACH,
+  STYLE_STEP,
   NO_ROTATION,
   ROTATION_FLOOR,
   ROTATION_SPAN,
@@ -16,10 +20,14 @@ import {
   played,
   titleOf,
   type SongVersion,
+  mixShiftOf,
+  mixTempoOf,
+  styleShifted,
   versioned,
   versionTitle,
 } from './rotation.ts';
 import { MISS_DISTANCE } from './meter-query.ts';
+import { INITIAL_STYLE as STYLE_AT } from './style.ts';
 import { METERS } from '@jambot/theory';
 
 const at = (sync: number) => ({ sync, harm: 0.5, bite: 0.5, mood: 0.5 });
@@ -215,6 +223,8 @@ const version = (id: number, over: Partial<SongVersion> = {}): SongVersion => ({
   drums: { rhythmFragment: 'four_on_the_floor' },
   bass: 'root_bass',
   changes: id === 0 ? [] : ['key'],
+  tempo: 1,
+  shift: {},
   ...over,
 });
 
@@ -259,8 +269,9 @@ describe('a song’s versions: its original and its mixes (#547 rung 5 step 2, t
     }
   });
 
-  it('makes a new mix while the song keeps fewer than MIXES_KEPT, changing its key or its groove, now and then both', () => {
-    expect([MIXES_KEPT, MIX_BOTH]).toEqual([3, 0.5]);
+  it('makes a new mix while the song keeps fewer than MIXES_KEPT, changing one of its key, groove, speed or style, now and then a second', () => {
+    expect([MIXES_KEPT, MIX_SECOND]).toEqual([3, 0.5]);
+    expect(MIX_CHANGES).toEqual(['key', 'groove', 'speed', 'style']);
     const song = songIn(version(0), version(1), version(2));
     const made = Array.from({ length: 4000 }, (_, index) =>
       nextVersion(song, versionAsk({ index })),
@@ -268,10 +279,52 @@ describe('a song’s versions: its original and its mixes (#547 rung 5 step 2, t
     expect(made.length).toBeGreaterThan(1000);
     const changes = made.map((p) => (p.kind === 'new mix' ? [...p.changes].sort().join('+') : ''));
     const share = (c: string) => changes.filter((x) => x === c).length / changes.length;
-    // (one change each, key or groove alike; both at entropy 0.3 × MIX_BOTH, 0.15)
-    expect(Math.abs(share('groove+key') - 0.15)).toBeLessThan(0.03);
-    expect(Math.abs(share('key') - share('groove'))).toBeLessThan(0.05);
-    expect(changes.every((c) => ['key', 'groove', 'groove+key'].includes(c))).toBe(true);
+    // (one change each, the four alike; a second at entropy 0.3 × MIX_SECOND, 0.15, any of the other three)
+    const twos = changes.filter((c) => c.includes('+')).length / changes.length;
+    expect(Math.abs(twos - 0.15)).toBeLessThan(0.03);
+    for (const one of MIX_CHANGES) expect(Math.abs(share(one) - 0.85 / 4), one).toBeLessThan(0.03);
+    const pairs = new Set(changes.filter((c) => c.includes('+')));
+    expect(pairs.size).toBe(6);
+    for (const c of changes)
+      expect(c.split('+').every((one) => (MIX_CHANGES as readonly string[]).includes(one))).toBe(
+        true,
+      );
+  });
+
+  it('moves a speed mix’s tempo by SPEED_LEAST to SPEED_REACH of the original’s, faster or slower, and shifts a style mix’s style by STYLE_STEP on every axis', () => {
+    expect([SPEED_LEAST, SPEED_REACH, STYLE_STEP]).toEqual([0.03, 0.08, 0.075]);
+    const tempos = Array.from({ length: 2000 }, (_, index) => mixTempoOf(1, index));
+    for (const t of tempos) {
+      expect(Math.abs(t - 1)).toBeGreaterThanOrEqual(SPEED_LEAST);
+      expect(Math.abs(t - 1)).toBeLessThanOrEqual(SPEED_REACH);
+    }
+    const faster = tempos.filter((t) => t > 1).length / tempos.length;
+    expect(Math.abs(faster - 0.5)).toBeLessThan(0.05);
+    const axes = ['sync', 'harm', 'bite', 'mood'];
+    const shifts = Array.from({ length: 2000 }, (_, index) => mixShiftOf(1, index, axes));
+    for (const shift of shifts) {
+      expect(Object.keys(shift)).toEqual(axes);
+      for (const axis of axes) expect(Math.abs(shift[axis]!)).toBe(STYLE_STEP);
+    }
+    for (const axis of axes)
+      expect(Math.abs(shifts.filter((s) => s[axis]! > 0).length / 2000 - 0.5)).toBeLessThan(0.05);
+    expect([mixTempoOf(1, 3), mixShiftOf(1, 3, axes)]).toEqual([
+      mixTempoOf(1, 3),
+      mixShiftOf(1, 3, axes),
+    ]);
+  });
+
+  it('shifts a style by a shift’s axes, held within each axis, the rest as it was', () => {
+    const style = { ...STYLE_AT, sync: 0.5, harm: 0.97, bite: 0.02 };
+    const shifted = styleShifted(style, { sync: 0.075, harm: 0.075, bite: -0.075 });
+    expect([shifted.sync, shifted.harm, shifted.bite, shifted.mood, shifted.bpm]).toEqual([
+      0.575,
+      1,
+      0,
+      style.mood,
+      style.bpm,
+    ]);
+    expect(styleShifted(style, {})).toEqual(style);
   });
 
   it('plays one of the mixes it keeps once it keeps MIXES_KEPT, never the one it played last', () => {

@@ -122,11 +122,14 @@ import {
   type Rotation,
   type Song,
   type SongVersion,
+  type StyleShift,
   afterSection,
   capOf,
   heard,
   made,
   nextSong,
+  mixShiftOf,
+  mixTempoOf,
   nextVersion,
   played,
   versioned,
@@ -245,6 +248,18 @@ export interface Plan {
   readonly claveFragment?: string;
   readonly melodic: MelodicScale;
   readonly theme: Theme;
+  /**
+   * What a mix of a song plays at, where its version moves it (#547 step 2b): its tempo, a share of the one the style
+   * sets, which the player glides to, and its style shift, which the band adds to the style it writes; none where a
+   * section plays a song's original, or no song.
+   */
+  readonly mix?: PlanMix;
+}
+
+/** A mix's tempo and style shift, as a section plays them. */
+export interface PlanMix {
+  readonly tempo: number;
+  readonly shift: StyleShift;
 }
 
 export interface PlanCarried {
@@ -886,6 +901,16 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       chosenVersion?.kind === 'new mix' && original
         ? feasible(chosenVersion.changes, original)
         : [];
+    // (its tempo and style shift: a version kept's, a new mix's drawn where it changes them, the original's otherwise)
+    const playingVersion =
+      current && !starts ? (current.versions.find((v) => v.id === version) ?? null) : null;
+    const sounding = keptVersion ?? playingVersion;
+    const tempo = changes.includes('speed')
+      ? mixTempoOf(seed, index)
+      : (sounding?.tempo ?? original?.tempo ?? 1);
+    const shift: StyleShift = changes.includes('style')
+      ? mixShiftOf(seed, index, Object.keys(stylePoint(style)))
+      : (sounding?.shift ?? original?.shift ?? {});
     // (a new mix plays the original's but for what it changes)
     const startFrom: SongVersion | null =
       keptVersion ?? (chosenVersion?.kind === 'new mix' ? original : null);
@@ -906,8 +931,6 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     // or the variations the ladder makes of them, through the play until the ladder rejects them; a groove mix leaves the
     // original's out, so the next nearest plays.
     const grooveFrom = startFrom && !changes.includes('groove') ? startFrom : null;
-    const playingVersion =
-      current && !starts ? (current.versions.find((v) => v.id === version) ?? null) : null;
     const leftOut =
       changes.includes('groove') && original
         ? [original.drums.rhythmFragment, original.bass].filter(
@@ -1067,7 +1090,16 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         )
       : { id: motif, layer: lineLadder.layer, playing: null };
     const leadKept = leadLadder.id;
-    const plan = { section, key, ...composed.meter, ...rhythm, melodic, theme };
+    const mixed = current !== null && (tempo !== 1 || Object.keys(shift).length > 0);
+    const plan = {
+      section,
+      key,
+      ...composed.meter,
+      ...rhythm,
+      melodic,
+      theme,
+      ...(mixed ? { mix: { tempo, shift } } : {}),
+    };
     const themesAfter = kind === 'build' ? songThemes : { ...songThemes, [kind]: theme };
     const fragmentsAfter =
       kind === 'build' ? songThemeFragments : { ...songThemeFragments, [kind]: built.fragment };
@@ -1096,6 +1128,8 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             drums: found,
             bass: line ?? null,
             changes,
+            tempo,
+            shift,
           });
     const withVersion =
       heardVersion && current ? versioned(withSection, current.id, heardVersion) : withSection;

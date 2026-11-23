@@ -87,17 +87,18 @@ export const targetOf = (track: StyleTrack): Style =>
   Object.fromEntries(Object.entries(track).map(([axis, glide]) => [axis, glide.to])) as Style;
 
 /**
- * A style as the layer above set it: the players' tempo nudge taken back out
- * of the tempo played, to a millionth of a beat per minute, so a preset's
- * tempo reads back exactly.
+ * A style as the layer above set it: the players' tempo nudge and a mix's
+ * tempo (#547 step 2b, a share of the style's) taken back out of the tempo
+ * played, to a millionth of a beat per minute, so a preset's tempo reads
+ * back exactly.
  */
-export function unnudged(style: Style, nudge: number): Style {
-  return { ...style, bpm: Math.round((style.bpm / 2 ** nudge) * 1e6) / 1e6 };
+export function unnudged(style: Style, nudge: number, mix = 1): Style {
+  return { ...style, bpm: Math.round((style.bpm / 2 ** nudge / mix) * 1e6) / 1e6 };
 }
 
 /** The style's own tempo under a track. */
-export function baseTempo(track: StyleTrack, nudge: number): number {
-  return unnudged(targetOf(track), nudge).bpm;
+export function baseTempo(track: StyleTrack, nudge: number, mix = 1): number {
+  return unnudged(targetOf(track), nudge, mix).bpm;
 }
 
 /**
@@ -110,15 +111,16 @@ export function conduct(
   intent: Intent,
   at: number | null,
   nudge = 0,
+  mix = 1,
 ): StyleTrack {
   if (intent.kind === 'key' || intent.kind === 'swing') return track;
-  const style = styleAfter(track, intent, nudge);
+  const style = styleAfter(track, intent, nudge, mix);
   const targets = targetsOf(intent);
   const after = nudgeAfter(nudge, intent, style);
   // Only what moves the tempo glides it: a slider elsewhere leaves a tempo
   // glide under way as it is.
   const moved = 'bpm' in targets || intent.kind === 'tempo' || after !== nudge;
-  const all = moved ? { ...targets, bpm: nudgedTempo(style, after) } : targets;
+  const all = moved ? { ...targets, bpm: nudgedTempo(style, after) * mix } : targets;
   if (at === null) return glideTo(track, all, 0, 0);
   return glideTo(track, all, at, intent.kind === 'preset' ? PRESET_GLIDE : SLIDER_GLIDE);
 }
@@ -153,11 +155,12 @@ export const RADIO_GLIDE = barStart(SECTION_BARS);
 
 /**
  * Where the radio is: the style the track is going to, as the layer above
- * sets it, the players' tempo nudge taken back out. The radio carries no
- * style of its own (`station.ts`), so a slider a player moved has moved it.
+ * sets it, the players' tempo nudge and a mix's tempo taken back out. The
+ * radio carries no style of its own (`station.ts`), so a slider a player
+ * moved has moved it, and a mix never has.
  */
-export const radioStyle = (track: StyleTrack, nudge: number): Style =>
-  unnudged(targetOf(track), nudge);
+export const radioStyle = (track: StyleTrack, nudge: number, mix = 1): Style =>
+  unnudged(targetOf(track), nudge, mix);
 
 /**
  * The track after one section of the radio's walk: every axis gliding from
@@ -170,12 +173,46 @@ export function conductRadio(
   style: Style,
   at: number,
   nudge: number,
+  mix = 1,
 ): { track: StyleTrack; nudge: number } {
   const held = tempoNudgeWithin(nudge, style);
   return {
-    track: glideTo(track, { ...style, bpm: nudgedTempo(style, held) }, at, RADIO_GLIDE),
+    track: glideTo(track, { ...style, bpm: nudgedTempo(style, held) * mix }, at, RADIO_GLIDE),
     nudge: held,
   };
+}
+
+/**
+ * The track after a section line (#313, #547 step 2b): with a style to walk to (the radio's walk, the players' lean),
+ * every axis gliding there over the section, the tempo the style's times the nudge and the section's mix; with none,
+ * only the tempo, where the mix changes (`conductMix`); else the same track.
+ */
+export function conductSection(
+  track: StyleTrack,
+  style: Style | null,
+  at: number,
+  nudge: number,
+  mix: number,
+  mixBefore: number,
+): { track: StyleTrack; nudge: number } {
+  if (style) return conductRadio(track, style, at, nudge, mix);
+  if (mix === mixBefore) return { track, nudge };
+  return { track: conductMix(track, nudge, mixBefore, mix, at), nudge };
+}
+
+/**
+ * The track where a mix's tempo changes with no radio to walk it (#547 step 2b): the tempo alone gliding from step `at`
+ * over a section, from the style's times the mix `from` to its times the mix `to`, every other axis as it goes.
+ */
+export function conductMix(
+  track: StyleTrack,
+  nudge: number,
+  from: number,
+  to: number,
+  at: number,
+): StyleTrack {
+  const style = radioStyle(track, nudge, from);
+  return glideTo(track, { bpm: nudgedTempo(style, nudge) * to }, at, RADIO_GLIDE);
 }
 
 /** The meter's swing a stopped band keeps: where it was going, held. */
@@ -194,8 +231,8 @@ function targetsOf(intent: Intent): Partial<Style> {
  * preset's, one set on the tempo axis, or the one before, unnudged. Its
  * licence is the one the players nudge within.
  */
-export function styleAfter(track: StyleTrack, intent: Intent, nudge: number): Style {
-  return { ...unnudged(targetOf(track), nudge), ...targetsOf(intent) };
+export function styleAfter(track: StyleTrack, intent: Intent, nudge: number, mix = 1): Style {
+  return { ...unnudged(targetOf(track), nudge, mix), ...targetsOf(intent) };
 }
 
 /** The players' tempo nudge after an intent, held within the licence of the style after it. */
