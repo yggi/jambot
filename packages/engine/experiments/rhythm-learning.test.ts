@@ -67,16 +67,16 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
   // grooves, 24 and 207, the misses 1,025 to 24, 11,925 a groove filed, before cells v0.29.0, whose breathing drums the
   // drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799 and #890; and 229 grooves,
   // 23 and 206, 11,470 a groove filed, before the station's mixes, #547 step 2, whose plays hold their drum bar, so the
-  // composer varies fewer)
-  it('files 208 grooves in 120 hours, 23 the drummer’s on a miss and 185 the composer’s variations (#411, #414), and the misses fall from 597 sections to 23: what was filed is found again', () => {
+  // composer varies fewer; its variations dated to the section they are made for, two more lie within the hours)
+  it('files 210 grooves in 120 hours, 23 the drummer’s on a miss and 187 the composer’s variations (#411, #414), and the misses fall from 597 sections to 23: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     expect(count(LEARNED, (r) => r.sections)).toBe(26986);
     // (1,025 unlearned before the station's mixes, #547 step 2, whose plays hold their drum bar where it lies past the miss)
     expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([23, 597]);
-    expect(FILINGS.length).toBe(208);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([23, 185]);
+    expect(FILINGS.length).toBe(210);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([23, 187]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11094);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11096);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
