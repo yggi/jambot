@@ -315,6 +315,11 @@ run; the others have.
     H5 as one posterior over the reading is not done; the confidence is.
     That waits on a recording of real playing.
   - What is left is the per-onset jitter of a loose hand, which the equal lengths (H2) and their ratios (H3) address, and the rests a loose hand can't tell from a release.
+  - **Missteps** (#747, #580 rung 5): a slip the hand corrects at once is left out before a phrase is read (`withoutMissteps`, `missteps.ts`): a note off the key, sounding at most 0.6 of a step, followed within 0.6 of a step by the same source's note on the key at most 2 semitones away.
+    Planted before half a pattern's notes, a neighbour off the key struck where the note was meant and the note meant 15 to 60 ms later, every one of 2,642 slips is left out at 0, 10 and 20 ms, and no note meant (bound: at least 90 %).
+    A slipped bar reads as the pattern played exactly in 96.7 %, 85.5 % and 63.3 % of 890 bars, against 100 %, 99.8 % and 86.0 % with no slip: the note meant comes up to 60 ms late.
+    A tight hand's chromatic passing sixteenths, a whole step before their neighbour, are all kept: 0 of 5,995 left out at 10 ms and at 20 ms (bound: at most 2 %).
+    Off the chord isn't read yet: the reader holds no chord where it hears, which the lift into cells brings (rung 7, yggi/cells#512).
 
 - **E18. The lead driven by the style** (T4; #168 step 2), in
   [`packages/engine/experiments/lead-style.ts`](../packages/engine/experiments/lead-style.ts)

@@ -26,6 +26,8 @@ import {
   sessionRate,
   stepMs,
   syncopatedPattern,
+  passingRate,
+  slipRate,
 } from './humanise.ts';
 
 const KEY: Key = { tonic: 9, mode: 'aeolian' };
@@ -516,5 +518,33 @@ describe('a tune played whole filed as its form (E17, #580)', () => {
       formFiledRate('twinkle', 30, KEY).right,
       formFiledRate('haenschen', 30, KEY).right,
     ]).toEqual([34, 35]);
+  });
+});
+
+describe('a slip the hand corrects at once, left out (E17, #747)', () => {
+  const slips = [0, 10, 20].map((ms) => slipRate(ms, KEY));
+
+  it('leaves out every slip planted before half the notes, corrected 15 to 60 ms later, at 0, 10 and 20 ms, and no note meant', () => {
+    for (const rate of slips) {
+      expect([rate.planted, rate.dropped, rate.meantDropped]).toEqual([2642, 2642, 0]);
+      // (#580 rung 5's bound: at least 90 %)
+      expect(rate.dropped / rate.planted).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+
+  it('reads a slipped bar as the pattern played exactly in 96.7 %, 85.5 % and 63.3 % of bars, where unslipped 100 %, 99.8 % and 86.0 %: the note meant comes up to 60 ms late', () => {
+    expect(slips.map((r) => [r.bars, r.right, r.rightUnslipped])).toEqual([
+      [890, 861, 890],
+      [890, 761, 888],
+      [890, 563, 765],
+    ]);
+  });
+
+  it('keeps every chromatic passing sixteenth a tight hand plays, at 10 ms and at 20 ms (bound: at most 2 % left out)', () => {
+    for (const jitterMs of [10, 20]) {
+      const { passing, dropped } = passingRate({ lateMs: 0, jitterMs }, KEY);
+      expect([passing, dropped]).toEqual([5995, 0]);
+      expect(dropped / passing).toBeLessThanOrEqual(0.02);
+    }
   });
 });
