@@ -40,6 +40,7 @@
  * two compiles, the varied text and its lap. */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
+import { variationBy } from '@yggi/cells';
 import { setTiming, type Variation, drawn, variations } from '@yggi/cells/edit';
 import {
   answered,
@@ -300,8 +301,9 @@ const benchMeta = (bench: RhythmBench): Record<string, string> => {
 
 /**
  * A groove variation's text rebuilt from its source (#553): the variation of `source` that cells names `by`, made on
- * the bench its meta keeps, played as the composer played it (`variedGroove`) and stated as the repository files it
- * (`grooveText`). Null where the bench, the source's read or the variation is gone.
+ * the bench its meta keeps without the others (cells' `variationBy`), played as the composer played it (`variedGroove`)
+ * and stated as the repository files it (`grooveText`). Null where the bench, the source's read or the variation is
+ * gone.
  */
 export function rebuiltGroove(
   source: string,
@@ -314,9 +316,7 @@ export function rebuiltGroove(
   const workbench = benchText({ meter: at, ...(meterFragment ? { meterFragment } : {}) });
   const whole = readRhythm(source, at);
   if (workbench === null || whole === null) return null;
-  const variation = variations(source, variationOptions(source, workbench)).find(
-    (v) => v.by === by,
-  );
+  const variation = variationBy(source, by, variationOptions(source, workbench));
   const read = variation && variedGroove(source, variation, at, whole);
   return read ? grooveText(read.hits, stepsOf(at)) : null;
 }
