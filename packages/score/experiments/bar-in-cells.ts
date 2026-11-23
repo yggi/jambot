@@ -22,7 +22,7 @@
  * A step is read off cells' times through the band's own swing undone
  * (`leanMap`'s `written`), so a swung bar's steps compare as a straight
  * one's. A text is played through cells' MIDI out
- * (`channelTable`, `router`, `midiNote`) and read back part by part:
+ * (`notesOf`) and read back part by part:
  * channel 10 the drums, 2 the bass, 3 the pad and the stab (the comp), as
  * Jambot's own MIDI out sends them (`DEFAULT_CHANNELS`).
  *
@@ -89,8 +89,7 @@ import {
   presetSwing,
 } from '@jambot/engine';
 import { METERS, type MeterName, formatNumeral, parseNumeral, stepsOf } from '@jambot/theory';
-import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { notesOf, readBack } from '@yggi/cells/midi';
 import { lowerNumeral } from '../src/score.ts';
 import {
   PIN_VOICES,
@@ -588,32 +587,17 @@ export interface Played {
 }
 
 /**
- * The reading's own lines, not counted: the bar's lap and the harmony, each on a channel of its own (15 and 16).
- * The harmony heard is `&harm` itself: a played table turns for the lines read through it (cells v0.6.0, yggi/cells#167).
- */
-const READING = [
-  '&lap step=1m 0',
-  '&readV loop=C4',
-  '&read map=midi ~!14 [&lap * &readV] [&harm * &readV]',
-].join('\n');
-
-/**
  * A text played through cells' MIDI out for its first bar, read back; `estimate` is about how long its bar is.
- * Each time is read as a step through the band's swing undone, its bar's (`leanMap`'s `written`).
+ * Each time is read as a step through the band's swing undone, its bar's (`leanMap`'s `written`). The bar's start and
+ * the harmony heard are cells' reading (`readBack`): `&harm` itself, as a played table turns for the lines read
+ * through it (cells v0.6.0, yggi/cells#167).
  */
 export function cellsPlays(text: string, bar: BandBar): Played {
   const steps = stepsOf(bar.meter);
   const estimate = steps * stepSeconds(bar.style.bpm, bar.meter);
-  const plan = planOf(`${text}\n${READING}`);
-  const route = router(plan.result, channelTable(plan.result));
-  const out = windowAt(plan, 0, estimate * 1.5).events.flatMap((e) =>
-    routesOf(route(e)).flatMap((r) => {
-      const n = midiNote(e, r);
-      return n ? [n] : [];
-    }),
-  );
-  const laps = out.filter((n) => n.channel === 15).map((n) => n.at);
-  const barSeconds = laps.find((at) => at > 0)!;
+  const { plan, barStarts, chords: heard } = readBack(text, { to: estimate * 1.5, chord: '&harm' });
+  const out = notesOf(plan, { to: estimate * 1.5 });
+  const barSeconds = barStarts.find((at) => at > 0)!;
   const step = barSeconds / steps;
   const unswung = leanMap(leansOf(bar.swing), bar.meter);
   const stepOf = (seconds: number) => unswung.written(seconds / step);
@@ -637,9 +621,9 @@ export function cellsPlays(text: string, bar: BandBar): Played {
       a.note.note - b.note.note,
   );
   const harmony = new Map<number, number[]>();
-  for (const n of inBar.filter((x) => x.channel === 16)) {
-    const s = Math.round(n.at / step);
-    harmony.set(s, [...(harmony.get(s) ?? []), n.note]);
+  for (const c of heard.filter((x) => x.at < barSeconds - 1e-9)) {
+    const s = Math.round(c.at / step);
+    harmony.set(s, [...(harmony.get(s) ?? []), ...c.notes]);
   }
   const key = bar.plan.key;
   const chords = [...harmony]

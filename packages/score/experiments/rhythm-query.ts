@@ -72,8 +72,8 @@ import {
   withInstruments,
 } from '@jambot/engine';
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
-import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { planOf } from '@yggi/cells';
+import { notesOf } from '@yggi/cells/midi';
 import { setTiming } from '@yggi/cells/edit';
 import {
   cachedFit,
@@ -230,7 +230,9 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
  * union with the workbench, played through cells' MIDI out over `bars`
  * bars, each hit's step read through the meter's swing undone. Only a meter
  * whose beat is a quarter of 4 sixteenths is read (every one a rhythm
- * fits).
+ * fits). Each line is compiled alone, not read by cells' `hitsOf`, since
+ * this reads a hit's length and its step through a swing, and `hitsOf`
+ * gives a straight step and no length.
  */
 export function readFragment(
   fragment: string,
@@ -252,25 +254,21 @@ export function readFragment(
       const plan = planOf(onBench(withInstruments(alone), workbench).text, undefined, {
         resolve: resolveSeed,
       });
-      const route = router(plan.result, channelTable(plan.result));
-      return windowAt(plan, 0, bars * 16 * step).events.flatMap((e) =>
-        routesOf(route(e)).flatMap((r) => {
-          const note = midiNote(e, r);
-          if (!note || note.channel !== 10) return [];
-          const at = unswung.written(note.at / step);
-          const end = unswung.written(note.end / step);
-          return [
-            {
-              role,
-              sound: SOUND_OF_NOTE.get(note.note)!,
-              note: note.note,
-              step: near(at, Math.round(at)) ? Math.round(at) : at,
-              length: near(end - at, Math.round(end - at)) ? Math.round(end - at) : end - at,
-              velocity: note.velocity,
-            },
-          ];
-        }),
-      );
+      return notesOf(plan, { to: bars * 16 * step }).flatMap((note) => {
+        if (note.channel !== 10) return [];
+        const at = unswung.written(note.at / step);
+        const end = unswung.written(note.end / step);
+        return [
+          {
+            role,
+            sound: SOUND_OF_NOTE.get(note.note)!,
+            note: note.note,
+            step: near(at, Math.round(at)) ? Math.round(at) : at,
+            length: near(end - at, Math.round(end - at)) ? Math.round(end - at) : end - at,
+            velocity: note.velocity,
+          },
+        ];
+      });
     })
     .sort((a, b) => a.step - b.step || a.note - b.note);
 }
