@@ -46,9 +46,9 @@
  */
 
 import { type Meter, type MeterName, stepsOf } from '@jambot/theory';
-import { planOf, windowAt, codeShifts } from '@yggi/cells';
+import { planOf, codeShifts } from '@yggi/cells';
 import { flatten } from '@yggi/cells/inspect';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { notesOf } from '@yggi/cells/midi';
 import { expansion } from '@yggi/cells/repository';
 import { PITCHED_OPERATORS, linesOf } from '@yggi/cells/edit';
 import { BASS_FRAGMENTS } from './library.ts';
@@ -134,16 +134,12 @@ export function readLine(text: string, meter: Meter): LineRead | null {
   const steps = stepsOf(meter);
   const step = stepSeconds(READ_AT, meter);
   const plan = planOf(source, undefined, { resolve: taken.resolve });
-  const route = router(plan.result, channelTable(plan.result));
   const onsets: number[] = [];
-  for (const e of windowAt(plan, 0, bars * steps * step).events)
-    for (const r of routesOf(route(e))) {
-      const note = midiNote(e, r);
-      if (!note) continue;
-      const at = whole(note.at / step);
-      if (!Number.isInteger(at) || at >= bars * steps) return null;
-      onsets.push(at);
-    }
+  for (const note of notesOf(plan, { to: bars * steps * step })) {
+    const at = whole(note.at / step);
+    if (!Number.isInteger(at) || at >= bars * steps) return null;
+    onsets.push(at);
+  }
   onsets.sort((a, b) => a - b);
   return { bars, notes: onsets.map((at, j) => ({ step: at, ...reads[j % reads.length]! })) };
 }

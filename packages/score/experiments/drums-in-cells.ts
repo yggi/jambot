@@ -4,7 +4,7 @@
  * For each preset held, one bar the band writes (seed 0, entropy 0.3, the
  * first of 32 bars with the most roles, then the most hits), its drum part
  * stated as cells text by a small translator, compiled by `@yggi/cells`, and
- * played through cells' own MIDI path (`channelTable`, `router`, `midiNote`):
+ * played through cells' own MIDI path (`notesOf`):
  * which sound, on which step, for how long and how hard, against the hits the
  * band plays. The band keeps playing as it does; this is a probe.
  *
@@ -32,7 +32,7 @@ import {
   BAR_STEPS,
   type BandBar,
   type BandCarried,
-  DRUM_ROLES,
+  DRUM_ORDER,
   type DrumRole,
   PROTOTYPE_PRESETS,
   SONG_METER,
@@ -42,8 +42,8 @@ import {
   presetSwing,
   withInstruments,
 } from '@jambot/engine';
-import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { planOf } from '@yggi/cells';
+import { notesOf } from '@yggi/cells/midi';
 
 /** The drums' voices and levels E31 found, which the engine holds (`muse-groove.ts`) and the section's builder shares. */
 export { VOICE_OF_NOTE, euclidOf, levelOf } from '@jambot/engine';
@@ -66,7 +66,7 @@ export const bandDrums = (bar: BandBar) => bar.dough.filter((n) => n.part === 'd
 
 /** The roles a bar's drums play, in the band's order (the stronger first). */
 export const rolesOf = (bar: BandBar): DrumRole[] =>
-  DRUM_ROLES.filter((role) => bandDrums(bar).some((n) => n.role === role));
+  DRUM_ORDER.filter((role) => bandDrums(bar).some((n) => n.role === role));
 
 /**
  * The cells text of a bar's drums: the bar, then the engine's statement of
@@ -109,15 +109,11 @@ export function cellsDrums(
 ): { hits: Hit[]; diagnostics: string[] } {
   const plan = planOf(text);
   const step = stepSeconds(bpm);
-  const route = router(plan.result, channelTable(plan.result));
-  const hits = windowAt(plan, 0, steps * step).events.flatMap((e) =>
-    routesOf(route(e)).flatMap((r) => {
-      const note = midiNote(e, r);
-      if (!note || note.channel !== 10) return [];
-      const at = note.at / step;
-      return [{ note: note.note, step: at, length: note.end / step - at, velocity: note.velocity }];
-    }),
-  );
+  const hits = notesOf(plan, { to: steps * step }).flatMap((note) => {
+    if (note.channel !== 10) return [];
+    const at = note.at / step;
+    return [{ note: note.note, step: at, length: note.end / step - at, velocity: note.velocity }];
+  });
   return { hits: sorted(hits), diagnostics: plan.result.diagnostics.map((d) => d.message) };
 }
 

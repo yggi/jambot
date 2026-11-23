@@ -9,7 +9,7 @@
  * eighth; and a bass on the downbeat and the pulses. Each is scaled by its
  * eighth's accent grade (`gradeGain`).
  *
- * A backbeat is a choice of pulses, the engine's rule (`backbeatOf`): the
+ * A backbeat is a choice of pulses, the engine's rule (`backbeatSteps`): the
  * formula `compose(even(2, pulses, 1), pulses)` leaves the bar in a meter
  * whose pulses are not four (it reaches the bar's length, the next downbeat,
  * for 3/4, 5/8, 6/8 and 7/8). The hemiola (`HEMIOLA`) keeps the drums and
@@ -17,7 +17,7 @@
  * the same bar regrouped, as `parallel` regroups it (docs/shape.md).
  */
 
-import { DRUM_NOTES, SUBDIVISIONS, type Subdivision, backbeatOf } from '@jambot/engine';
+import { DRUM_NOTES, SUBDIVISIONS, type Subdivision, backbeatSteps } from '@jambot/engine';
 import {
   METERS,
   type MeterName,
@@ -124,7 +124,7 @@ export function barPlan({ name, layers, hemiola, subdivision, grade, mirror }: S
         drum(step, DRUM_NOTES.kick, 118);
       drum(step, DRUM_NOTES.closedHat, 100);
     });
-    for (const pulse of backbeatOf(meter)) drum(pulses[pulse]!, DRUM_NOTES.snare, 108);
+    for (const step of backbeatSteps(meter)) drum(step, DRUM_NOTES.snare, 108);
   }
 
   if (layers.bass) {

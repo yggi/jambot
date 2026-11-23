@@ -36,12 +36,12 @@
  * line and the backbeat's), beside the lines the composer keeps
  * (`GROOVE_KEEP`, the fill), each kept for the repository's life and
  * warmed with the rhythm's fit and read; the one a draw takes is read back
- * by its varied line alone, over the rhythm's lap, one compile (E39). */
+ * by its varied line alone, over the rhythm's lap (E39): cells' `hitsOf`,
+ * two compiles, the varied text and its lap. */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
-import { planOf, windowAt, compileSource } from '@yggi/cells';
+import { variationBy } from '@yggi/cells';
 import { setTiming, type Variation, drawn, variations } from '@yggi/cells/edit';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import {
   answered,
   cachedFit,
@@ -51,14 +51,15 @@ import {
   hasFrom,
   type Fragment,
   createRepository,
-  holesOf,
   fileFragment,
+  hitsOf,
+  type Hit,
   useFragments,
 } from '@yggi/cells/repository';
 import { isLibraryFragment, resolveSeed } from '@yggi/cells/library';
 import { instrumentsFor, withInstruments } from './instruments.ts';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
-import { DRUM_ROLES, sameMeter } from './events.ts';
+import { DRUM_ORDER, type DrumRole, sameMeter } from './events.ts';
 import { type Ask, askOptions } from './facet.ts';
 import { BENCH, BENCH_FRAGMENT, HASH, type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
@@ -72,7 +73,6 @@ import {
   type RhythmRepository,
   isOwnLine,
 } from './rhythm-query.ts';
-import { stepSeconds } from './tempo.ts';
 
 /** The compiles kept: every fragment, workbench and union the benches meet, a few hundred, with room. */
 const COMPILES = 2048;
@@ -146,97 +146,60 @@ export function benchText({ meter, meterFragment }: RhythmBench): string | null 
 }
 
 /**
- * A fragment's mix of its lines (`&groove [&kick, &hat]`, the claves' `&percussion [&clave * .5]`): its line, its name,
- * and its terms, a line each. A pattern fragment carries no MIDI card (yggi/cells#299): the reading sends it on channel
- * 10 itself. Null where it has no such mix.
- */
-function mixOf(
-  text: string,
-): { readonly line: string; readonly name: string; readonly terms: string[] } | null {
-  const mix = /^&(\w+) \[(.*)\]$/m.exec(text);
-  return mix ? { line: mix[0], name: mix[1]!, terms: mix[2]!.split(', ') } : null;
-}
-
-const ROLES: readonly string[] = DRUM_ROLES;
-
-/**
  * A hit's role: its line's name, where that is one of the drummer's roles; else the role of the sound it strikes, as the
  * Muse hears a player's (`roleOfSound`: Electro swing drums' `&clap` the backbeat, its `&hats` and `&ticks` the hat, the
  * ghost of its snare a ghost; #508, the owner's ruling). Null for a sound outside the kit.
  *
- * Cells v0.26.0 writes `role=` on 31 of its 32 rhythms' lines (yggi/cells#717; Salsa drums' `&tumbao` is
- * `role=ostinato`); Electro swing drums' lines write none, and read by their sounds as above.
+ * The role a line declares (`role=`, which cells' `hitsOf` gives) is not read yet: at cells v0.29.0 every line of the 33
+ * rhythms declares one, and 15 of the 407 hits in 4/4 declare another than this reading gives (`march_drums`' snare on
+ * the offbeats and `trip_hop_drums`' on the half a backbeat, not a ghost; `quiet_pulse`'s claves a clave, not a hat), and
+ * more in the other meters (the claps and snares of `acid_drums`, `happy_hardcore_drums` and `shanty_drums` on the
+ * backbeat its meter doesn't name), so reading it would change what the band plays (#742).
  */
-const roleOf = (line: string, note: number, step: number, meter: Meter): string | null =>
-  ROLES.includes(line) ? line : roleOfSound(note, step % stepsOf(meter), meter);
-
-/** Within a millionth of a step. */
-const whole = (x: number) => (Math.abs(x - Math.round(x)) < 1e-6 ? Math.round(x) : x);
+const roleOf = ({ line, note, step }: Hit, meter: Meter): DrumRole | null =>
+  (DRUM_ORDER as readonly string[]).includes(line)
+    ? (line as DrumRole)
+    : roleOfSound(note, step % stepsOf(meter), meter);
 
 /**
  * A fragment's hits under a meter played straight, over its lap (the most
- * bars a line of it laps, `cycle=`): each line of its mix alone, in its
- * union with the meter, through cells' MIDI out on channel 10, each hit on
- * its role (`roleOf`). Null where the meter has no name in cells, the
- * fragment no mix (`mixOf`), a hit falls off the steps, or one strikes a
- * sound the drummer has no role for.
+ * bars a line of it laps, `cycle=`): cells' `hitsOf`, its lines read from one
+ * compile in their union with the meter, through cells' MIDI out on channel
+ * 10, each hit on its role (`roleOf`). Null where the meter has no name in
+ * cells, the fragment no mix of its lines, a hit falls off the steps, or one
+ * strikes a sound the drummer has no role for.
  */
 export function readRhythm(template: string, meter: Meter): FragmentRead | null {
-  const text = grooveLines(template);
-  if (!nameOf(meter) || !mixOf(text)) return null;
-  return readLines(text, meter, lapOf(text));
+  return readLines(grooveLines(template), meter);
 }
 
 /**
- * The bars a fragment's lines lap (`cycle=`), at least one: its text's alone, whatever the meter, so kept by text, the
- * last `COMPILES`, and a fragment read under each of the band's meters compiles for it once.
+ * A fragment's hits (`readRhythm`), each line's, or one line's alone where its name is given, over the fragment's own
+ * lap, or `bars` where given: cells' `hitsOf`, one compile (and the one that finds its lap).
  */
-const laps = new Map<string, number>();
-function lapOf(text: string): number {
-  let bars = laps.get(text);
-  if (bars === undefined) {
-    bars = Math.max(1, ...holesOf(text, compileSource).clock.map((need) => need.bars));
-    laps.set(text, bars);
-    if (laps.size > COMPILES) laps.delete(laps.keys().next().value!);
-  }
-  return bars;
-}
-
-/** A fragment's hits over a lap of `bars` (`readRhythm`), each line's, or one line's alone where its name is given. */
-function readLines(text: string, meter: Meter, bars: number, only?: string): FragmentRead | null {
+function readLines(text: string, meter: Meter, bars?: number, only?: string): FragmentRead | null {
   const name = nameOf(meter);
-  const mix = mixOf(text);
-  if (!name || !mix) return null;
-  const step = stepSeconds(READ_AT, meter);
-  const steps = stepsOf(meter) * bars;
+  if (!name) return null;
+  const read = hitsOf(withInstruments(text), straight(name), { resolve: resolveSeed });
+  if (!read) return null;
+  const lap = bars ?? read.bars;
+  const steps = stepsOf(meter) * lap;
   const hits: FragmentHit[] = [];
-  for (const term of mix.terms) {
-    const line = /^&(\w+)/.exec(term)![1]!;
-    if (only !== undefined && line !== only) continue;
-    // (the mix as the card on channel 10, of this line alone)
-    const alone = text.replace(mix.line, `&${mix.name} map=midi(10) [${term}]`);
-    const plan = planOf(unionText(withInstruments(alone), straight(name)), undefined, {
-      resolve: resolveSeed,
+  for (const hit of read.hits) {
+    if (only !== undefined && hit.line !== only) continue;
+    if (!Number.isInteger(hit.step)) return null;
+    if (hit.step >= steps) continue;
+    const role = roleOf(hit, meter);
+    if (role === null) return null;
+    hits.push({
+      role,
+      ...(role === hit.line ? {} : { line: hit.line }),
+      note: hit.note,
+      step: hit.step,
+      velocity: hit.velocity,
     });
-    const route = router(plan.result, channelTable(plan.result));
-    for (const e of windowAt(plan, 0, steps * step).events)
-      for (const r of routesOf(route(e))) {
-        const note = midiNote(e, r);
-        if (!note || note.channel !== 10) continue;
-        const at = whole(note.at / step);
-        if (!Number.isInteger(at) || at >= steps) return null;
-        const role = roleOf(line, note.note, at, meter);
-        if (role === null) return null;
-        hits.push({
-          role,
-          ...(role === line ? {} : { line }),
-          note: note.note,
-          step: at,
-          velocity: note.velocity,
-        });
-      }
   }
-  return { bars, hits: inOrder(hits) };
+  return { bars: lap, hits: inOrder(hits) };
 }
 
 /**
@@ -276,8 +239,8 @@ const HELD = new WeakMap<readonly Fragment[], readonly Fragment[]>();
 
 /**
  * The fragments the drummer holds, each by its lines (`grooveLines`: what is fitted, read, unioned, layered, varied and
- * filed beside): all but a rhythm it can't play, one with no mix of lines (`mixOf`) or a line that strikes a sound it
- * has no role for (`roleOf`), read in 4/4. Of cells' seed that is every rhythm, 32 of 32 at cells v0.26.0, `salsa_drums`'
+ * filed beside): all but a rhythm it can't play, one with no mix of lines (`hitsOf`) or a line that strikes a sound it
+ * has no role for (`roleOf`), read in 4/4. Of cells' seed that is every rhythm, 33 of 33 at cells v0.29.0, `salsa_drums`'
  * tumbao on the toms an ostinato (#651, #717).
  */
 export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): Fragment[] {
@@ -308,7 +271,8 @@ const variationOptions = (text: string, workbench: string) => ({
 /**
  * A rhythm varied as the composer plays it: the line the variation rewrites read back over the rhythm's lap and put in
  * place of that line's hits in the whole (`whole`, the rhythm's read), as the band plays them (`played`). A variation
- * rewrites one line, so only that line is read back from its text: one compile. Null where the line doesn't read.
+ * rewrites one line, so only that line's hits are kept of its text's (`hitsOf`: two compiles, where a line compiled
+ * alone was one). Null where the line doesn't read.
  */
 function variedGroove(
   text: string,
@@ -337,8 +301,9 @@ const benchMeta = (bench: RhythmBench): Record<string, string> => {
 
 /**
  * A groove variation's text rebuilt from its source (#553): the variation of `source` that cells names `by`, made on
- * the bench its meta keeps, played as the composer played it (`variedGroove`) and stated as the repository files it
- * (`grooveText`). Null where the bench, the source's read or the variation is gone.
+ * the bench its meta keeps without the others (cells' `variationBy`), played as the composer played it (`variedGroove`)
+ * and stated as the repository files it (`grooveText`). Null where the bench, the source's read or the variation is
+ * gone.
  */
 export function rebuiltGroove(
   source: string,
@@ -351,9 +316,7 @@ export function rebuiltGroove(
   const workbench = benchText({ meter: at, ...(meterFragment ? { meterFragment } : {}) });
   const whole = readRhythm(source, at);
   if (workbench === null || whole === null) return null;
-  const variation = variations(source, variationOptions(source, workbench)).find(
-    (v) => v.by === by,
-  );
+  const variation = variationBy(source, by, variationOptions(source, workbench));
   const read = variation && variedGroove(source, variation, at, whole);
   return read ? grooveText(read.hits, stepsOf(at)) : null;
 }

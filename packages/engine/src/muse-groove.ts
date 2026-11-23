@@ -37,39 +37,23 @@
  * groove E38's runs file.
  */
 
-import { type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
-import { bjorklund } from '@yggi/cells/library';
-import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, TOM_NOTES, backbeatOf } from './drums.ts';
-import { BAR_STEPS, DRUM_ROLES, type DrumRole, type SongClock } from './events.ts';
+import { type Meter, stepsOf } from '@jambot/theory';
+import { bjorklund, kitVoiceOf } from '@yggi/cells/library';
+import { CLAVES_NOTE, DRUM_NOTES, TOM_NOTES, backbeatSteps } from './drums.ts';
+import { BAR_STEPS, DRUM_ORDER, type DrumRole, type SongClock } from './events.ts';
 import { type HeardNote, heardStep } from './muse.ts';
 import type { FragmentHit } from './rhythm-query.ts';
 
-/** The voice each of the kit's sounds is written with: the score's words (`DRUM_WORDS`), and cells' `sd` and `cp` for the snare and the clap, which the score has none for. */
-export const DRUM_VOICES: Readonly<Record<DrumSound, string>> = {
-  kick: 'bd',
-  rim: 'rim',
-  snare: 'sd',
-  clap: 'cp',
-  closedHat: 'hh',
-  pedalHat: 'ph',
-  openHat: 'oh',
-  ride: 'rd',
-};
-
 /**
- * The voice each drum note is written with (E31): the kit's; cells' `gm_kit` names for the toms an ostinato strikes,
- * `&lt`, `&mt` and `&ht` (#651); and General MIDI's name for the claves a clave line strikes, which cells sends as 75
- * (cells v0.7.0).
+ * The voice each drum note the band plays is written with (E31), its name in cells' kit (`kitVoiceOf`): the kit's
+ * sounds (`DRUM_NOTES`); the toms an ostinato strikes, `&lt`, `&mt` and `&ht` (#651); and the claves a clave line
+ * strikes (cells v0.7.0).
  */
-export const VOICE_OF_NOTE: ReadonlyMap<number, string> = new Map([
-  ...(Object.keys(DRUM_VOICES) as DrumSound[]).map(
-    (sound) => [DRUM_NOTES[sound], DRUM_VOICES[sound]] as const,
+export const VOICE_OF_NOTE: ReadonlyMap<number, string> = new Map(
+  [...Object.values(DRUM_NOTES), ...Object.values(TOM_NOTES), CLAVES_NOTE].map(
+    (note) => [note, kitVoiceOf(note)!] as const,
   ),
-  [TOM_NOTES.lowTom, 'lt'],
-  [TOM_NOTES.midTom, 'mt'],
-  [TOM_NOTES.highTom, 'ht'],
-  [CLAVES_NOTE, 'claves'],
-]);
+);
 
 /** The toms' notes. */
 const TOMS: ReadonlySet<number> = new Set(Object.values(TOM_NOTES));
@@ -154,7 +138,7 @@ export function grooveText(hits: readonly FragmentHit[], steps: number): string 
   const sorted = inOrder(hits);
   const unknown = sorted.find((h) => !VOICE_OF_NOTE.has(h.note));
   if (unknown) throw new Error(`grooveText: note ${unknown.note} is none of the kit's`);
-  const roles = (DRUM_ROLES as readonly string[]).filter((role) =>
+  const roles = (DRUM_ORDER as readonly string[]).filter((role) =>
     sorted.some((h) => h.role === role),
   );
   const stated = roles.map((role) =>
@@ -228,9 +212,7 @@ export function roleOfSound(note: number, step: number, meter: Meter): DrumRole 
   if (note === DRUM_NOTES.rim) return 'euclid';
   if (note === DRUM_NOTES.pedalHat) return 'pedal';
   if (note !== DRUM_NOTES.snare && note !== DRUM_NOTES.clap) return 'hat';
-  const starts = meterOnSteps(meter).heights;
-  const backbeat = backbeatOf(meter).map((pulse) => starts[pulse]);
-  return backbeat.includes(step) ? 'backbeat' : 'ghost';
+  return backbeatSteps(meter).includes(step) ? 'backbeat' : 'ghost';
 }
 
 /**

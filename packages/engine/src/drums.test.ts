@@ -8,9 +8,19 @@ import {
 } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarEnv } from './bar.ts';
-import { DRUM_NOTES, OWN_ROLES, TOM_NOTES, backbeatOf, drums, rimAccentOf } from './drums.ts';
 import {
-  DRUM_ROLES,
+  CLAVES_NOTE,
+  DRUM_NOTES,
+  DRUM_VOICES,
+  OWN_ROLES,
+  TOM_NOTES,
+  backbeatSteps,
+  drums,
+  rimAccentOf,
+} from './drums.ts';
+import { kitVoiceOf } from '@yggi/cells/library';
+import {
+  DRUM_ORDER,
   type DrumRole,
   SONG_METER,
   type WrittenNote,
@@ -107,6 +117,13 @@ describe('drums', () => {
     for (const env of sweep) for (const e of drums(env)) expect(own.has(e.note)).toBe(true);
   });
 
+  it('read every note from cells’ kit by its voice, the toms and the claves too, none written twice (#737)', () => {
+    for (const sound of Object.keys(DRUM_VOICES) as (keyof typeof DRUM_VOICES)[])
+      expect([sound, kitVoiceOf(DRUM_NOTES[sound])]).toEqual([sound, DRUM_VOICES[sound]]);
+    expect(TOM_NOTES).toEqual({ lowTom: 41, midTom: 45, highTom: 48 });
+    expect([CLAVES_NOTE, kitVoiceOf(CLAVES_NOTE)]).toEqual([75, 'claves']);
+  });
+
   it('give every sound its own note, so a played drum note names its sound (L7)', () => {
     const notes = Object.values(DRUM_NOTES);
     expect(new Set(notes).size).toBe(notes.length);
@@ -127,7 +144,7 @@ describe('drums', () => {
   });
 
   it('write only their own roles: every role but the ostinato and the clave, which only a fragment’s line plays (#397, #651)', () => {
-    expect(OWN_ROLES).toEqual(DRUM_ROLES.filter((r) => r !== 'ostinato' && r !== 'clave'));
+    expect(OWN_ROLES).toEqual(DRUM_ORDER.filter((r) => r !== 'ostinato' && r !== 'clave'));
     const written = new Set(sweep.flatMap((env) => drums(env).map((e) => e.role!)));
     expect([...written].sort()).toEqual([...OWN_ROLES].sort());
   });
@@ -146,7 +163,7 @@ describe('drums', () => {
   it('write one hit where two roles meet on a sound and step, the one that plays louder (F5, T4)', () => {
     // Only the snare's roles meet: the backbeat and a fill on step 12, a
     // fill and a ghost on the fill's other steps, from 8 in a build and from
-    // 12 elsewhere. The one listed first in DRUM_ROLES stays, and the
+    // 12 elsewhere. The one listed first in DRUM_ORDER stays, and the
     // performance plays it at least as loud.
     const meet = (env: BarEnv): [DrumRole, DrumRole, number[]][] => {
       const from = env.plan.section.type === 'build' ? 8 : 12;
@@ -165,7 +182,7 @@ describe('drums', () => {
     });
     for (const env of sweep.filter((e) => e.plan.section.type !== 'breakdown'))
       for (const [stronger, weaker, steps] of meet(env)) {
-        expect(DRUM_ROLES.indexOf(stronger)).toBeLessThan(DRUM_ROLES.indexOf(weaker));
+        expect(DRUM_ORDER.indexOf(stronger)).toBeLessThan(DRUM_ORDER.indexOf(weaker));
         for (const step of steps)
           expect(perform(env, snare(stronger, step)).velocity).toBeGreaterThanOrEqual(
             perform(env, snare(weaker, step)).velocity,
@@ -392,8 +409,12 @@ describe('the drums on other meters (#260)', () => {
       '10/8': [1, 3],
       '12/8': [1, 3],
     };
+    // (cells' `backbeatOf`, read on the bar's steps: each pulse's start)
     for (const [name, meter] of named)
-      expect([name, backbeatOf(meter)]).toEqual([name, expected[name]]);
+      expect([name, backbeatSteps(meter)]).toEqual([
+        name,
+        expected[name]!.map((pulse) => meter.heights[pulse]! * 2),
+      ]);
   });
 
   it('writes every hit on a step of the meter’s bar, well formed, in both readings of a pattern (finite: every meter, preset, section type, two bars, two seeds)', () => {
@@ -415,7 +436,7 @@ describe('the drums on other meters (#260)', () => {
 
   it('plays the backbeat snare on the backbeat’s pulse starts and nowhere else (finite: every meter)', () => {
     for (const [name, meter] of named) {
-      const starts = new Set(backbeatOf(meter).map((pulse) => meter.heights[pulse]! * 2));
+      const starts = new Set(backbeatSteps(meter));
       const style = { ...PRESETS[1]!.style, entropy: 0, swing: presetSwing(PRESETS[1]!)! };
       const steps = new Set(
         range(3).flatMap((seed) =>

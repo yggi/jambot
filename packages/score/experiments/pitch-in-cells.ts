@@ -34,8 +34,8 @@
  * voices, MIDI cards) is the reading's, and not counted.
  *
  * A stacks or shapes text is read back through cells itself: compiled by
- * `@yggi/cells`, played through its MIDI out (`channelTable`, `router`,
- * `midiNote`), each chord's notes read as Jambot reads a chord in a key
+ * `@yggi/cells`, played through its MIDI out (`notesOf`), each chord's
+ * notes read as Jambot reads a chord in a key
  * (`numeralOf`). A numerals text is read by its tokens (`parseNumeral`), its
  * pins through cells. The score's own frozen spelling (`encodeBar`'s `key=`,
  * `harm`, `next` and `frame`) is the baseline, read by `compileBar`.
@@ -73,8 +73,8 @@ import {
   parseNumeral,
   wrap,
 } from '@jambot/theory';
-import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { planOf } from '@yggi/cells';
+import { notesOf } from '@yggi/cells/midi';
 import { SCALES, TONAL_SCALES } from '@yggi/cells/library';
 import {
   BASS_INITIAL,
@@ -361,19 +361,15 @@ export function cellsPlays(text: string): {
     ).join(' ')}`,
   ].join('\n');
   const plan = planOf(full);
-  const route = router(plan.result, channelTable(plan.result));
   const played = new Map<string, Map<number, number[]>>();
-  for (const e of windowAt(plan, 0, BAR_STEPS * STEP_SECONDS).events)
-    for (const r of routesOf(route(e))) {
-      const note = midiNote(e, r);
-      if (!note) continue;
-      const cell = cards.find((c) => c.channel === note.channel)?.cell;
-      if (!cell) continue;
-      const step = Math.round(note.at / STEP_SECONDS);
-      const byStep = played.get(cell) ?? new Map<number, number[]>();
-      byStep.set(step, [...(byStep.get(step) ?? []), note.note]);
-      played.set(cell, byStep);
-    }
+  for (const note of notesOf(plan, { to: BAR_STEPS * STEP_SECONDS })) {
+    const cell = cards.find((c) => c.channel === note.channel)?.cell;
+    if (!cell) continue;
+    const step = Math.round(note.at / STEP_SECONDS);
+    const byStep = played.get(cell) ?? new Map<number, number[]>();
+    byStep.set(step, [...(byStep.get(step) ?? []), note.note]);
+    played.set(cell, byStep);
+  }
   return {
     played: new Map(
       [...played].map(([cell, byStep]) => [

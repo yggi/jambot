@@ -1,10 +1,9 @@
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
-import { CLAVES_NOTE, DRUM_NOTES, type DrumSound, TOM_NOTES } from './drums.ts';
-import { DRUM_ROLES, SONG_METER, clockOf } from './events.ts';
+import { CLAVES_NOTE, DRUM_NOTES, DRUM_VOICES, type DrumSound, TOM_NOTES } from './drums.ts';
+import { DRUM_ORDER, SONG_METER, clockOf } from './events.ts';
 import type { HeardNote } from './muse.ts';
 import {
-  DRUM_VOICES,
   GROOVE_FEWEST,
   VOICE_OF_NOTE,
   distilledGroove,
@@ -44,7 +43,7 @@ describe('a groove stated as cells text, open on its meter (#401, E31’s transl
   it('reads back every sound of the kit in every role, on every step, in a bar of each meter, and fits its meter alone', () => {
     const fit = cellsFit();
     const sounds = Object.keys(DRUM_NOTES) as DrumSound[];
-    const roles = DRUM_ROLES.filter((role) => role !== 'clave');
+    const roles = DRUM_ORDER.filter((role) => role !== 'clave');
     for (const meter of Object.values(METERS)) {
       const steps = stepsOf(meter);
       const hits = Array.from({ length: steps }, (_, step) =>

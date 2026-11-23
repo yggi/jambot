@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { METERS, meterOnSteps } from '@jambot/theory';
+import { DRUM_ROLES, FEEL_PARTS } from '@yggi/cells/library';
 import {
   BAR_STEPS,
   BEATS,
-  DRUM_ROLES,
+  DRUM_ORDER,
+  DRUM_PRIORITY,
   SONG_METER,
   barAt,
   barStart,
@@ -32,6 +34,30 @@ const kick: DoughNote = {
   gain: 112 / 127,
   length: 1,
 };
+
+describe('the drum roles (#737)', () => {
+  it('are cells’ own, each with a row in the drummer’s priority, ranked in the band’s order, not the contract’s', () => {
+    // (a role cells adds and the priority has no row for fails here, and only here)
+    for (const role of DRUM_ROLES)
+      expect([role, typeof DRUM_PRIORITY[role]]).toEqual([role, 'number']);
+    expect(new Set(Object.values(DRUM_PRIORITY)).size).toBe(DRUM_ROLES.length);
+    expect(new Set(DRUM_ORDER)).toEqual(new Set(DRUM_ROLES));
+    expect(DRUM_ORDER).toEqual([
+      'kick',
+      'backbeat',
+      'fill',
+      'ghost',
+      'hat',
+      'pedal',
+      'euclid',
+      'ostinato',
+      'clave',
+    ]);
+    // (cells lists the fill last, as the feel contract does)
+    expect(DRUM_ROLES.at(-1)).toBe('fill');
+    expect(PARTS).toBe(FEEL_PARTS);
+  });
+});
 
 describe('doughProblems', () => {
   it('finds none in a well-formed dough note of every part, each one voice: the pad and the stab apart (L6)', () => {
@@ -80,7 +106,7 @@ describe('doughProblems', () => {
   });
 
   it('takes a role on a drum hit, and nothing else (L7)', () => {
-    for (const role of DRUM_ROLES) expect(doughProblems({ ...kick, role })).toEqual([]);
+    for (const role of DRUM_ORDER) expect(doughProblems({ ...kick, role })).toEqual([]);
     expect(doughProblems({ ...kick, role: 'cowbell' as DrumRole })).toEqual([
       'role cowbell is not a drum role',
     ]);
@@ -121,7 +147,7 @@ describe('writtenProblems', () => {
       const note: WrittenNote = part === 'drums' ? hit : { part, step: 0, note: 40, length: 4 };
       expect(writtenProblems(note)).toEqual([]);
     }
-    for (const role of DRUM_ROLES) expect(writtenProblems({ ...hit, role })).toEqual([]);
+    for (const role of DRUM_ORDER) expect(writtenProblems({ ...hit, role })).toEqual([]);
   });
 
   it('wants every step of the bar and nothing outside it', () => {

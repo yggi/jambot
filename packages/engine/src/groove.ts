@@ -28,18 +28,17 @@ import { stepsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { OWN_ROLES } from './drums.ts';
 import { baseVelocityOf } from './dynamics.ts';
-import { DRUM_ROLES, type DrumRole, type WrittenNote } from './events.ts';
+import { DRUM_ORDER, DRUM_PRIORITY, type DrumRole, type WrittenNote } from './events.ts';
 import type { FragmentHit } from './rhythm-query.ts';
 
 const keyOf = (n: { step: number; note: number }) => n.step * 128 + n.note;
 
-/** One hit on a sound and step, the stronger role's (`DRUM_ROLES`' order). */
+/** One hit on a sound and step, the stronger role's (`DRUM_PRIORITY`). */
 function merged(hits: readonly WrittenNote[]): WrittenNote[] {
   const kept = new Map<number, WrittenNote>();
   for (const h of hits) {
     const there = kept.get(keyOf(h));
-    if (!there || DRUM_ROLES.indexOf(h.role!) < DRUM_ROLES.indexOf(there.role!))
-      kept.set(keyOf(h), h);
+    if (!there || DRUM_PRIORITY[h.role!] < DRUM_PRIORITY[there.role!]) kept.set(keyOf(h), h);
   }
   return [...kept.values()].sort((a, b) => a.step - b.step || a.note - b.note);
 }
@@ -83,7 +82,7 @@ export function grooveBar(
   const fill = own.filter((n) => n.role === 'fill');
   // (the ostinato and the clave, every hit: the drummer plays none of its own)
   const found = inBar.flatMap((h) => {
-    const role = DRUM_ROLES.find((r) => r === h.role && !OWN_ROLES.includes(r));
+    const role = DRUM_ORDER.find((r) => r === h.role && !OWN_ROLES.includes(r));
     return role ? [written(role, h)] : [];
   });
   return merged([...grooved, ...fill, ...found]);
