@@ -52,6 +52,9 @@ const SEEDED = PROTOTYPE_PRESETS.map((preset) => {
  */
 const SEED_HELD = ['Deep house', 'Lo-fi hip hop', 'Funk', 'Bossa nova', 'Swing jazz'];
 
+/** The presets whose seed drums take their euclid's levels from `metric_accent` since cells v0.29.0 (yggi/cells#890). */
+const ACCENTED = ['Lo-fi hip hop', 'Funk', 'Bossa nova'];
+
 /** Each drum voice's General MIDI note, as the kit writes it (`VOICE_OF_NOTE` turned round). */
 const NOTE_OF_VOICE = new Map([...VOICE_OF_NOTE].map(([note, voice]) => [voice, note]));
 
@@ -146,10 +149,11 @@ describe('the forms the translator relies on, over every case', () => {
         cellsDrums(renamed, 120).hits.map((h) => h.note),
         sound,
       ).toEqual([note]);
-      // A voice named as General MIDI's that writes no note is warned, and takes the next free note from 36.
+      // A voice named as General MIDI's that writes no note takes the next free note from 36: its name gives none, and
+      // since cells v0.29.0 no warning says what it once gave (yggi/cells#643).
       const unnoted = line(`&${voice} ~!15`, voice).replace(/ note=\d+/, '');
       const read = cellsDrums(unnoted, 120);
-      expect(read.diagnostics.join(), sound).toMatch(/a name gives no note/);
+      expect(read.diagnostics, sound).toEqual([]);
       expect(
         read.hits.map((h) => h.note),
         sound,
@@ -214,7 +218,7 @@ describe('what cells could not say (E31: the gaps)', () => {
     // The witness: Synth-pop's bar, its voices given no sound, or only a gain or a hit's envelope.
     const w = of('Synth-pop');
     expect(w.cells).toHaveLength(15); // (12 before #655's song forms: its bar 23 ends a chorus since)
-    for (const sound of ['gain=1', 'oneshot', '']) {
+    for (const sound of ['gain=1', 'oneshot=1', '']) {
       // (each voice's line, which the kit gives it, stripped of its sound and keeping its note, `note=`)
       const text = w.text.replace(/^&(\w+) (note=\d+) s=.*$/gm, (_, voice: string, note: string) =>
         sound ? `&${voice} ${note} ${sound}` : `&${voice} ${note}`,
@@ -224,7 +228,7 @@ describe('what cells could not say (E31: the gaps)', () => {
       expect(hits, sound).toEqual([]);
       expect(diagnostics.join(), sound).toMatch(/has no voice/);
     }
-    for (const sound of ['gain=1', 'oneshot', ''])
+    for (const sound of ['gain=1', 'oneshot=1', ''])
       expect(cellsDrums(line('&bd ~!15', 'bd', sound), 120).hits, sound).toEqual([]);
     expect(cellsDrums(line('&bd ~!15', 'bd'), 120).hits).toHaveLength(1);
   });
@@ -257,15 +261,23 @@ describe('E31’s translation as the engine states a groove the Muse files (#401
         grooveLines(RHYTHM_FRAGMENTS.find((f) => f.id === wordOf(`${preset} drums`))!.text),
       );
     const stated = (w: (typeof SEEDED)[number]) => w.text.split('\n').slice(2).join('\n');
-    for (const w of SEEDED.filter((w) => SEED_HELD.includes(w.preset)))
-      expect(stated(w), w.preset).toBe(seedOf(w.preset));
+    // (since cells v0.29.0 the Lo-fi hip hop, Funk and Bossa nova drums take their euclid's levels from `metric_accent`,
+    // the owner's choice, yggi/cells#890: their bars hold word for word but that line, E31's velocities in the band's)
+    const accent = /^&euclidLevel .*$/m;
+    const unaccented = (text: string) => text.replace(accent, '&euclidLevel');
+    for (const w of SEEDED.filter((w) => SEED_HELD.includes(w.preset))) {
+      expect(unaccented(stated(w)), w.preset).toBe(unaccented(seedOf(w.preset)));
+      expect(stated(w) === seedOf(w.preset), w.preset).toBe(!ACCENTED.includes(w.preset));
+    }
     // (all 8 before #655's song forms)
-    expect(SEEDED.filter((w) => stated(w) === seedOf(w.preset)).map((w) => w.preset)).toEqual(
-      SEED_HELD,
-    );
+    expect(
+      SEEDED.filter((w) => unaccented(stated(w)) === unaccented(seedOf(w.preset))).map(
+        (w) => w.preset,
+      ),
+    ).toEqual(SEED_HELD);
   });
 
-  it('files bar 23 as the seed fragment it is where it is one: identity adds to it, a use at the point, and files nothing new; the others file a groove of their own', () => {
+  it('files bar 23 as the seed fragment it is where it is one, word for word: identity adds to it, a use at the point, and files nothing new; the others file a groove of their own', () => {
     for (const w of SEEDED) {
       const filed = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, {
         hits: bandDrums(w.bar).map((n) => ({
@@ -280,9 +292,10 @@ describe('E31’s translation as the engine states a groove the Muse files (#401
         created: 'song 0',
         tags: ['groove'],
       });
-      // (every preset's held as its seed before #655's song forms)
+      // (every preset's held as its seed before #655's song forms; since cells v0.29.0 the three whose seed takes its
+      // euclid's levels from `metric_accent` file the band's bar, E31's velocities, as a groove of its own, yggi/cells#890)
       expect([filed.held, filed.id, filed.layer.filed.length], w.preset).toEqual(
-        SEED_HELD.includes(w.preset)
+        SEED_HELD.includes(w.preset) && !ACCENTED.includes(w.preset)
           ? [true, wordOf(`${w.preset} drums`), 0]
           : [false, 'drummer song 0', 1],
       );

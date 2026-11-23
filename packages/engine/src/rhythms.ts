@@ -43,6 +43,7 @@ import { planOf, windowAt, compileSource } from '@yggi/cells';
 import { setTiming, type Variation, drawn, variations } from '@yggi/cells/edit';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import {
+  answered,
   cachedFit,
   fragmentHash,
   unionOf,
@@ -88,11 +89,13 @@ const nameOf = (meter: Meter): MeterName | null =>
  * optional parameters, each `gm_kit`'s own line by default (`&bd, &sd, &hh from gm_kit`). Its lines alone, signature
  * and `from` lines aside, read those drums by their names, as cells' `sameText` reads a held template, and are the text
  * the groove was before: the band reads, fits, unions and varies them, and the kit's lines its voices are filled from
- * (`withInstruments`) are those same defaults. A text with no `from` line (a groove the Muse filed) is itself.
+ * (`withInstruments`) are those same defaults. A `from` line that takes a built-in fill (`&euclidLevel from
+ * metric_accent(…)`, cells v0.29.0) is one of its lines, written out as the levels it answers (cells' `answered`), not
+ * one to leave out with the kit's. A text with no `from` line (a groove the Muse filed) is itself.
  */
 export const grooveLines = (text: string): string =>
   hasFrom(text)
-    ? text
+    ? answered(text)
         .split('\n')
         .filter((line) => !hasFrom(line))
         .join('\n')

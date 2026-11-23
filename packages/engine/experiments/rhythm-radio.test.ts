@@ -26,7 +26,7 @@ if (process.env.E37_REPORT) {
 }
 
 describe('the composer asks the repository for its rhythm while the radio walks (E37)', () => {
-  it('changes the rhythm 250 times in 8,704 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
+  it('changes the rhythm 261 times in 8,704 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
     expect(RUNS).toHaveLength(40);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     // (but 7 times: a drum bar at the edge of its reach, taken where the drummer invented and let go at the next section,
@@ -49,20 +49,21 @@ describe('the composer asks the repository for its rhythm while the radio walks 
     // meters on top of v0.25.0, #652: 233 sections now play 2/4, each with March drums, and a section of 2/4 lasts half a
     // 4/4's, so the hours hold more; none plays 2/2; 258 before cells v0.26.0, whose twelve-eight drums weigh 1, not
     // 0.25, yggi/cells#706; 266 before the ostinato on top of 2/4 and 2/2, #651, where Salsa
-    // drums takes sections near Salsa's point that went to other rhythms)
-    expect([changes.length, sections]).toEqual([250, 8704]);
+    // drums takes sections near Salsa's point that went to other rhythms; 250 before cells v0.29.0, whose breathing drums
+    // the drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799 and #890)
+    expect([changes.length, sections]).toEqual([261, 8704]);
   });
 
   // (112 before cells v0.24.0, 136 before v0.25.0, 137 before 2/4 and 2/2 were among the band's meters on top of it, #652,
   // 136 before the ostinato on top of 2/4 and 2/2, #651)
-  // (134 before cells v0.26.0, whose twelve-eight drums weigh more, yggi/cells#706)
-  it('goes back 132 times with no margin for the rhythm playing (E37)', () => {
+  // (134 before cells v0.26.0, whose twelve-eight drums weigh more, yggi/cells#706; 132 before cells v0.29.0)
+  it('goes back 141 times with no margin for the rhythm playing (E37)', () => {
     const back = rhythmRuns(undefined, undefined, {
       miss: RHYTHM_MISS,
       hold: 0,
       layer: LAYER_DISTANCE,
     }).flatMap(wentBack).length;
-    expect([back, RHYTHM_HOLD]).toEqual([132, 0.02]);
+    expect([back, RHYTHM_HOLD]).toEqual([141, 0.02]);
   });
 
   it('plays no clave alone in any section, where 992 did before #428: a line of its own only layers on a drum bar', () => {

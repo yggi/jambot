@@ -117,7 +117,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
   });
 
   // (#508, the owner's ruling: a line whose name is no role takes the role of the sound it strikes, as the Muse hears a player)
-  it('reads Electro swing drums by the sounds its lines strike: the clap the backbeat, the hats and the ticks the hat, the snare’s ghost a ghost', () => {
+  it('reads Electro swing drums by the sounds its lines strike: the clap the backbeat, the hats and the ticks the hat, and the snare’s ghost on a line of its own, a ghost (cells v0.29.0, yggi/cells#717)', () => {
     const read = readRhythm(
       RHYTHM_FRAGMENTS.find((f) => f.id === 'electro_swing_drums')!.text,
       METERS['4/4'],
@@ -130,7 +130,8 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     expect(byLine('kick')).toEqual(['kick 36']);
     expect(byLine('clap')).toEqual(['backbeat 39']);
     expect(byLine('hats')).toEqual(['hat 46']);
-    expect(byLine('ticks').sort()).toEqual(['ghost 38', 'hat 42']);
+    expect(byLine('ticks')).toEqual(['hat 42']);
+    expect(byLine('ghosts')).toEqual(['ghost 38']);
     expect(read.hits.filter((h) => h.note === DRUM_NOTES.clap).map((h) => h.step)).toEqual([4, 12]);
     // (a line named by a role keeps it, and carries no name of its own)
     expect(read.hits.filter((h) => h.role === 'kick').every((h) => h.line === undefined)).toBe(
@@ -156,9 +157,9 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
     expect(ids).not.toContain(found);
   });
 
-  it('holds every rhythm of cells’ seed, 32 of 32, and none whose line strikes a sound outside the kit', () => {
+  it('holds every rhythm of cells’ seed, 33 of 33, and none whose line strikes a sound outside the kit', () => {
     expect(heldRhythms().map((f) => f.id)).toEqual(RHYTHM_FRAGMENTS.map((f) => f.id));
-    expect(RHYTHM_FRAGMENTS).toHaveLength(32);
+    expect(RHYTHM_FRAGMENTS).toHaveLength(33);
     const crash = {
       ...RHYTHM_FRAGMENTS[0]!,
       id: 'crash',
@@ -288,13 +289,15 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
     const benches = [
       ...new Set(RHYTHM_BENCHES.map(benchText).filter((t): t is string => t !== null)),
     ];
-    // (cells v0.24.0's seven the drummer holds, yggi/cells#675 and #679, and v0.25.0's two, yggi/cells#707)
+    // (cells v0.24.0's seven the drummer holds, yggi/cells#675 and #679, v0.25.0's two, yggi/cells#707, and v0.29.0's
+    // breathing drums, yggi/cells#799)
     const added = ['ride_shuffle', 'shanty_drums', 'chip_drums', 'quiet_pulse'].concat([
       'waltz_drums',
       'march_drums',
       'trip_hop_drums',
       'aksak_drums',
       'twelve_eight_drums',
+      'breathing_drums',
     ]);
     let pairs = 0;
     let before = 0;
@@ -316,8 +319,9 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
         }
       }
     // (1,632 over the 22 rhythms held at cells v0.23.0, as there; with cells v0.24.0's seven, 2,322; with v0.25.0's two, 2,436;
-    // and on the four benches of 2/4 and 2/2 the band plays since #652, on top of v0.25.0's, 2,088 and 3,108)
-    expect([before, pairs]).toEqual([2088, 3108]);
+    // and on the four benches of 2/4 and 2/2 the band plays since #652, on top of v0.25.0's, 2,088 and 3,108; the breathing
+    // drums add 96)
+    expect([before, pairs]).toEqual([2088, 3204]);
   });
 });
 
@@ -380,7 +384,7 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
       ['Deep house', 0.8, 1.52, 10.81, 0],
       ['Ambient', 0.84, 0.31, 1.7, 0],
       ['Lo-fi hip hop', 0.67, 2.36, 8.38, 0],
-      ['Funk', 0.65, 5.38, 24.55, 2.5],
+      ['Funk', 0.65, 5.25, 24.55, 2.5],
       ['Bossa nova', 0.64, 3.31, 14.08, 5],
       ['Swing jazz', 0.78, 1.44, 12.66, 0],
     ]);

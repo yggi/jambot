@@ -36,7 +36,6 @@ import {
   type LearnedLayer,
   createRepository,
   layerProblems,
-  migrateLayer,
   useFragments,
 } from '@yggi/cells/repository';
 import { METER_FRAGMENTS, BASS_FRAGMENTS, HARMONY_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
@@ -195,13 +194,12 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
  * refuses.
  */
 /**
- * A learned layer as a band reads it on load, whenever it was kept: cells' `migrateLayer`, which writes a layer of any
- * version a frontend has kept as the language writes it now (its seed ids as words, its lines signed, its points on the
- * axes now, its grooves' roles as values, the motifs cells v0.25.0 moved by their ids now), after the lead lines lose
- * the voice and card they carried before #580 (`leadsAlone`), which is Jambot's own. A layer kept now is the layer
- * itself.
+ * A learned layer as a band reads it on load: its lead lines lose the voice and card they carried before #580
+ * (`leadsAlone`, Jambot's own). Cells reads no retired form before its 1.0.0 (yggi/cells#643), so nothing else is
+ * rewritten: a layer kept in an older form loads as it was kept, and a text in it that takes an id cells refuses now
+ * answers no query, so the band plays its own line there. A layer kept now is the layer itself.
  */
-export const keptLayer = (layer: LearnedLayer): LearnedLayer => migrateLayer(leadsAlone(layer));
+export const keptLayer = (layer: LearnedLayer): LearnedLayer => leadsAlone(layer);
 
 export function repositoryLayerProblems(layer: unknown): string[] {
   if (typeof layer !== 'object' || layer === null || Array.isArray(layer))

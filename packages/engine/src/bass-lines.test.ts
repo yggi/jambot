@@ -3,7 +3,6 @@ import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import { PITCHED_OPERATORS, variations } from '@yggi/cells/edit';
 import { INSTRUMENT_FRAGMENTS, BASS_FRAGMENTS } from './library.ts';
-import { bodyOf } from '@yggi/cells/repository';
 import { describe, expect, it } from 'vitest';
 import {
   BASS_REPOSITORY,
@@ -16,7 +15,7 @@ import {
 } from './bass-lines.ts';
 import { type LineNote, type LineRead, lineTone } from './bass-query.ts';
 import type { BarChord } from './chords.ts';
-import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
+import { EMPTY_LAYER } from './layer.ts';
 import { type Key, keyHelix } from './key.ts';
 import { takenOn } from './taken.ts';
 import { keptLayer } from './repository.ts';
@@ -234,23 +233,8 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
     expect([seed.held, seed.id, seed.layer.filed.length]).toEqual([true, 'root_bass', 0]);
     const again = lineRepository().file!(filed.layer, { ...filing, created: 'song 1, bar 16' });
     expect([again.held, again.id, again.layer.filed.length]).toEqual([true, filed.id, 1]);
-    // A line filed before cells v0.21.0, with no signature, is known as the one heard once a kept layer signs it (#562).
-    const file = filed.layer.filed[0]!;
-    const before: LearnedLayer = {
-      ...filed.layer,
-      filed: [{ ...file, fragment: { ...file.fragment, text: bodyOf(file.fragment.text) } }],
-    };
-    expect(lineRepository().file!(before, { ...filing, created: 'song 2' }).held).toBe(false);
-    const signed = keptLayer(before);
-    expect(signed.filed[0]!.fragment.text).toBe(file.fragment.text);
-    expect(lineRepository().file!(signed, { ...filing, created: 'song 2' })).toMatchObject({
-      id: filed.id,
-      held: true,
-    });
-    // (a layer with nothing left to sign is the same layer: this one's point is on the axes before cells v0.23.0, so
-    // once read as now)
-    const once = keptLayer(filed.layer);
-    expect(keptLayer(once)).toBe(once);
+    // (a kept layer is the layer itself: cells signs no line filed before cells v0.21.0 now, yggi/cells#643)
+    expect(keptLayer(filed.layer)).toBe(filed.layer);
   });
 
   it('reads nothing but from its cache once warmed on every bench, its variations too', () => {

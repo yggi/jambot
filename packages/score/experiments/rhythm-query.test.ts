@@ -38,7 +38,8 @@ const STRAIGHT = { level: '16n', share: 0.5 } as const;
  * E31's reverse, read against the bar each preset's drum fragment was taken from: its bar 23 at seed 0, the last of its
  * third section (`e31Readback` reads E31's witness, the first bar with the most roles, which was that bar before #655's
  * song forms and is since Ambient's bar 9 and Bossa nova's bar 31). Per preset, the hits, how many match (note, step,
- * length, velocity and role), and the mismatches.
+ * length, velocity and role), how many match but for a euclid's velocity (`accented`: since cells v0.29.0 three seeds
+ * take their euclid's levels from `metric_accent`, yggi/cells#890), and the mismatches.
  */
 function seedReadback(
   bench: (preset: string, bpm: number) => { text: string; meter: Meter; swing: MeterSwing } = (
@@ -56,16 +57,25 @@ function seedReadback(
     const key = (h: { note: number; step: number }) => `${h.step}:${h.note}`;
     const byKey = new Map(read.map((h) => [key(h), h]));
     const band = hitsOf(bar);
-    const matched = band.filter((h) => {
+    const matches = (h: Hit, accent: boolean) => {
       const r = byKey.get(key(h));
-      return r && r.length === h.length && r.velocity === h.velocity && r.role === roleOf(h);
-    }).length;
+      return (
+        !!r &&
+        r.length === h.length &&
+        (r.velocity === h.velocity || (accent && roleOf(h) === 'euclid')) &&
+        r.role === roleOf(h)
+      );
+    };
+    const matched = band.filter((h) => matches(h, false)).length;
+    const accented = band.filter((h) => matches(h, true)).length;
     const extra = read.filter((r) => !band.some((h) => key(h) === key(r))).length;
     return {
       preset: preset.name,
       hits: band.length,
       matched,
+      accented,
       exact: matched === band.length && !extra,
+      exactButAccent: accented === band.length && !extra,
     };
   });
 }
@@ -77,13 +87,21 @@ function seedReadback(
  */
 const SEED_HELD = ['Deep house', 'Lo-fi hip hop', 'Funk', 'Bossa nova', 'Swing jazz'];
 
+/** The presets whose seed drums take their euclid's levels from `metric_accent` since cells v0.29.0 (yggi/cells#890). */
+const ACCENTED = ['Lo-fi hip hop', 'Funk', 'Bossa nova'];
+
 describe('a fragment read back into the band’s drums, E31’s reverse (E36)', () => {
-  it('reads every drum bar as the band’s bar it was taken from under a straight 4/4 at its bpm, where the band still plays it: note, step, length, velocity and role, 5 presets of 8, 86 of 86', () => {
+  it('reads every drum bar as the band’s bar it was taken from under a straight 4/4 at its bpm, where the band still plays it: note, step, length, velocity and role, 5 presets of 8, 86 of 86, but the euclid’s velocities of the 3 whose seed is accented', () => {
     const read = seedReadback();
-    // (all 8 presets, 144 of 144, before #655's song forms)
-    expect(read.filter((r) => r.exact).map((r) => r.preset)).toEqual(SEED_HELD);
+    // (all 8 presets, 144 of 144, before #655's song forms; since cells v0.29.0 the three accented ones but their euclid's
+    // velocities, 70 of 86 exactly)
+    expect(read.filter((r) => r.exactButAccent).map((r) => r.preset)).toEqual(SEED_HELD);
+    expect(read.filter((r) => r.exact).map((r) => r.preset)).toEqual(
+      SEED_HELD.filter((p) => !ACCENTED.includes(p)),
+    );
     const held = read.filter((r) => SEED_HELD.includes(r.preset));
-    expect(held.reduce((n, r) => n + r.matched, 0)).toBe(86);
+    expect(held.reduce((n, r) => n + r.accented, 0)).toBe(86);
+    expect(held.reduce((n, r) => n + r.matched, 0)).toBe(70);
     expect(held.reduce((n, r) => n + r.hits, 0)).toBe(86);
   });
 
@@ -95,8 +113,8 @@ describe('a fragment read back into the band’s drums, E31’s reverse (E36)', 
       const bar = first.get(preset)!.bars[0]!;
       return { text: workbenchOf(bar), meter: bar.meter, swing: bar.swing };
     }).filter((r) => SEED_HELD.includes(r.preset));
-    expect(read.reduce((n, r) => n + r.matched, 0)).toBe(86); // (144 of 144 before #655's song forms)
-    expect(read.filter((r) => !r.exact)).toEqual([]);
+    expect(read.reduce((n, r) => n + r.accented, 0)).toBe(86); // (144 of 144 before #655's song forms)
+    expect(read.filter((r) => !r.exactButAccent)).toEqual([]);
   });
 
   it('finds what it checks: a hit moved, dropped, struck at another level, or put on another line, is a mismatch', () => {
@@ -339,7 +357,7 @@ describe('the fragment beside the drummer (E36)', () => {
   // (at every preset before #655's song forms; since, Techno's and Funk's `groove` keeps 0.740 and 0.491 of the drummer's
   // hits where another seed keeps 0.742 and 0.491, a tie within 0.002 the seed wins: the drummer at another seed agrees
   // with itself more than before, 0.74 and 0.49 where it was 0.64 and 0.41)
-  it('as `groove`, moves fewer of the drummer’s hits than a seed does at 6 presets of 8, ties within 0.002 at Techno and Funk, and makes its seeds agree more at every preset', () => {
+  it('as `groove`, moves fewer of the drummer’s hits than a seed does at 7 presets of 8, ties within 0.002 at Techno, and makes its seeds agree more at every preset', () => {
     expect(
       COMPARED.map((c) => [
         c.preset,
@@ -354,13 +372,14 @@ describe('the fragment beside the drummer (E36)', () => {
       ['Ambient', 0.83, 0.38, 0.72], // (0.82, 0.68, 0.72)
       // (Lo-fi hip hop's and Funk's rims swing as the drummer's do since the parts of a step swing, cells#306)
       ['Lo-fi hip hop', 0.62, 2.32, 0.59], // (0.68, 2.63, 0.5)
-      ['Funk', 0.49, 6.57, 0.77], // (0.53, 6.09, 0.75)
+      ['Funk', 0.49, 6.53, 0.77], // (0.53, 6.09, 0.75; 6.57 before cells v0.29.0's accent, yggi/cells#890)
       ['Bossa nova', 0.57, 3.92, 0.6], // (0.6, 4.05, 0.54)
       ['Swing jazz', 0.72, 2.07, 0.65], // (0.77, 1.78, 0.6)
     ]);
     expect(
       COMPARED.filter((c) => c.entries.groove.overlap <= c.selfOverlap).map((c) => c.preset),
-    ).toEqual(['Techno', 'Funk']);
+      // (and Funk before cells v0.29.0's accent, yggi/cells#890)
+    ).toEqual(['Techno']);
     for (const c of COMPARED) {
       expect(c.selfOverlap - c.entries.groove.overlap, c.preset).toBeLessThan(0.002);
       expect(c.entries.groove.self, c.preset).toBeGreaterThan(c.selfOverlap);

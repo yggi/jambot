@@ -87,28 +87,32 @@ describe('the share of bars recognised over 8 bars, over the 8 presets at entrop
   // until cells v0.25.0 six of the eight presets' harmonies were the tables', which no seed states, and 60 % of sections
   // or more sat under 0.4, 0.309 (0.185) held and 0.291 walked, 0.391 and 0.34 inside: since v0.25.0 each plays a
   // harmony of cells', yggi/cells#540, heard as the seed it is, 0.63 held)
-  it('sits at the ruled band’s lower edge over all members, held and walked: its mean just over 0.4, about half its sections under it (#655)', () => {
+  it('sits in the ruled band’s lower part over all members, held and walked: its mean within 0.05 over 0.4, 35 % to 45 % of its sections under it (#655, yggi/cells#890)', () => {
     // (just under the band before #655's song forms, its mean under 0.4, 0.398 held and 0.385 walked: a song's sections
-    // repeat more, a chorus returning within it, and the share recognised rises over its edge)
+    // repeat more, a chorus returning within it, and the share recognised rises over its edge; at its edge, within 0.03
+    // over 0.4 and 45 % to 50 % of its sections under it, before cells v0.29.0, where the drums are recognised more)
     // (sections, mean, spread, share inside the band, share pinned at 0 or 1)
     // (0.398, 0.162 and 0.023 held, 0.385, 0.167, 0.518 and 0.041 walked, before #655's song forms)
-    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.421, 0.168, 0.523, 0.008]);
+    // (0.421, 0.168, 0.523 and 0.008 held, and 0.404, 0.164, 0.502 and 0.016 walked, before cells v0.29.0, whose breathing
+    // drums the drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799 and #890)
+    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.449, 0.176, 0.586, 0]);
     // (0.376, 0.17, 0.496 and 0.047 walked before the walk rule retired on top of cells v0.25.1, #650: the bass is
     // recognised more)
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.404, 0.164, 0.502, 0.016]);
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.432, 0.166, 0.551, 0.006]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeGreaterThan(BAND.low);
-      expect(all.mean).toBeLessThan(BAND.low + 0.03);
-      expect(all.below).toBeGreaterThanOrEqual(0.45);
-      expect(all.below).toBeLessThan(0.5);
+      expect(all.mean).toBeLessThan(BAND.low + 0.05);
+      expect(all.below).toBeGreaterThanOrEqual(0.35);
+      expect(all.below).toBeLessThan(0.45);
     }
   });
 
-  it('recognises over half the lead’s bars, cells’ motifs and their variations (#520), and nearly none of the drums', () => {
+  // (the drums' under 0.02 before cells v0.29.0; 0.089 held and 0.094 walked since)
+  it('recognises over half the lead’s bars, cells’ motifs and their variations (#520), and under a tenth of the drums’', () => {
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       expect(against(runs, 'lead').mean).toBeGreaterThan(0.5);
-      expect(against(runs, 'rhythm').mean).toBeLessThan(0.02);
+      expect(against(runs, 'rhythm').mean).toBeLessThan(0.1);
     }
   });
 
@@ -136,13 +140,13 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
   });
 
   // (0.309, 0.346, 0.448 and 0.6 before cells v0.25.0, 63 % inside at 4 notes; 0.398, 0.439, 0.528 and 0.652, 48 %
-  // inside, before #655's song forms)
-  it('rises with the tolerance, past the band’s middle at 4 notes, 44 % of sections inside it and the rest above, over all members (held at 0.3)', () => {
+  // inside, before #655's song forms; 0.421, 0.453, 0.544 and 0.693, 44 % inside, before cells v0.29.0)
+  it('rises with the tolerance, past the band’s middle at 4 notes, 42 % of sections inside it and the rest above, over all members (held at 0.3)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.421, 0.453, 0.544, 0.693]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.693, 0.148, 0.438, 0.023]);
+    expect(means).toEqual([0.449, 0.495, 0.567, 0.702]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.702, 0.153, 0.422, 0.047]);
   });
 });
 

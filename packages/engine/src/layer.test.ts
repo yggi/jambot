@@ -111,9 +111,10 @@ describe('the band given an empty learned layer plays exactly what main plays (#
 
 /**
  * Main's events with cells' rhythms and an empty layer, each preset held and swung as it is, as recorded on `main` at 45b6b80 before a seed rhythm climbed the ladder (#414),
- * then under cells v0.7.0, where a clave strikes its own sound, 75, and not the rim's 37 (yggi/cells#140): every stroke at its time, 178 and 146 more where a rim shares its step, and its feel drawn on its own note (velocities within 4, lengths within 5 ms).
+ * then under cells v0.7.0, where a clave strikes its own sound, 75, and not the rim's 37 (yggi/cells#140): every stroke at its time, 178 and 146 more where a rim shares its step, and its feel drawn on its own note (velocities within 4, lengths within 5 ms);
+ * then under cells v0.29.0, where the funk, lo-fi and bossa drums take their euclid's levels from `metric_accent` (yggi/cells#890, the owner accepted it): every stroke at its time, the levels of those three drum bars' euclid lines moved.
  */
-const MAIN_RHYTHMS = { still: [13891, '39e61132'], bored: [14042, '402a007b'] } as const;
+const MAIN_RHYTHMS = { still: [13891, 'a4e5cd39'], bored: [14042, '07a4cc45'] } as const;
 
 describe('a seed rhythm climbs the ladder only where the entropy bores the composer (#414)', () => {
   const rhythms = { rhythms: RHYTHM_REPOSITORY, layer: EMPTY_LAYER };
