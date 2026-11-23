@@ -17,7 +17,6 @@
  * a client as a host's.
  */
 
-import type { PlanCarried } from '@jambot/engine';
 import type { Outline, OutlinePart } from '@jambot/score';
 import type { FragmentRow, Workbench } from './fragmentsView.ts';
 
@@ -49,43 +48,6 @@ export function cameOf(row: FragmentRow): Came {
   return { row, how, who: seed ? null : row.source, colour: row.colour };
 }
 
-/** The written parts a derivation names, by the Playing tree's label of each. */
-export const DERIVED_PARTS = ['drums', 'bass', 'lead', 'harm'] as const;
-
-/**
- * What a section's written parts were derived from, as this page knows (#730): each part's fragment by id, null where
- * the band found none and wrote its own, absent where the page doesn't know. The drums' is the section's rhythm
- * (`BarView.fragments.rhythm`), on every page; the bass's, the lead's and the harmony's are the band's carried plans
- * (`derivationOf`), a host's and solo's only.
- */
-export interface SectionDerivation {
-  /** The section's index, counted as `Plan.section.index`. */
-  readonly section: number;
-  readonly drums?: string | null;
-  readonly bass?: string | null;
-  readonly lead?: string | null;
-  readonly harm?: string | null;
-}
-
-/**
- * What the section the band's carried plans last planned derives its parts from: its rhythm, its bass line, its lead
- * line, and its progression, a build's as a returning theme's (`PlanCarried.progressionFragment`, #735). Null before a
- * section is planned.
- */
-export function derivationOf(
-  plans: Pick<PlanCarried, 'before' | 'bassFragment' | 'leadFragment' | 'progressionFragment'>,
-): SectionDerivation | null {
-  const { before } = plans;
-  if (!before) return null;
-  return {
-    section: before.section.index,
-    drums: before.rhythmFragment ?? null,
-    bass: plans.bassFragment,
-    lead: plans.leadFragment,
-    harm: plans.progressionFragment,
-  };
-}
-
 /** What a written row was derived from (#730). */
 export interface Derived {
   /** The fragment, by id; null where the band found none and the part is its own. */
@@ -99,12 +61,27 @@ export interface Derived {
 /** Why the drums are written out from their rhythm fragment (#656). */
 export const DRUMS_THINNED = 'the drummer thins the fragment to its own count';
 
+/**
+ * Why the band writes its own lines over a part it took from a fragment (#731), by the Playing tree's label of the part:
+ * what the band changes in each (#656, #624 rung 6).
+ */
+export const WHY_WRITTEN: Readonly<Record<string, string>> = {
+  drums: DRUMS_THINNED,
+  bass: 'the bass sets its own count and register',
+  lead: 'the lead plays it as its phrase’s shape',
+  harm: 'the band colours its chords',
+};
+
 /** What the page knows besides the score, which the Playing tree joins to its rows (#730). */
 export interface Known {
   /** The Library's rows (`fragmentRows`), by key: a fragment's is its id. */
   readonly library?: ReadonlyMap<string, FragmentRow>;
-  /** What the section shown derives its written parts from. */
-  readonly derived?: SectionDerivation | null;
+  /**
+   * The drum bar the section heard plays from (`BarView.fragments.rhythm`), null where the drummer wrote its own: what
+   * the drums are derived from where the score writes them out with no `from` line (a variation the composer filed,
+   * which the seed library lacks).
+   */
+  readonly rhythm?: string | null;
 }
 
 /** Which way the tree runs: each part under what it is taken on, or under what plays it. */
@@ -189,6 +166,14 @@ export function playingRows(
         if (!readers.get(q.key)!.includes(p.key) && !p.reads.includes(q.key))
           readers.get(q.key)!.push(p.key);
   }
+  // (a take the score's own lines override, `* from funk_bass &harm` under the band's `&bassline`, feeds the lines that
+  // override it: it folds into their row, which is derived from it, #731)
+  const overridden = (p: OutlinePart) =>
+    p.id !== null && p.within === null && !inBand(p) && p.overrode.length > 0;
+  for (const p of parts.filter(overridden))
+    for (const q of parts)
+      if (q.id === null && !inBand(q) && q.heads.some((h) => p.overrode.includes(h)))
+        readers.get(p.key)!.push(q.key);
 
   // The rows: each band argument's line, each fragment taken outside the band, then each written line read by more
   // than one row; every other written line folds into the one row it feeds.
@@ -215,7 +200,7 @@ export function playingRows(
     } else add({ key: `part ${label}`, label, id: null, args: null, parts: [owner], band: false });
   }
   for (const p of parts)
-    if (p.id !== null && p.within === null && !inBand(p) && !rowOf.has(p.key))
+    if (p.id !== null && p.within === null && !inBand(p) && !rowOf.has(p.key) && !overridden(p))
       add({
         key: p.key,
         label: bare(p.heads[0] ?? p.id),
@@ -249,7 +234,7 @@ export function playingRows(
   for (let settled = false; !settled;) {
     settled = true;
     for (const p of parts) {
-      if (rowOf.has(p.key) || inBand(p) || p.id !== null) continue;
+      if (rowOf.has(p.key) || inBand(p) || (p.id !== null && !overridden(p))) continue;
       const fed = feeds(p.key);
       if (fed.size === 1) {
         const [row] = fed;
@@ -267,6 +252,23 @@ export function playingRows(
         });
         settled = false;
       }
+    }
+  }
+  // (a take whose overriding lines found no row is a row of its own, and what it takes in turn is that row's)
+  for (const p of parts.filter((x) => overridden(x) && !rowOf.has(x.key)))
+    add({
+      key: p.key,
+      label: bare(p.overrode[0]!),
+      id: p.id,
+      args: p.args,
+      parts: [p],
+      band: false,
+    });
+  for (const p of parts) {
+    const outer = p.within === null || inBand(p) ? undefined : rowOf.get(p.within);
+    if (outer && !rowOf.has(p.key)) {
+      outer.parts.push(p);
+      rowOf.set(p.key, outer);
     }
   }
   if (projection === 'outputs' && band)
@@ -350,13 +352,15 @@ export function playingRows(
     const row = id === null ? undefined : known.library?.get(id);
     return row ? cameOf(row) : null;
   };
-  // (a written part of the band's, by its label, derived from what the page knows; the band's own rows are none)
+  // (a written part of the band's, derived from the take its lines override in the score, #731; the drums, where the
+  // score writes them out with none, from the rhythm the page knows; the band's own rows are none)
   const derivedOf = (row: Row): Derived | null => {
     if (row.id !== null || row.band) return null;
-    const part = DERIVED_PARTS.find((p) => p === row.label);
-    const id = part === undefined ? undefined : known.derived?.[part];
-    if (id === undefined) return null;
-    return { id, came: cameOfId(id), why: part === 'drums' && id !== null ? DRUMS_THINNED : null };
+    const take = row.parts.find(overridden);
+    if (take) return { id: take.id, came: cameOfId(take.id), why: WHY_WRITTEN[row.label] ?? null };
+    if (row.label !== 'drums' || known.rhythm === undefined) return null;
+    const id = known.rhythm;
+    return { id, came: cameOfId(id), why: id === null ? null : DRUMS_THINNED };
   };
   const out: PlayingRow[] = [];
   const visit = (row: Row, d: number) => {

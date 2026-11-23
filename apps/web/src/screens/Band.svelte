@@ -269,7 +269,6 @@
       workbench={following ? null : player.workbench}
       score={player.heardScore}
       next={player.nextScore}
-      derivations={following ? [] : player.derivations}
     />
   {/if}
 {/snippet}

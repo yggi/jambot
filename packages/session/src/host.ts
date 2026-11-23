@@ -24,9 +24,11 @@ import type { SentBar, WrittenBar } from './protocol.ts';
 
 /** A bar as the band played it, as it was written. */
 export function writtenBar(played: BandBar): WrittenBar {
-  const { dough, meter, ...bar } = played;
+  // (the fragments a section took travel in its score, never on a bar: protocol 14 has no field for them, #731)
+  const { dough, meter, derivedFrom, ...bar } = played;
   void dough;
   void meter;
+  void derivedFrom;
   return bar;
 }
 

@@ -18,11 +18,10 @@ import { describe, expect, it } from 'vitest';
 import { type FragmentRow, type TakenSection, fragmentRows, logged } from './fragmentsView.ts';
 import {
   type PlayingRow,
-  type SectionDerivation,
+  WHY_WRITTEN,
   cameLine,
   cameOf,
   cameOfRow,
-  derivationOf,
   fragmentLine,
   playingRows,
   playingSummary,
@@ -73,10 +72,12 @@ describe('the Playing tree (#642)', () => {
       'bar meter',
       '  drums -',
       '    clave rumba_clave_3_2',
-      '  pad -',
+      // (the lead's row starts at the motif it takes, `* from riff &key`, before the pad's line)
       '  lead -',
+      '  pad -',
       'key diatonic',
-      '  harm -',
+      // (the progression the band plays whole, taken by its `from` line: #731)
+      '  harm vamp_to_the_seventh',
       '    bass -',
       '    stab -',
       'funk styles',
@@ -113,7 +114,7 @@ describe('the Playing tree (#642)', () => {
       '  bass bass',
       '    bass_performer bass_performer',
       '      bass -',
-      '        harm -',
+      '        harm vamp_to_the_seventh',
       '          bar meter',
       '          key diatonic',
     ]);
@@ -131,7 +132,7 @@ describe('the Playing tree (#642)', () => {
   it('sums up, folded, how many parts play and how many of them are fragments', () => {
     expect(playingSummary(playingRows(funk.text, funk.outline, 'ground'))).toEqual({
       main: '12 parts playing',
-      sub: '4 from fragments · 8 written',
+      sub: '5 from fragments · 7 written',
     });
     expect(playingSummary(playingRows(funk.text, funk.outline, 'ground').slice(0, 1)).main).toBe(
       '1 part playing',
@@ -158,14 +159,13 @@ describe('the Playing tree (#642)', () => {
 
 /**
  * A preset's first `sections` sections as a band alone plays them, seed 1, with a learned layer: each section's score,
- * what the page logs off the band's carried plans for it (`derivationOf`), the Library's rows as of it, and the
- * fragments its bars name (`BarView.fragments`).
+ * what its bars took (`BandBar.derivedFrom`, which the score writes as `from` lines), the Library's rows as of it, and
+ * the fragments its bars name (`BarView.fragments`).
  */
 function solo(name: string, sections: number) {
   const preset = PRESETS.find((p) => p.name === name)!;
   let carried: BandCarried = band.initial;
   const bars: BandBar[] = [];
-  const derived = new Map<number, SectionDerivation>();
   const out = [];
   let log: readonly TakenSection[] = [];
   for (let bar = 0; bar < sections * SECTION_BARS; bar++) {
@@ -189,8 +189,6 @@ function solo(name: string, sections: number) {
     );
     carried = made.carried;
     bars.push(made.output);
-    const d = derivationOf(carried.plans);
-    if (d) derived.set(d.section, d);
     if (bar % SECTION_BARS === SECTION_BARS - 1) {
       const section = bars.slice(-SECTION_BARS);
       const { plan } = section[0]!;
@@ -214,7 +212,7 @@ function solo(name: string, sections: number) {
         text,
         outline: sectionOutline(compileSection(text)),
         fragments,
-        derived: derived.get(plan.section.index)!,
+        derivedFrom: section[0]!.derivedFrom!,
         library: new Map(library.map((r) => [r.key, r])),
         workbench,
       });
@@ -283,31 +281,43 @@ describe('the Playing tree joined to the Library (#730)', () => {
     );
   });
 
-  it('reads what a section’s written parts came from off the band’s carried plans', () => {
+  it('reads what a section’s written parts came from off its score: the take each part’s lines override (#731)', () => {
     const [first] = solo('Funk', 1);
-    expect(first!.derived.section).toBe(0);
-    for (const part of ['drums', 'bass', 'lead', 'harm'] as const)
-      expect(first!.derived[part], part).not.toBeUndefined();
-    // (before the first section is planned, nothing)
-    expect(derivationOf(band.initial.plans)).toBeNull();
+    const rows = playingRows(first!.text, first!.outline, 'ground');
+    const row = (label: string) => rows.find((r) => r.label === label)!;
+    expect(row('drums').derived).toMatchObject({
+      id: first!.fragments.rhythm,
+      why: WHY_WRITTEN.drums,
+    });
+    expect(row('bass').derived).toMatchObject({
+      id: first!.derivedFrom.bass,
+      why: WHY_WRITTEN.bass,
+    });
+    expect(row('lead').derived).toMatchObject({
+      id: first!.derivedFrom.lead,
+      why: WHY_WRITTEN.lead,
+    });
+    // (a progression the band plays whole is taken whole: its row is the fragment's, derived from nothing)
+    expect(row('harm')).toMatchObject({ id: first!.derivedFrom.harmony, derived: null });
+    // (each take is in the row of the lines that override it, its line among the row's)
+    const lines = first!.text.split('\n');
+    expect(row('bass').lines.map((n) => lines[n - 1])).toContain(
+      `* from ${first!.derivedFrom.bass} &harm`,
+    );
   });
 
   it.each([
     ['Techno', 'tonic_vamp'],
     ['Acid', null],
   ])(
-    'says what a build’s harmony came from at %s’s third section, seed 1: %s, or the band’s own (#735)',
+    'says what a build’s harmony came from at %s’s third section, seed 1: %s, or nothing where the tables wrote it (#735)',
     (name, id) => {
       const s = solo(name, 3)[2]!;
       expect(s.kind).toBe('build');
-      expect(s.derived.harm).toBe(id);
-      const rows = playingRows(s.text, s.outline, 'ground', s.workbench, {
-        library: s.library,
-        derived: s.derived,
-      });
+      expect(s.derivedFrom.harmony).toBe(id);
+      const rows = playingRows(s.text, s.outline, 'ground', s.workbench, { library: s.library });
       const harm = rows.find((r) => r.label === 'harm')!;
-      expect(harm.id).toBeNull();
-      expect(harm.derived?.id).toBe(id);
+      expect(harm.id ?? harm.derived?.id ?? null).toBe(id);
     },
   );
 
@@ -317,7 +327,7 @@ describe('the Playing tree joined to the Library (#730)', () => {
       const s = sections[i]!;
       return playingRows(s.text, s.outline, 'ground', s.workbench, {
         library: s.library,
-        derived: { ...s.derived, drums: s.fragments.rhythm },
+        rhythm: s.fragments.rhythm,
       });
     };
 
@@ -345,32 +355,34 @@ describe('the Playing tree joined to the Library (#730)', () => {
     );
 
     it.each([0, 1])(
-      'in section %i, the drums name their rhythm, and the bass, lead and harmony theirs or the band’s own',
+      'in section %i, the drums, the bass, the lead and the harmony each name the fragment the score takes them from',
       (i) => {
         const s = sections[i]!;
         const rows = rowsOf(i);
         const row = (label: string) => rows.find((r) => r.label === label)!;
         const drums = row('drums');
         expect(drums.id).toBeNull();
-        expect(drums.derived).not.toBeNull();
         expect(drums.derived!.id).toBe(s.fragments.rhythm);
         expect(drums.derived!.why).toMatch(/thins/);
         // (every one of these sections finds a rhythm, which the Library logs as retrieved)
         expect(drums.derived!.came?.row.retrieved).toBe(true);
-        for (const label of ['bass', 'lead', 'harm'] as const) {
+        for (const [label, part] of [
+          ['bass', 'bass'],
+          ['lead', 'lead'],
+          ['harm', 'harmony'],
+        ] as const) {
           const r = row(label);
           expect(r, label).toBeDefined();
-          expect(r.id, label).toBeNull();
-          expect(r.derived, label).not.toBeNull();
-          expect(r.derived!.id, label).toBe(s.derived[label]);
-          if (r.derived!.id !== null && s.library.has(r.derived!.id))
-            expect(r.derived!.came, label).not.toBeNull();
+          // (taken whole, the row is the fragment's; with the band's own lines over it, they are derived from it)
+          expect(r.id ?? r.derived?.id ?? null, label).toBe(s.derivedFrom[part]);
+          const id = r.derived?.id;
+          if (id && s.library.has(id)) expect(r.derived!.came, label).not.toBeNull();
         }
       },
     );
   });
 
-  it('on a client, names the drums’ rhythm off its bar and derives nothing else', () => {
+  it('on a client, derives every written part as the host does, off the score alone', () => {
     const [s] = solo('Funk', 1);
     // (a client keeps no layer and no workbench, and has no carried plans: its Library is its log of sections heard)
     const library = fragmentRows({
@@ -379,14 +391,34 @@ describe('the Playing tree joined to the Library (#730)', () => {
       memory: [],
       players: {},
     });
-    const rows = playingRows(s!.text, s!.outline, 'ground', null, {
+    const client = playingRows(s!.text, s!.outline, 'ground', null, {
       library: new Map(library.map((r) => [r.key, r])),
-      derived: { section: 0, drums: s!.fragments.rhythm },
+      rhythm: s!.fragments.rhythm,
     });
-    const row = (label: string) => rows.find((r) => r.label === label)!;
-    expect(row('drums').derived?.id).toBe(s!.fragments.rhythm);
-    for (const label of ['bass', 'lead', 'harm']) expect(row(label).derived, label).toBeNull();
-    expect(row('clave').came?.how).toBe('a seed');
+    const host = playingRows(s!.text, s!.outline, 'ground', s!.workbench, {
+      library: s!.library,
+      rhythm: s!.fragments.rhythm,
+    });
+    const derivations = (rows: readonly PlayingRow[]) =>
+      rows.map((r) => [r.label, r.id, r.derived?.id, r.derived?.why]);
+    expect(derivations(client)).toEqual(derivations(host));
+    for (const label of ['bass', 'lead', 'drums'])
+      expect(client.find((r) => r.label === label)!.derived?.id, label).toBeTruthy();
+    expect(client.find((r) => r.label === 'clave')!.came?.how).toBe('a seed');
+  });
+
+  it('derives the drums the score writes out from the rhythm their bar names, or as the band’s own', () => {
+    const [s] = solo('Funk', 1);
+    const text = s!.text.replace(/^\* from \S+\n/m, '');
+    expect(text).not.toBe(s!.text);
+    const outline = sectionOutline(compileSection(text));
+    const drums = (rhythm?: string | null) =>
+      playingRows(text, outline, 'ground', null, rhythm === undefined ? {} : { rhythm }).find(
+        (r) => r.label === 'drums',
+      )!.derived;
+    expect(drums('funk_drums~2')).toMatchObject({ id: 'funk_drums~2', why: WHY_WRITTEN.drums });
+    expect(drums(null)).toMatchObject({ id: null, why: null });
+    expect(drums()).toBeNull();
   });
 
   it('says a row’s fragment, what a written one came from, and how either came, on its line', () => {
@@ -421,11 +453,13 @@ describe('the Playing tree joined to the Library (#730)', () => {
     expect(cameLine(found)).toBe('found · The bass');
   });
 
-  it('derives nothing where it is given nothing, as before', () => {
+  it('joins nothing where it is given nothing: what a written part came from is the score’s, how it came the Library’s', () => {
     const [s] = solo('Funk', 1);
-    for (const row of playingRows(s!.text, s!.outline, 'ground')) {
+    const rows = playingRows(s!.text, s!.outline, 'ground');
+    for (const row of rows) {
       expect(row.came).toBeNull();
-      expect(row.derived).toBeNull();
+      expect(row.derived?.came ?? null).toBeNull();
     }
+    expect(rows.find((r) => r.label === 'bass')!.derived?.id).toBe(s!.derivedFrom.bass);
   });
 });

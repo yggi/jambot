@@ -31,6 +31,9 @@ describe('a bar as it travels', () => {
     const sent = writtenBar(played);
     expect(Object.keys(sent)).not.toContain('meter');
     expect(Object.keys(sent)).not.toContain('dough');
+    // (what the section took travels in its score, not on the bar: #731)
+    expect(Object.keys(played)).toContain('derivedFrom');
+    expect(Object.keys(sent)).not.toContain('derivedFrom');
     expect(Object.keys(JSON.parse(JSON.stringify(sent)) as object)).not.toContain('meter');
   });
 
@@ -38,6 +41,8 @@ describe('a bar as it travels', () => {
     const played = aBar();
     const { written, ...rest } = writtenBar(played);
     const followed = playBar({ ...rest, meter: rest.plan.meter }, written);
-    expect(followed).toEqual(played);
+    const { derivedFrom, ...heard } = played;
+    void derivedFrom;
+    expect(followed).toEqual(heard);
   });
 });
