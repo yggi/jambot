@@ -17,7 +17,7 @@
  * a client as a host's.
  */
 
-import { type PlanCarried, themeKind } from '@jambot/engine';
+import type { PlanCarried } from '@jambot/engine';
 import type { Outline, OutlinePart } from '@jambot/score';
 import type { FragmentRow, Workbench } from './fragmentsView.ts';
 
@@ -69,21 +69,20 @@ export interface SectionDerivation {
 
 /**
  * What the section the band's carried plans last planned derives its parts from: its rhythm, its bass line, its lead
- * line, and its harmony where its theme is one that returns (A or B), the only progression the plans carry; a build's
- * progression isn't carried, so it stays unknown. Null before a section is planned.
+ * line, and its progression, a build's as a returning theme's (`PlanCarried.progressionFragment`, #735). Null before a
+ * section is planned.
  */
 export function derivationOf(
-  plans: Pick<PlanCarried, 'before' | 'bassFragment' | 'leadFragment' | 'themeFragments'>,
+  plans: Pick<PlanCarried, 'before' | 'bassFragment' | 'leadFragment' | 'progressionFragment'>,
 ): SectionDerivation | null {
   const { before } = plans;
   if (!before) return null;
-  const kind = themeKind(before.section.type);
   return {
     section: before.section.index,
     drums: before.rhythmFragment ?? null,
     bass: plans.bassFragment,
     lead: plans.leadFragment,
-    ...(kind === 'build' ? {} : { harm: plans.themeFragments[kind] }),
+    harm: plans.progressionFragment,
   };
 }
 

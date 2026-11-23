@@ -45,7 +45,9 @@
  * built afresh. Where it builds one, the composer asks the repository for a
  * progression (#425, `sectionTheme`, the loop of `facet.ts` for the facet
  * `harmony`), A and B each with the other chosen; on a miss the mode's
- * tables write it (`buildTheme`). The Muse files the progressions players
+ * tables write it (`buildTheme`). The plans carry the progression each section
+ * plays by id, a build's too, or null where the tables wrote it
+ * (`PlanCarried.progressionFragment`, #735). The Muse files the progressions players
  * play a section after their own ends, once its last bars are heard
  * (`museFiledHarmonies`).
  */
@@ -257,6 +259,11 @@ export interface PlanCarried {
   readonly leadFragment: string | null;
   /** The progression each returning theme plays (#425, `harmony-query.ts`), by id; null where the tables wrote it. */
   readonly themeFragments: { readonly A: string | null; readonly B: string | null };
+  /**
+   * The progression the section before plays (#735), by id, carried as the bass line is: a build's, which doesn't
+   * return, as a returning theme's, which is its kind's in `themeFragments`; null where the tables wrote it.
+   */
+  readonly progressionFragment: string | null;
   /** The point the section before the one before was asked at, and its bench: where a progression heard in it is filed (#425); null before it. */
   readonly earlier: { readonly point: StylePoint; readonly bench: Bench } | null;
 }
@@ -750,6 +757,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     bassFragment: null,
     leadFragment: null,
     themeFragments: { A: null, B: null },
+    progressionFragment: null,
     earlier: null,
   },
   advance(
@@ -953,6 +961,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         leadFragment: leadKept ?? null,
         themeFragments:
           kind === 'build' ? songThemeFragments : { ...songThemeFragments, [kind]: built.fragment },
+        progressionFragment: built.fragment,
         // (a section's bench as JSON keeps it: no meter fragment where it has none)
         earlier:
           asked && before
