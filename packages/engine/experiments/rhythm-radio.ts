@@ -97,6 +97,7 @@ import { type SectionType, barEnergy } from '../src/form.ts';
 import { grooveBar } from '../src/groove.ts';
 import { EMPTY_LAYER, type LearnedLayer } from '../src/layer.ts';
 import { METER_REPOSITORY } from '../src/repository.ts';
+import { COMPOSER } from '../src/facet.ts';
 import { writtenStyle } from '../src/style.ts';
 
 export const HOURS = 1;
@@ -258,7 +259,9 @@ export function rhythmRun(
     ...(margins ? { margins } : {}),
     file(given, filing) {
       const filed = RHYTHM_REPOSITORY.file!(given, filing);
-      filings.push({ filing, id: filed.id, held: filed.held, section: planning + 1 });
+      // (the Muse files what she heard in the section before the one planned; the composer's variation is the planned one's)
+      const section = filing.source === COMPOSER ? planning : planning + 1;
+      filings.push({ filing, id: filed.id, held: filed.held, section });
       return filed;
     },
     used: (given, ids, point, alongside) =>

@@ -1851,7 +1851,7 @@ export class Player {
   }
 
   /** The song the section the plans planned last plays in, kept as each section is planned. */
-  #stationed(plans: Pick<PlanCarried, 'before' | 'song'>) {
+  #stationed(plans: Pick<PlanCarried, 'before' | 'song' | 'version'>) {
     const songs = songsAfter(this.songs, plans);
     if (songs !== this.songs) this.songs = songs;
   }

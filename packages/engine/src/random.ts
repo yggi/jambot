@@ -121,6 +121,8 @@ export const STREAMS = {
   restless: 34,
   /** Which song of the rotation the station plays next, at a song's end, per section (#547 rung 5, `rotation.ts`). */
   song: 35,
+  /** Whether a song played again is a mix, what a new mix changes, and which kept mix plays, per section (#547 rung 5 step 2, `rotation.ts`). */
+  mix: 36,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

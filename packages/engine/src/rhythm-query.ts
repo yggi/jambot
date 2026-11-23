@@ -176,24 +176,28 @@ export function composedRhythm(
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
   pull?: number,
+  taking?: string,
 ): SectionRhythm {
   const point = stylePoint(style);
   const { hold, layer: reach } = repository.margins ?? {
     hold: RHYTHM_HOLD,
     layer: LAYER_DISTANCE,
   };
-  // (only a drum bar within the distance can be the rhythm: a line of its own only layers on one, #428)
-  const rhythm = nearestFigure(
-    repository,
-    point,
-    bench,
-    playing?.rhythmFragment,
-    (read) => read === null || !isOwnLine(read),
-    layer,
-    chosen,
-    rejected,
-    pull,
-  );
+  // (only a drum bar within the distance can be the rhythm: a line of its own only layers on one, #428; or the one the
+  // composer takes, a song's, #547, its clave layered on it as on any)
+  const rhythm =
+    taking ??
+    nearestFigure(
+      repository,
+      point,
+      bench,
+      playing?.rhythmFragment,
+      (read) => read === null || !isOwnLine(read),
+      layer,
+      chosen,
+      rejected,
+      pull,
+    );
   if (rhythm === undefined) return {};
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
   const ownLine = (id: string) => {

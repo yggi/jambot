@@ -173,9 +173,10 @@ describe('the controller closed (E45, #237)', () => {
     // and 0.68 walked, before the ostinato on top of cells v0.25.1, #651; 0.198, 0.635 and 0.792 held over 96 bars of
     // the chain's sections before #655's song forms, which the controller holds inside at a patience of 2, its ruling;
     // 0.181, 0.634 and 0.725 before the station's rotation, #547 rung 5, within the ±0.03 #547 rung 5 bounds it by;
-    // 0.188, 0.625 and 0.706 before cells v0.29.0, within it too)
+    // 0.188, 0.625 and 0.706 before cells v0.29.0, within it too; 0.616 closed before the station's mixes, #547 step 2,
+    // within it too)
     expect([held.open, held.closed, held.top].map((r) => fixed(insideOf(r)))).toEqual([
-      0.166, 0.616, 0.703,
+      0.166, 0.634, 0.703,
     ]);
     // (0.211 and 0.688 walked over 128 bars before #655; 0.212 and 0.688 before the station's rotation, #547 rung 5;
     // 0.216 and 0.672 before cells v0.29.0)
@@ -229,9 +230,9 @@ describe('the controller on the page’s schedule (#495: read at a section’s l
     // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0; 0.604 and 0.646 held, and
     // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650; 0.594 held, and 0.609 and
     // 0.68 walked, before the ostinato on top of cells v0.25.1, #651)
-    // (0.198, 0.604 and 0.635 over 96 bars of the chain's sections before #655; 0.181, 0.628 and 0.634 before the station's rotation, #547 rung 5; 0.188, 0.628 and 0.625 before cells v0.29.0)
+    // (0.198, 0.604 and 0.635 over 96 bars of the chain's sections before #655; 0.181, 0.628 and 0.634 before the station's rotation, #547 rung 5; 0.188, 0.628 and 0.625 before cells v0.29.0; 0.616 closed before the station's mixes, #547 step 2)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.166, 0.625, 0.616,
+      0.166, 0.625, 0.634,
     ]);
     // (0.211, 0.617 and 0.688 walked over 128 bars before #655; 0.212, 0.669 and 0.688 before the station's rotation, #547 rung 5; 0.216, 0.672 and 0.672 before cells v0.29.0)
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([

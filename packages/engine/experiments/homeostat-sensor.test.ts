@@ -98,7 +98,8 @@ describe('the share of bars recognised over 8 bars, over the 8 presets at entrop
     expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.449, 0.176, 0.586, 0]);
     // (0.376, 0.17, 0.496 and 0.047 walked before the walk rule retired on top of cells v0.25.1, #650: the bass is
     // recognised more)
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.432, 0.166, 0.551, 0.006]);
+    // (0.432 before the station's mixes, #547 step 2)
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.431, 0.166, 0.551, 0.006]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeGreaterThan(BAND.low);

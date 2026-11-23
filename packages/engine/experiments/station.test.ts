@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MIXES_KEPT } from '../src/rotation.ts';
 import { type StationRun, stationRuns } from './station.ts';
 
 // The numbers are literals, to be moved by the step that moves them.
@@ -41,5 +42,26 @@ describe('the station, 3 hours a run (E47, #547)', () => {
     // (held, all its songs made at the preset's point: only the station's boredom tells them apart)
     expect([sum(held, 'draws'), sum(held, 'nearest')]).toEqual([4086, 623]);
     expect(Number(ratio(held).toFixed(2))).toBe(1.07);
+  });
+
+  it('mixes a song played again as often as the entropy says: 1,127 of 4,086 plays held (0.28), 1,118 of 3,835 walked (0.29), at 0.3', () => {
+    expect([sum(held, 'replays'), sum(held, 'mixed')]).toEqual([4086, 1127]);
+    expect([sum(walked, 'replays'), sum(walked, 'mixed')]).toEqual([3835, 1118]);
+    for (const runs of [held, walked])
+      expect(Math.abs(sum(runs, 'mixed') / sum(runs, 'replays') - 0.3)).toBeLessThan(0.03);
+  });
+
+  it('starts every play of a version kept from its tonic, and from its drum bar and bass line wherever the ladder hasn’t rejected them, or a variation the ladder made of them at once', () => {
+    expect([sum(held, 'versionsCompared'), sum(walked, 'versionsCompared')]).toEqual([3220, 3032]);
+    expect([sum(held, 'versionsDiffering'), sum(walked, 'versionsDiffering')]).toEqual([0, 0]);
+    // (where the band learns, the ladder tires of a drum bar or bass line across songs: a held station's songs mostly
+    // share the preset's, so at about half the plays it is rejected, and the next nearest plays)
+    expect([sum(held, 'versionsRejected'), sum(walked, 'versionsRejected')]).toEqual([1863, 1501]);
+  });
+
+  it('makes every new mix differ from its original in the tonic or the groove, and keeps at most MIXES_KEPT mixes a song', () => {
+    expect([sum(held, 'mixesMade'), sum(walked, 'mixesMade')]).toEqual([866, 803]);
+    expect([sum(held, 'mixesSame'), sum(walked, 'mixesSame')]).toEqual([0, 0]);
+    expect(Math.max(...RUNS.map((r) => r.mostMixes))).toBe(MIXES_KEPT);
   });
 });

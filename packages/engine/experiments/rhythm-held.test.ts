@@ -35,14 +35,19 @@ beforeAll(() => {
 });
 
 describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #414)', () => {
-  it('plays the run’s most used rhythm in 47 % of 8,450 sections, under 60 %, where main plays the preset’s drum bar in every one', () => {
+  it('plays the run’s most used rhythm in 42 % of 8,450 sections, under 60 %, where main plays the preset’s drum bar in 89 %, its groove mixes the next nearest', () => {
     expect(CLIMBING).toHaveLength(40);
-    expect(mostUsedRhythm(MAIN)).toEqual({ sections: 8450, mostUsed: 8450, share: 1 });
+    // (in every one before the station's mixes, #547 step 2: a groove mix of a song plays the next nearest drum bar)
+    expect(mostUsedRhythm(MAIN)).toEqual({
+      sections: 8450,
+      mostUsed: 7528,
+      share: 7528 / 8450,
+    });
     const { sections, mostUsed, share } = mostUsedRhythm(CLIMBING);
     // (3,944 before #651 held Salsa drums, which Funk's runs turn to once tired of their own; 3,969 before cells v0.29.0,
     // whose breathing drums the drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799
-    // and #890)
-    expect([sections, mostUsed]).toEqual([8450, 3975]);
+    // and #890; 3,975 before the station's mixes, #547 step 2)
+    expect([sections, mostUsed]).toEqual([8450, 3534]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -82,14 +87,15 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
 
   // (the roles the drummer writes of its own, `OWN_ROLES`: Salsa drums' ostinato, which Funk's runs play once tired,
   // plays as written, #651; Funk 0.03 before, where the drummer's own groove played past the drum bar; Deep house 0.01,
-  // Bossa nova 0.02 and Swing jazz 0.05 before #655's song forms; Bossa nova 0.02 before cells v0.29.0)
+  // Bossa nova 0.02 and Swing jazz 0.05 before #655's song forms; Bossa nova 0.02 before cells v0.29.0; Lo-fi hip hop
+  // 0.01 before the station's mixes, #547 step 2)
   it('moves the drummer’s hits a role by section type at most 0.05 from main’s: the variations move hits, the drummer still decides how many', () => {
     expect(drumDistance(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0,
       Techno: 0,
       'Deep house': 0,
       Ambient: 0,
-      'Lo-fi hip hop': 0.01,
+      'Lo-fi hip hop': 0,
       Funk: 0,
       'Bossa nova': 0.01,
       'Swing jazz': 0.01,
@@ -100,29 +106,31 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
   // bite mood, and Acid drums at Techno, where the drummer invented, until cells v0.24.0's March drums, nearer: each
   // plays the drums further from main's; Techno 59 % with Acid drums; Lo-fi hip hop 67 % before cells v0.27.1; Ambient 90 %,
   // Lo-fi hip hop 66 % and Bossa nova 63 % before cells v0.29.0; 65 % to 95 % before #655's song forms: Synth-pop
-  // 0.92, Techno 0.82, Deep house 0.95, Ambient 0.89, Lo-fi hip hop 0.67, Funk 0.74, Bossa nova 0.65, Swing jazz 0.78)
-  it('keeps 62 % to 92 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
+  // 0.92, Techno 0.82, Deep house 0.95, Ambient 0.89, Lo-fi hip hop 0.67, Funk 0.74, Bossa nova 0.65, Swing jazz 0.78;
+  // before the station's mixes, #547 step 2, which hold a song's drum bar through its play: Synth-pop 0.87, Techno 0.79,
+  // Ambient 0.89, Bossa nova 0.62, Swing jazz 0.74)
+  it('keeps 63 % to 92 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
     );
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
-      'Synth-pop': 0.87,
-      Techno: 0.79,
+      'Synth-pop': 0.88,
+      Techno: 0.82,
       'Deep house': 0.92,
-      Ambient: 0.89,
+      Ambient: 0.9,
       'Lo-fi hip hop': 0.65,
       Funk: 0.72,
-      'Bossa nova': 0.62,
-      'Swing jazz': 0.74,
+      'Bossa nova': 0.63,
+      'Swing jazz': 0.78,
     });
   });
 
   // (3,682 bytes before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno
   // turns to)
-  it(`keeps a layer of at most 1,869 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+  it(`keeps a layer of at most 2,086 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
     // (3,860 before the layer kept the composer's groove variations by reference, as a host keeps it, #553; 2,577
-    // before the ostinato on top of cells v0.25.1, #651, where Funk's drummer no longer files its own once tired of Funk's, which now plays Salsa drums; 1,954 before #655's song forms; 1,866 before cells v0.27.1; 1,867 before cells v0.29.0)
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(1869);
+    // before the ostinato on top of cells v0.25.1, #651, where Funk's drummer no longer files its own once tired of Funk's, which now plays Salsa drums; 1,954 before #655's song forms; 1,866 before cells v0.27.1; 1,867 before cells v0.29.0; 1,869 before the station's mixes, #547 step 2, whose groove mixes leave a song's drum bar for the next nearest, which the composer varies in turn)
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(2086);
     // (3 grooves filed at most before cells v0.29.0)
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(2);
   });
