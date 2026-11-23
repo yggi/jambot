@@ -1,7 +1,14 @@
-import { METERS, type Meter, even, positions, stepsOf as stepsInBar } from '@jambot/theory';
+import {
+  METERS,
+  type Meter,
+  accentsOf,
+  even,
+  positions,
+  stepsOf as stepsInBar,
+} from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import type { BarEnv } from './bar.ts';
-import { DRUM_NOTES, OWN_ROLES, TOM_NOTES, backbeatOf, drums } from './drums.ts';
+import { DRUM_NOTES, OWN_ROLES, TOM_NOTES, backbeatOf, drums, rimAccentOf } from './drums.ts';
 import {
   DRUM_ROLES,
   type DrumRole,
@@ -283,6 +290,27 @@ describe('drums', () => {
     }
   });
 
+  it('write the rim’s Euclid with the bar’s metric accent, as the seed grooves’ `metric_accent` writes theirs (#749)', () => {
+    // (at full energy in 4/4: one, three, two and four, an eighth, a sixteenth, as cells' `metricWeights(16)` weighs them)
+    expect([0, 8, 4, 2, 1].map((step) => rimAccentOf(SONG_METER, step, 1))).toEqual([
+      6, 4, 2, 0, -2,
+    ]);
+    // (scaled as every drum role's base is by the energy, so a quiet section's rim is as quiet as it was)
+    expect(rimAccentOf(SONG_METER, 0, 0)).toBe(Math.round(6 * 0.65));
+    // (written on the rim alone: every rim hit the sweep writes carries its accent, no other hit one)
+    let rims = 0;
+    for (const env of sweep)
+      for (const hit of drums(env)) {
+        if (hit.role !== 'euclid') {
+          expect(hit.accent).toBeUndefined();
+          continue;
+        }
+        rims++;
+        expect(hit.accent).toBe(rimAccentOf(env.meter, hit.step, env.barEnergy));
+      }
+    expect(rims).toBeGreaterThan(0);
+  });
+
   it('play louder with energy', () => {
     const kick = (energy: number) =>
       played(envOf(1, 'groove', 0, { ...INITIAL_STYLE, ...STILL }, energy)).find(
@@ -322,6 +350,33 @@ describe('the jazz kit (#360)', () => {
 
 describe('the drums on other meters (#260)', () => {
   const named = Object.entries(METERS) as [string, Meter][];
+
+  it('accents the rim by the meter contract’s grades: the downbeat most, a sixteenth least, a stronger grade never quieter, the bar’s accents summing near 0 so a section is as loud as it was (finite: every meter, every step, every energy tenth)', () => {
+    const order = ['downbeat', 'half', 'pulse', 'between'];
+    for (const [name, meter] of named) {
+      const steps = stepsInBar(meter);
+      const grades = accentsOf(meter);
+      // (a step's rank: its eighth's grade, a sixteenth below them all)
+      const rank = (step: number) => (step % 2 ? order.length : order.indexOf(grades[step / 2]!));
+      for (const energy of grid) {
+        const accents = range(steps).map((step) => rimAccentOf(meter, step, energy));
+        for (const a of range(steps))
+          for (const b of range(steps))
+            if (rank(a) < rank(b))
+              expect([name, energy, a, b, accents[a]! >= accents[b]!]).toEqual([
+                name,
+                energy,
+                a,
+                b,
+                true,
+              ]);
+        expect([name, energy, Math.abs(accents.reduce((x, y) => x + y, 0) / steps) <= 0.5]).toEqual(
+          [name, energy, true],
+        );
+      }
+      expect([name, rimAccentOf(meter, 0, 1) > rimAccentOf(meter, 1, 1)]).toEqual([name, true]);
+    }
+  });
 
   it('puts the backbeat on every pulse after the downbeat of a bar of two or three, and the odd ones from four (finite: every meter)', () => {
     const expected: Record<string, number[]> = {

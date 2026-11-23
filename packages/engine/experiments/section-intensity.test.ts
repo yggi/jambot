@@ -42,14 +42,15 @@ describe('what tells a section’s kind apart, over the 8 presets × 3 seeds × 
   // the bar's energy, and its correlation with the energy (r); before #655's song forms: density 0.558 0.037 0.909,
   // layers 0.532 0.132 0.651, velocity 0.678 0.164 0.804, register 0.293 0.126 0.469, filter 1,005 bars 0.396 0 1, sync
   // 0.307 0.066 0.602, bite 0.244 0.193 0.708; before the station's rotation, #547 rung 5: density 0.611 0.036 0.909,
-  // velocity 0.681, register 0.376 0.187 0.347, sync 0.138 0.144 0.367)
+  // velocity 0.681, register 0.376 0.187 0.347, sync 0.138 0.144 0.367; velocity 0.682 and 0.693 before the drummer
+  // wrote the rim's metric accent, #749)
   it('moves every component with the energy, and the kind moves layers, velocity, register and bite past it: more than one scalar', () => {
     expect(
       READ.map((c) => [c.component, c.n, fixed(c.eta2), fixed(c.eta2PastEnergy), fixed(c.r)]),
     ).toEqual([
       ['density', 1536, 0.612, 0.036, 0.91],
       ['layers', 1536, 0.563, 0.235, 0.499],
-      ['velocity', 1536, 0.682, 0.188, 0.693],
+      ['velocity', 1536, 0.681, 0.188, 0.692],
       ['register', 1536, 0.38, 0.184, 0.353],
       ['filter', 912, 0.426, 0, 1],
       ['sync', 1536, 0.139, 0.144, 0.366],
@@ -66,7 +67,8 @@ describe('what tells a section’s kind apart, over the 8 presets × 3 seeds × 
     ).toEqual([2.425, 53.143, 0.041]);
     expect(
       [of('layers').groove, of('velocity').groove, of('bite').groove].map((x) => fixed(x!)),
-    ).toEqual([4.152, 72.603, 0.326]);
+      // (72.603 before the drummer wrote the rim's metric accent, #749)
+    ).toEqual([4.152, 72.601, 0.326]);
   });
 
   // (0.305 before #655's song forms, most into a breakdown, 0.638, and out of one into a groove, 0.462; bridge 0.107,

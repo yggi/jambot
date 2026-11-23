@@ -243,8 +243,9 @@ describe('what cells could not say (E31: the gaps)', () => {
           velocities: velocitiesOf(w.bar, role),
         })),
     );
+    // (the euclid's since #749 its written metric accent's as well as the licence's: Lo-fi hip hop's 5 velocities before)
     expect(lines).toEqual([
-      { at: 'Lo-fi hip hop euclid', hits: 5, velocities: 5 },
+      { at: 'Lo-fi hip hop euclid', hits: 5, velocities: 4 },
       { at: 'Funk euclid', hits: 7, velocities: 5 },
       { at: 'Bossa nova euclid', hits: 5, velocities: 4 },
       { at: 'Swing jazz ghost', hits: 2, velocities: 2 },

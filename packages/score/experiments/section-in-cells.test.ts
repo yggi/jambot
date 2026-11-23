@@ -223,16 +223,17 @@ describe('the band writes a whole section as one cells text, every part, the lea
   // its part, `part=bass`, yggi/cells#708; since #531 the section is a score: no performer, voice or card, the parts
   // passed to the band, `* from band(…)`, and each level the shortest decimal cells strikes at its velocity, `scoreLevel`)
   // (2,490, 2,223 and 7,792, 71 %, before #655's song forms)
-  it('states the host’s lines and the harmony once a section: 2,073 characters a section, 1,877 without the lead, against E33’s 6,752 for the same 8 bars, 72 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,112 characters a section, 1,916 without the lead, against E33’s 6,881 for the same 8 bars, 72 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     // (159,356 in all before #655's song forms: the meter 9,136, the harmony 8,285, the drums 60,238, the bass 23,974,
-    // the comp 24,556, the lead 17,097 and the band 13,866; 132,593 in all and the lead 12,469 before the station's rotation, #547 rung 5)
+    // the comp 24,556, the lead 17,097 and the band 13,866; 132,593 in all and the lead 12,469 before the station's rotation, #547 rung 5;
+    // 132,644 in all and the drums 45,884 before the drummer wrote the rim's metric accent, #749)
     expect(e35).toEqual({
-      total: 132644,
+      total: 135158,
       meter: 8368,
       key: 2204,
       harmony: 8297,
-      drums: 45884,
+      drums: 48398,
       bass: 20355,
       comp: 21508,
       lead: 12520,
@@ -243,33 +244,35 @@ describe('the band writes a whole section as one cells text, every part, the lea
       SECTIONS.flatMap((s) => s.bars.map((bar) => ({ text: barAsCells(bar) }))),
     );
     // (498,676 in all before #655's song forms: the harmony 17,811, the drums 266,759, the bass 90,065, the comp 68,839
-    // and the card 24,066)
+    // and the card 24,066; 432,144 in all and the drums 212,479 before the drummer wrote the rim's metric accent, #749)
     expect(e33).toEqual({
-      total: 432144,
+      total: 440397,
       meter: 19648,
       key: 11488,
       harmony: 17803,
-      drums: 212479,
+      drums: 220732,
       bass: 82078,
       comp: 64856,
       card: 23792,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
-    expect(Math.round(e35.total / 64)).toBe(2073); // (2,072 before the station's rotation, #547 rung 5)
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(1877);
-    expect(Math.round(e33.total / 64)).toBe(6752);
+    // (2,073, 1,877 and 6,752 before the drummer wrote the rim's metric accent, #749; 2,072 before the station's rotation,
+    // #547 rung 5)
+    expect(Math.round(e35.total / 64)).toBe(2112);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(1916);
+    expect(Math.round(e33.total / 64)).toBe(6881);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(72);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
-      'Synth-pop': [17523, 15568], // (20,367 and 18,220 before #655's song forms)
-      Techno: [19248, 17463], // (19,902 and 17,419; 19,197 before the station's rotation, #547 rung 5)
-      'Deep house': [17245, 15579], // (22,508 and 19,981)
+      'Synth-pop': [18290, 16335], // (17,523 and 15,568 before #749; 20,367 and 18,220 before #655's song forms)
+      Techno: [19520, 17735], // (19,248 and 17,463 before #749; 19,902 and 17,419; 19,197 before the station's rotation, #547 rung 5)
+      'Deep house': [17375, 15709], // (17,245 and 15,579 before #749; 22,508 and 19,981)
       Ambient: [9658, 8804], // (13,397 and 12,222)
-      'Lo-fi hip hop': [15471, 14011], // (20,902 and 18,570)
-      Funk: [18601, 17220], // (22,320 and 20,494)
-      'Bossa nova': [18669, 17121], // (22,308 and 20,196)
-      'Swing jazz': [16229, 14358], // (17,652 and 15,157)
+      'Lo-fi hip hop': [15577, 14117], // (15,471 and 14,011 before #749; 20,902 and 18,570)
+      Funk: [18828, 17447], // (18,601 and 17,220 before #749; 22,320 and 20,494)
+      'Bossa nova': [19497, 17949], // (18,669 and 17,121 before #749; 22,308 and 20,196)
+      'Swing jazz': [16413, 14542], // (16,229 and 14,358 before #749; 17,652 and 15,157)
     });
   });
 
