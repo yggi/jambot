@@ -31,7 +31,7 @@ import {
   presetSwing,
 } from '@jambot/engine';
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
-import { planOf, windowAt, references } from '@yggi/cells';
+import { fromLine, outlineOf, planOf, windowAt, references } from '@yggi/cells';
 import type { Resolve } from '@yggi/cells';
 import { bodyOf } from '@yggi/cells/repository';
 import {
@@ -48,6 +48,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bandChords,
   compileSection,
+  sectionOutline,
   lineOf,
   lineReader,
   mismatches,
@@ -57,6 +58,8 @@ import {
 import {
   BAND_PARTS,
   PIN_VOICES,
+  TAKEN_PARTS,
+  WRITTEN_WHY,
   type SectionNote,
   barred,
   driveOf,
@@ -641,7 +644,11 @@ describe('what the composer took, written as its `from` line (#531, yggi/cells#7
       'meter',
       'diatonic',
       'styles',
+      bars![0]!.derivedFrom!.harmony,
+      bars![0]!.plan.rhythmFragment,
       bars![0]!.plan.claveFragment,
+      bars![0]!.derivedFrom!.bass,
+      bars![0]!.derivedFrom!.lead,
       'band',
     ]);
     expect(text).toMatch(/^&drumlines \[.*, &clave \* \.\d+\]$/m);
@@ -696,6 +703,180 @@ describe('what the composer took, written as its `from` line (#531, yggi/cells#7
     );
     expect(sectionTextOf(sectionAsCells(bars!))).toMatch(/^&clave from /m);
     expect(sectionTextOf(sectionAsCells(dropped))).toMatch(/^&clave role=clave /m);
+  });
+});
+
+describe('a part the composer took, written as its `from` line with the band’s own lines over it (#731)', () => {
+  /** The bars as `main` wrote them, before the score took any part: none names what its section took. */
+  const untaken = (bars: readonly BandBar[]) =>
+    bars.map(({ derivedFrom, ...bar }) => {
+      void derivedFrom;
+      const { rhythmFragment, ...plan } = bar.plan;
+      void rhythmFragment;
+      return { ...bar, plan };
+    });
+  /** A text's size in UTF-8, its bytes on the wire. */
+  const utf8 = (text: string) =>
+    [...text].reduce((n, c) => {
+      const code = c.codePointAt(0)!;
+      return n + (code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4);
+    }, 0);
+
+  it('takes Funk’s section from bar 9 (seed 1): the progression whole, the drums, the bass and the lead with the band’s own lines over them, which cells’ outline reads as taken', () => {
+    const bars = sections('Funk', 1, 16, true)[1]!;
+    const text = sectionTextOf(sectionAsCells(bars, { tempo: 'first' }));
+    const lines = text.split('\n');
+    expect(lines).toContain('&harm from vamp_to_the_seventh &key');
+    expect(text).not.toMatch(/^&harm over=/m);
+    expect(lines).toContain('* from funk_drums');
+    const after = (line: string) => lines[lines.indexOf(line) + 1];
+    expect(after('* from funk_bass &harm')).toMatch(/^&bassline(A |B |C | part=bass )/);
+    // (the lead's own line takes the motif's head, so it wins over the take's, and is passed to the band so)
+    expect(lines).toContain('* from riff &key');
+    expect(text).toMatch(/^&riff part=lead over=&key step=16n /m);
+    expect(lines.at(-1)).toMatch(/\bleadline=&riff\b/);
+    const plan = compileSection(text);
+    expect(plan.result.diagnostics).toEqual([]);
+    const takes = sectionOutline(plan).parts.filter((p) => p.id !== null && p.within === null);
+    // (cells' outline gives a `*` take's heads the band's own lines write as none; `sectionOutline` names them as the
+    // take overridden, from its signature, which cells leaves empty for a template's `*`)
+    expect(takes.map((p) => [p.id, p.heads, p.overrode])).toEqual([
+      ['meter', ['&bar'], []],
+      ['diatonic', ['&key'], []],
+      ['styles', ['&funk'], []],
+      ['vamp_to_the_seventh', ['&harm'], []],
+      // (the groove's sum and its rim's levels, which no line of the band's reads, the take gives unread)
+      [
+        'funk_drums',
+        ['&euclidLevel', '&groove'],
+        ['&kick', '&backbeat', '&fill', '&ghost', '&hat', '&euclid'],
+      ],
+      ['rumba_clave_3_2', ['&clave'], []],
+      ['funk_bass', [], ['&bassline']],
+      ['riff', [], ['&riff']],
+      ['band', ['&band', '&keysV', '&sound', '&midi'], []],
+    ]);
+    expect(
+      outlineOf(plan.result)
+        .parts.filter((p) => p.id !== null && p.within === null)
+        .every((p) => p.overrode.length === 0),
+    ).toBe(true);
+    // #531's bound of 1,500 bytes waits on the drums and the bass played whole (#656)
+    expect([
+      utf8(sectionTextOf(sectionAsCells(untaken(bars), { tempo: 'first' }))),
+      utf8(text),
+    ]).toEqual([2585, 2579]);
+  });
+
+  it('takes every part whose fragment the composer kept by that fragment’s `from` line, and plays as the band writes it: every preset, seeds 1 and 2, 32 bars', () => {
+    const count = (seeds: readonly number[]) => {
+      const out: Record<string, number> = {};
+      for (const preset of PRESETS)
+        for (const seed of seeds)
+          for (const bars of sections(preset.name, seed, 32, true)) {
+            const stated = sectionAsCells(bars, { tempo: 'first' });
+            const text = sectionTextOf(stated);
+            for (const part of ['harmony', 'bass', 'lead', 'drums'] as const) {
+              const kept = new Set(
+                bars.map((b) =>
+                  part === 'drums' ? b.plan.rhythmFragment : (b.derivedFrom![part] ?? undefined),
+                ),
+              );
+              const [id] = kept;
+              if (kept.size !== 1 || id === undefined) continue;
+              const t = stated.taken.find((x) => x.part === part)!;
+              expect(t.id, `${preset.name} ${seed} ${bars[0]!.bar} ${part}`).toBe(id);
+              // (an id that isn't a word is quoted: a document's part, `"kinderlied/twinkle"`)
+              expect(text.split('\n')).toContain(
+                fromLine({
+                  names: t.as === 'whole' ? [TAKEN_PARTS[part].head!] : null,
+                  id,
+                  ...(TAKEN_PARTS[part].main ? { main: TAKEN_PARTS[part].main } : {}),
+                }),
+              );
+              out[`${part} ${t.as}`] = (out[`${part} ${t.as}`] ?? 0) + 1;
+            }
+          }
+      return out;
+    };
+    // (seed 1: 92 sections; the harmony from the tables in the other 18, so none kept)
+    expect(count([1])).toEqual({
+      'harmony whole': 45,
+      'harmony over': 29,
+      'bass over': 92,
+      'lead over': 92,
+      'drums over': 92,
+    });
+    expect(count([1, 2])).toEqual({
+      'harmony whole': 85,
+      'harmony over': 63,
+      'bass over': 184,
+      'lead over': 184,
+      'drums over': 184,
+    });
+  });
+
+  it('is shown firing: a progression the band coloured, taken whole, plays other notes than the band writes', () => {
+    const over = PRESETS.flatMap((p) => sections(p.name, 1, 32, true)).find(
+      (bars) => sectionAsCells(bars).taken.find((t) => t.part === 'harmony')?.as === 'over',
+    )!;
+    const text = sectionTextOf(sectionAsCells(over));
+    const id = over[0]!.derivedFrom!.harmony!;
+    const whole = text
+      .replace(`* from ${id} &key\n`, `&harm from ${id} &key\n`)
+      .replace(/^&harm over=&key .*\n/m, '');
+    expect(whole).not.toBe(text);
+    const played = playSection(whole, over);
+    expect(played.diagnostics).toEqual([]);
+    expect(
+      over.flatMap((bar, i) => mismatches(writtenNotes(bar), played.bars[i]!.notes)).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('is shown firing: a progression whose chords the band doesn’t play is taken with the band’s own `&harm` over it', () => {
+    const bars = sections('Funk', 1, 16, true)[1]!;
+    const other = bars.map((bar) => ({
+      ...bar,
+      derivedFrom: { ...bar.derivedFrom!, harmony: 'vamp_to_the_fourth' },
+    }));
+    const text = sectionTextOf(sectionAsCells(other));
+    expect(text).toMatch(/^\* from vamp_to_the_fourth &key\n&harm over=&key /m);
+    expect(sectionAsCells(other).taken.find((t) => t.part === 'harmony')!.as).toBe('over');
+  });
+
+  it('writes out a part whose fragment the seed library lacks, or whose bars took more than one, with no `from` line', () => {
+    const bars = sections('Funk', 1, 16, true)[1]!;
+    const filed = bars.map((bar) => ({
+      ...bar,
+      derivedFrom: { ...bar.derivedFrom!, bass: 'funk_bass~2' },
+    }));
+    const parted = bars.map((bar, i) => ({
+      ...bar,
+      derivedFrom: { ...bar.derivedFrom!, lead: i < 4 ? 'riff' : 'hook' },
+    }));
+    expect(sectionAsCells(filed).taken.find((t) => t.part === 'bass')).toEqual({
+      part: 'bass',
+      id: 'funk_bass~2',
+      as: 'written',
+      why: WRITTEN_WHY.filed,
+    });
+    expect(sectionTextOf(sectionAsCells(filed))).not.toMatch(/from "?funk_bass/);
+    expect(sectionAsCells(parted).taken.find((t) => t.part === 'lead')!.why).toBe(
+      WRITTEN_WHY.parts,
+    );
+    expect(sectionTextOf(sectionAsCells(parted))).toMatch(/^&leadline part=lead /m);
+    for (const b of [filed, parted])
+      expect(compileSection(sectionTextOf(sectionAsCells(b))).result.diagnostics).toEqual([]);
+  });
+
+  it('renames a style named as the motif the lead takes: March’s `&marchStyle=march from styles` beside its `&march`', () => {
+    const [bars] = sections('March', 1, 8, true);
+    const text = sectionTextOf(sectionAsCells(bars!));
+    expect(text).toMatch(/^&marchStyle=march from styles$/m);
+    expect(text).toMatch(/^&style label="\w+" style=&marchStyle$/m);
+    expect(text).toMatch(/^\* from march &key$/m);
+    expect(text).toMatch(/^&march part=lead /m);
+    expect(compileSection(text).result.diagnostics).toEqual([]);
   });
 });
 

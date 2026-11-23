@@ -296,7 +296,7 @@ function readScore(
       };
     const frame = { meter: read.meter, swing: read.swing, bpm: read.bpm, key: read.key };
     const played = playSection(source, framesOf(frame, foreseen.length), plan);
-    const outline = sectionOutline(plan);
+    const outline = sectionOutline(plan, resolve);
     const t3 = clock();
     return {
       ...none,

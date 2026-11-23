@@ -4,7 +4,7 @@
   cells' outline, each part under what it is taken on, or, switched, under
   what plays it; a row a part, the fragment it is taken from or written, what
   plays it and its weight in the composer's mind.
-  A row joins the Library's row of its fragment (#730): how it came and who made it; a written row says what it was derived from where the page knows (the drums' rhythm on every page, the bass's, lead's and harmony's line on a host's and solo's, `Player.derivations`), or that it is the band's own.
+  A row joins the Library's row of its fragment (#730): how it came and who made it; a written row says what it was derived from, read off the score on every page alike, a client's as its host's (#731): the fragment its lines override (`* from funk_bass &harm`), or, for drums the score writes out, the rhythm its bar names, or that they are the band's own.
   A row picked opens to the score's lines it is, beside the Library's detail of its fragment (`FragmentDetail`).
   Folded, it counts the parts the section heard plays; on a phone a row's fragment, how it came and what plays it go beneath its part.
   Next §: the same tree for the section built ahead. Library (`fragmentsView.ts`): every cells fragment the band has met,
@@ -29,7 +29,6 @@
   import {
     type Came,
     type Projection,
-    type SectionDerivation,
     cameLine,
     cameOfRow,
     fragmentLine,
@@ -72,8 +71,6 @@
     score?: Score | null;
     /** The score of the section after it, as built ahead (`Player.nextScore`); none yet. */
     next?: Score | null;
-    /** What the sections planned lately derive their written parts from (`Player.derivations`); a client's is empty. */
-    derivations?: readonly SectionDerivation[];
   }
 
   interface Carry {
@@ -96,7 +93,6 @@
     workbench = null,
     score = null,
     next = null,
-    derivations = [],
   }: Props = $props();
 
   /** What the last import said: that it took, or why not. */
@@ -130,23 +126,14 @@
   const rows = $derived(fragmentRows({ layer, log, memory, players, workbench }));
   const heard = $derived(score ? playingRows(score.text, score.outline, 'ground', workbench) : []);
   const shownScore = $derived(tab === 'next' ? next : score);
-  // (what the section shown derives its written parts from: the drums' rhythm off the bar heard, on every page; the
-  // rest as the band's carried plans logged it, a host's and solo's)
-  const derivation = $derived.by((): SectionDerivation | null => {
-    if (!bar) return null;
-    const of = (section: number) => derivations.find((d) => d.section === section);
-    if (tab === 'next') return of(bar.sectionIndex + 1) ?? null;
-    return {
-      ...of(bar.sectionIndex),
-      section: bar.sectionIndex,
-      drums: bar.fragments.rhythm,
-    };
-  });
+  // (what the section heard plays its drums from, off its bar, on every page: what drums the score writes out with no
+  // `from` line are derived from; every other derivation is the score's own, #731)
+  const rhythm = $derived(tab === 'playing' && bar ? bar.fragments.rhythm : undefined);
   const tree = $derived(
     shownScore
       ? playingRows(shownScore.text, shownScore.outline, projection, workbench, {
           library: new Map(rows.map((r) => [r.key, r])),
-          derived: derivation,
+          ...(rhythm === undefined ? {} : { rhythm }),
         })
       : [],
   );

@@ -25,6 +25,11 @@ import {
   writtenStyle,
 } from './style.ts';
 import { presetMode } from './mode-repository.ts';
+import { BASS_REPOSITORY } from './bass-lines.ts';
+import { LEAD_REPOSITORY } from './lead-lines.ts';
+import { HARMONY_REPOSITORY } from './progressions.ts';
+import { METER_REPOSITORY, presetSwing } from './repository.ts';
+import { RHYTHM_REPOSITORY } from './rhythms.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -391,5 +396,46 @@ describe('the look-ahead', () => {
     lookAhead(played, envAt(4), 16);
     expect(played).toEqual(given);
     expect(lookAhead(played, envAt(4), 0)).toEqual([]);
+  });
+});
+
+describe('what a bar says its section took (#731)', () => {
+  it('names the progression, the bass line and the lead line its section’s plans took, null where it wrote its own: every preset, seed 1, 32 bars', () => {
+    const taken = { harmony: 0, bass: 0, lead: 0 };
+    for (const preset of PRESETS) {
+      let carried = band.initial;
+      for (const bar of range(32)) {
+        const made = band.advance(
+          {
+            seed: 1,
+            bar,
+            style: { ...preset.style, entropy: 0.3 },
+            wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+            swing: presetSwing(preset)!,
+            offer: null,
+            repository: METER_REPOSITORY,
+            rhythms: RHYTHM_REPOSITORY,
+            bassLines: BASS_REPOSITORY,
+            leads: LEAD_REPOSITORY,
+            harmonies: HARMONY_REPOSITORY,
+          },
+          carried,
+          null,
+        );
+        carried = made.carried;
+        const plans = carried.kept.find((k) => k.decided.bar === bar)!.plans;
+        expect(plans.before!.section.index).toBe(made.output.plan.section.index);
+        expect(made.output.derivedFrom, `${preset.name} ${bar}`).toEqual({
+          harmony: plans.progressionFragment,
+          bass: plans.bassFragment,
+          lead: plans.leadFragment,
+        });
+        for (const part of ['harmony', 'bass', 'lead'] as const)
+          if (made.output.derivedFrom![part] !== null) taken[part]++;
+      }
+    }
+    // (each part takes a fragment somewhere: the bass in every bar here, the harmony and the lead not)
+    for (const part of ['harmony', 'bass', 'lead'] as const)
+      expect(taken[part], part).toBeGreaterThan(0);
   });
 });
