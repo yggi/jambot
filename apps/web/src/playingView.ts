@@ -17,8 +17,96 @@
  * a client as a host's.
  */
 
+import { type PlanCarried, themeKind } from '@jambot/engine';
 import type { Outline, OutlinePart } from '@jambot/score';
-import type { Workbench } from './fragmentsView.ts';
+import type { FragmentRow, Workbench } from './fragmentsView.ts';
+
+/**
+ * How a fragment came, as the Library's row of it knows (#730): a seed, found (filed by the band on a miss), a
+ * variation of another and how, or a player's via the Muse; and who made it, with the player's colour.
+ */
+export interface Came {
+  /** The Library's row of it: what a picked row opens. */
+  readonly row: FragmentRow;
+  /** As a person reads it: "a seed", "found", "a variation of funk_drums by drop &hat 6", "via the Muse". */
+  readonly how: string;
+  /** Who made it: "The drummer", a player's name; null for a seed. */
+  readonly who: string | null;
+  /** The player's colour (`var(--source-N)`), or null for the band's and the seed's. */
+  readonly colour: number | null;
+}
+
+/** How the fragment of a Library row came, and who made it. */
+export function cameOf(row: FragmentRow): Came {
+  const seed = row.source === 'seed';
+  const how = seed
+    ? 'a seed'
+    : row.varies !== null
+      ? `a variation of ${row.varies}${row.by === null ? '' : ` by ${row.by}`}`
+      : row.muse
+        ? 'via the Muse'
+        : 'found';
+  return { row, how, who: seed ? null : row.source, colour: row.colour };
+}
+
+/** The written parts a derivation names, by the Playing tree's label of each. */
+export const DERIVED_PARTS = ['drums', 'bass', 'lead', 'harm'] as const;
+
+/**
+ * What a section's written parts were derived from, as this page knows (#730): each part's fragment by id, null where
+ * the band found none and wrote its own, absent where the page doesn't know. The drums' is the section's rhythm
+ * (`BarView.fragments.rhythm`), on every page; the bass's, the lead's and the harmony's are the band's carried plans
+ * (`derivationOf`), a host's and solo's only.
+ */
+export interface SectionDerivation {
+  /** The section's index, counted as `Plan.section.index`. */
+  readonly section: number;
+  readonly drums?: string | null;
+  readonly bass?: string | null;
+  readonly lead?: string | null;
+  readonly harm?: string | null;
+}
+
+/**
+ * What the section the band's carried plans last planned derives its parts from: its rhythm, its bass line, its lead
+ * line, and its harmony where its theme is one that returns (A or B), the only progression the plans carry; a build's
+ * progression isn't carried, so it stays unknown. Null before a section is planned.
+ */
+export function derivationOf(
+  plans: Pick<PlanCarried, 'before' | 'bassFragment' | 'leadFragment' | 'themeFragments'>,
+): SectionDerivation | null {
+  const { before } = plans;
+  if (!before) return null;
+  const kind = themeKind(before.section.type);
+  return {
+    section: before.section.index,
+    drums: before.rhythmFragment ?? null,
+    bass: plans.bassFragment,
+    lead: plans.leadFragment,
+    ...(kind === 'build' ? {} : { harm: plans.themeFragments[kind] }),
+  };
+}
+
+/** What a written row was derived from (#730). */
+export interface Derived {
+  /** The fragment, by id; null where the band found none and the part is its own. */
+  readonly id: string | null;
+  /** How that fragment came, where the Library knows it. */
+  readonly came: Came | null;
+  /** Why the part is written out though it came from a fragment, where the page knows why. */
+  readonly why: string | null;
+}
+
+/** Why the drums are written out from their rhythm fragment (#656). */
+export const DRUMS_THINNED = 'the drummer thins the fragment to its own count';
+
+/** What the page knows besides the score, which the Playing tree joins to its rows (#730). */
+export interface Known {
+  /** The Library's rows (`fragmentRows`), by key: a fragment's is its id. */
+  readonly library?: ReadonlyMap<string, FragmentRow>;
+  /** What the section shown derives its written parts from. */
+  readonly derived?: SectionDerivation | null;
+}
 
 /** Which way the tree runs: each part under what it is taken on, or under what plays it. */
 export type Projection = 'ground' | 'outputs';
@@ -41,6 +129,10 @@ export interface PlayingRow {
   readonly weight: number | null;
   /** The score's lines it is, 1-based, in order: what a row picked shows. */
   readonly lines: readonly number[];
+  /** How its fragment came, where it takes one the Library knows; null otherwise. */
+  readonly came: Came | null;
+  /** What a written part was derived from, where the page knows; null for a fragment's row, or where it doesn't. */
+  readonly derived: Derived | null;
 }
 
 /** A row while the tree is built: its parts and what it reads. */
@@ -62,14 +154,16 @@ const bare = (head: string) => head.replace(/^&/, '');
 
 /**
  * The Playing tree's rows for a section's `score` and its `outline`, from the ground or the outputs, each fragment's
- * weight in the composer's mind where a workbench is given. Parts of the outline past the score's own lines (what a
- * reading appends) are none of it.
+ * weight in the composer's mind where a workbench is given, and joined to what the page knows besides (`known`): how a
+ * fragment came, from the Library's row of it, and what a written part was derived from. Parts of the outline past the
+ * score's own lines (what a reading appends) are none of it.
  */
 export function playingRows(
   score: string,
   outline: Outline,
   projection: Projection = 'ground',
   workbench: Workbench | null = null,
+  known: Known = {},
 ): PlayingRow[] {
   const lines = score.split('\n').length;
   const parts = outline.parts.filter((p) => p.line <= lines);
@@ -253,6 +347,18 @@ export function playingRows(
     if (candidates[0]) parent.set(row, candidates[0]);
   }
   const weights = new Map((workbench?.inMind ?? []).map((m) => [m.id, m.weight]));
+  const cameOfId = (id: string | null): Came | null => {
+    const row = id === null ? undefined : known.library?.get(id);
+    return row ? cameOf(row) : null;
+  };
+  // (a written part of the band's, by its label, derived from what the page knows; the band's own rows are none)
+  const derivedOf = (row: Row): Derived | null => {
+    if (row.id !== null || row.band) return null;
+    const part = DERIVED_PARTS.find((p) => p === row.label);
+    const id = part === undefined ? undefined : known.derived?.[part];
+    if (id === undefined) return null;
+    return { id, came: cameOfId(id), why: part === 'drums' && id !== null ? DRUMS_THINNED : null };
+  };
   const out: PlayingRow[] = [];
   const visit = (row: Row, d: number) => {
     out.push({
@@ -269,6 +375,8 @@ export function playingRows(
       on: playsOn(row),
       weight: row.id === null ? null : (weights.get(row.id) ?? null),
       lines: [...new Set(row.parts.map((p) => p.line))].sort((a, b) => a - b),
+      came: cameOfId(row.id),
+      derived: derivedOf(row),
     });
     for (const child of rows
       .filter((r) => parent.get(r) === row)
@@ -280,6 +388,26 @@ export function playingRows(
     .sort((a, b) => order.get(a)! - order.get(b)!))
     visit(root, 0);
   return out;
+}
+
+/**
+ * A row's fragment as its line says it: the fragment and its arguments, or, written, what it was derived from where
+ * the page knows (`written from funk_drums`, `written, the band's own`).
+ */
+export function fragmentLine({ id, args, derived }: PlayingRow): string {
+  if (id !== null) return args ? `${id} (${args})` : id;
+  if (derived === null) return 'written';
+  return derived.id === null ? 'written, the band’s own' : `written from ${derived.id}`;
+}
+
+/** How a row's fragment came, or the fragment a written row came from: what its line says beside the fragment. */
+export function cameOfRow(row: PlayingRow): Came | null {
+  return row.came ?? row.derived?.came ?? null;
+}
+
+/** How it came and who made it, as one phrase: "found · The drummer", "a seed". */
+export function cameLine({ how, who }: Came): string {
+  return who === null ? how : `${how} · ${who}`;
 }
 
 /** The card's summary, folded, of the section heard: how many parts it plays, and how many of them are fragments. */

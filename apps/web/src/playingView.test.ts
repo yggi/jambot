@@ -2,6 +2,7 @@ import {
   BASS_REPOSITORY,
   type BandBar,
   type BandCarried,
+  EMPTY_LAYER,
   HARMONY_REPOSITORY,
   LEAD_REPOSITORY,
   METER_REPOSITORY,
@@ -14,7 +15,18 @@ import {
 } from '@jambot/engine';
 import { compileSection, sectionAsCells, sectionOutline, sectionTextOf } from '@jambot/score';
 import { describe, expect, it } from 'vitest';
-import { type PlayingRow, playingRows, playingSummary } from './playingView.ts';
+import { type FragmentRow, type TakenSection, fragmentRows, logged } from './fragmentsView.ts';
+import {
+  type PlayingRow,
+  type SectionDerivation,
+  cameLine,
+  cameOf,
+  cameOfRow,
+  derivationOf,
+  fragmentLine,
+  playingRows,
+  playingSummary,
+} from './playingView.ts';
 
 /** A preset's first section as the app's band composes it, finding its parts in the repository, seed 1. */
 function firstSection(name: string): BandBar[] {
@@ -142,4 +154,258 @@ describe('the Playing tree (#642)', () => {
       expect([...parted].filter((n) => !covered.includes(n) && !band.includes(n))).toEqual([]);
     },
   );
+});
+
+/**
+ * A preset's first `sections` sections as a band alone plays them, seed 1, with a learned layer: each section's score,
+ * what the page logs off the band's carried plans for it (`derivationOf`), the Library's rows as of it, and the
+ * fragments its bars name (`BarView.fragments`).
+ */
+function solo(name: string, sections: number) {
+  const preset = PRESETS.find((p) => p.name === name)!;
+  let carried: BandCarried = band.initial;
+  const bars: BandBar[] = [];
+  const derived = new Map<number, SectionDerivation>();
+  const out = [];
+  let log: readonly TakenSection[] = [];
+  for (let bar = 0; bar < sections * SECTION_BARS; bar++) {
+    const made = band.advance(
+      {
+        seed: 1,
+        bar,
+        style: { ...preset.style, entropy: 0.3 },
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+        swing: presetSwing(preset)!,
+        offer: null,
+        repository: METER_REPOSITORY,
+        layer: EMPTY_LAYER,
+        rhythms: RHYTHM_REPOSITORY,
+        bassLines: BASS_REPOSITORY,
+        leads: LEAD_REPOSITORY,
+        harmonies: HARMONY_REPOSITORY,
+      },
+      carried,
+      null,
+    );
+    carried = made.carried;
+    bars.push(made.output);
+    const d = derivationOf(carried.plans);
+    if (d) derived.set(d.section, d);
+    if (bar % SECTION_BARS === SECTION_BARS - 1) {
+      const section = bars.slice(-SECTION_BARS);
+      const { plan } = section[0]!;
+      const fragments = {
+        meter: plan.meterFragment ?? null,
+        rhythm: plan.rhythmFragment ?? null,
+        clave: plan.claveFragment ?? null,
+      };
+      log = logged(log, { index: plan.section.index, section: plan.section.type, ...fragments });
+      const text = sectionTextOf(sectionAsCells(section));
+      const workbench = { inMind: carried.plans.shortTerm, boredom: carried.plans.boredom };
+      const library = fragmentRows({
+        layer: carried.plans.layer,
+        log,
+        memory: [],
+        players: {},
+        workbench,
+      });
+      out.push({
+        text,
+        outline: sectionOutline(compileSection(text)),
+        fragments,
+        derived: derived.get(plan.section.index)!,
+        library: new Map(library.map((r) => [r.key, r])),
+        workbench,
+      });
+    }
+  }
+  return out;
+}
+
+/** A Library row of the seed's, with what a test changes. */
+const libraryRow = (over: Partial<FragmentRow> = {}): FragmentRow => ({
+  key: 'funk_bass',
+  name: 'funk_bass',
+  role: 'bass',
+  filed: false,
+  retrieved: false,
+  muse: false,
+  mind: true,
+  playing: false,
+  source: 'seed',
+  colour: null,
+  sections: 0,
+  since: '',
+  text: null,
+  point: [],
+  tags: [],
+  varies: null,
+  by: null,
+  together: [],
+  strength: null,
+  weight: null,
+  lineage: null,
+  ...over,
+});
+
+describe('the Playing tree joined to the Library (#730)', () => {
+  it('says how a fragment came and who made it, for every way one comes', () => {
+    expect(cameOf(libraryRow())).toMatchObject({ how: 'a seed', who: null, colour: null });
+    expect(cameOf(libraryRow({ filed: true, source: 'The drummer' }))).toMatchObject({
+      how: 'found',
+      who: 'The drummer',
+      colour: null,
+    });
+    expect(
+      cameOf(
+        libraryRow({
+          filed: true,
+          source: 'The composer',
+          varies: 'funk_drums',
+          by: 'drop &hat 6',
+        }),
+      ),
+    ).toMatchObject({
+      how: 'a variation of funk_drums by drop &hat 6',
+      who: 'The composer',
+      colour: null,
+    });
+    expect(
+      cameOf(libraryRow({ filed: true, source: 'The composer', varies: 'funk_drums' })).how,
+    ).toBe('a variation of funk_drums');
+    expect(cameOf(libraryRow({ filed: true, muse: true, source: 'Ada', colour: 2 }))).toMatchObject(
+      {
+        how: 'via the Muse',
+        who: 'Ada',
+        colour: 2,
+      },
+    );
+  });
+
+  it('reads what a section’s written parts came from off the band’s carried plans', () => {
+    const [first] = solo('Funk', 1);
+    expect(first!.derived.section).toBe(0);
+    for (const part of ['drums', 'bass', 'lead', 'harm'] as const)
+      expect(first!.derived[part], part).not.toBeUndefined();
+    // (before the first section is planned, nothing)
+    expect(derivationOf(band.initial.plans)).toBeNull();
+  });
+
+  describe.each(['Funk', 'Swing jazz', 'Bossa nova'])('at %s, seed 1, solo', (name) => {
+    const sections = solo(name, 2);
+    const rowsOf = (i: number) => {
+      const s = sections[i]!;
+      return playingRows(s.text, s.outline, 'ground', s.workbench, {
+        library: s.library,
+        derived: { ...s.derived, drums: s.fragments.rhythm },
+      });
+    };
+
+    it.each([0, 1])(
+      'in section %i, every row the Library knows says who made it and how it came',
+      (i) => {
+        const s = sections[i]!;
+        const rows = rowsOf(i);
+        for (const row of rows) {
+          // (a row taken from a fragment, and a written row derived from one: the Library's row of either)
+          const id = row.id ?? row.derived?.id ?? null;
+          const came = row.id === null ? (row.derived?.came ?? null) : row.came;
+          if (id === null || !s.library.has(id)) {
+            expect(came, row.label).toBeNull();
+            continue;
+          }
+          expect(came, row.label).not.toBeNull();
+          expect(came!.row.key, row.label).toBe(id);
+          expect(came!.row.source, row.label).not.toBe('');
+          expect(came!.how, row.label).not.toBe('');
+        }
+        // (written rows carry no `came` of their own: what they came from is their derivation's)
+        for (const row of rows.filter((r) => r.id === null)) expect(row.came, row.label).toBeNull();
+      },
+    );
+
+    it.each([0, 1])(
+      'in section %i, the drums name their rhythm, and the bass, lead and harmony theirs or the band’s own',
+      (i) => {
+        const s = sections[i]!;
+        const rows = rowsOf(i);
+        const row = (label: string) => rows.find((r) => r.label === label)!;
+        const drums = row('drums');
+        expect(drums.id).toBeNull();
+        expect(drums.derived).not.toBeNull();
+        expect(drums.derived!.id).toBe(s.fragments.rhythm);
+        expect(drums.derived!.why).toMatch(/thins/);
+        // (every one of these sections finds a rhythm, which the Library logs as retrieved)
+        expect(drums.derived!.came?.row.retrieved).toBe(true);
+        for (const label of ['bass', 'lead', 'harm'] as const) {
+          const r = row(label);
+          expect(r, label).toBeDefined();
+          expect(r.id, label).toBeNull();
+          expect(r.derived, label).not.toBeNull();
+          expect(r.derived!.id, label).toBe(s.derived[label]);
+          if (r.derived!.id !== null && s.library.has(r.derived!.id))
+            expect(r.derived!.came, label).not.toBeNull();
+        }
+      },
+    );
+  });
+
+  it('on a client, names the drums’ rhythm off its bar and derives nothing else', () => {
+    const [s] = solo('Funk', 1);
+    // (a client keeps no layer and no workbench, and has no carried plans: its Library is its log of sections heard)
+    const library = fragmentRows({
+      layer: null,
+      log: [{ index: 0, section: 'Intro', ...s!.fragments }],
+      memory: [],
+      players: {},
+    });
+    const rows = playingRows(s!.text, s!.outline, 'ground', null, {
+      library: new Map(library.map((r) => [r.key, r])),
+      derived: { section: 0, drums: s!.fragments.rhythm },
+    });
+    const row = (label: string) => rows.find((r) => r.label === label)!;
+    expect(row('drums').derived?.id).toBe(s!.fragments.rhythm);
+    for (const label of ['bass', 'lead', 'harm']) expect(row(label).derived, label).toBeNull();
+    expect(row('clave').came?.how).toBe('a seed');
+  });
+
+  it('says a row’s fragment, what a written one came from, and how either came, on its line', () => {
+    const row = (over: Partial<PlayingRow>): PlayingRow => ({
+      key: 'k',
+      depth: 0,
+      label: 'bass',
+      id: null,
+      args: null,
+      on: [],
+      weight: null,
+      lines: [],
+      came: null,
+      derived: null,
+      ...over,
+    });
+    const seed = cameOf(libraryRow());
+    const found = cameOf(libraryRow({ filed: true, source: 'The bass' }));
+    expect(fragmentLine(row({ id: 'meter', args: 'swing=16n:.6' }))).toBe('meter (swing=16n:.6)');
+    expect(fragmentLine(row({ id: 'diatonic' }))).toBe('diatonic');
+    expect(fragmentLine(row({}))).toBe('written');
+    expect(fragmentLine(row({ derived: { id: null, came: null, why: null } }))).toBe(
+      'written, the band’s own',
+    );
+    expect(fragmentLine(row({ derived: { id: 'funk_bass', came: seed, why: null } }))).toBe(
+      'written from funk_bass',
+    );
+    expect(cameOfRow(row({ id: 'funk_bass', came: found }))).toBe(found);
+    expect(cameOfRow(row({ derived: { id: 'funk_bass', came: seed, why: null } }))).toBe(seed);
+    expect(cameOfRow(row({ derived: { id: null, came: null, why: null } }))).toBeNull();
+    expect(cameLine(seed)).toBe('a seed');
+    expect(cameLine(found)).toBe('found · The bass');
+  });
+
+  it('derives nothing where it is given nothing, as before', () => {
+    const [s] = solo('Funk', 1);
+    for (const row of playingRows(s!.text, s!.outline, 'ground')) {
+      expect(row.came).toBeNull();
+      expect(row.derived).toBeNull();
+    }
+  });
 });
