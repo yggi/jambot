@@ -210,6 +210,7 @@ function solo(name: string, sections: number) {
         workbench,
       });
       out.push({
+        kind: plan.theme.kind,
         text,
         outline: sectionOutline(compileSection(text)),
         fragments,
@@ -290,6 +291,25 @@ describe('the Playing tree joined to the Library (#730)', () => {
     // (before the first section is planned, nothing)
     expect(derivationOf(band.initial.plans)).toBeNull();
   });
+
+  it.each([
+    ['Techno', 'tonic_vamp'],
+    ['Acid', null],
+  ])(
+    'says what a build’s harmony came from at %s’s third section, seed 1: %s, or the band’s own (#735)',
+    (name, id) => {
+      const s = solo(name, 3)[2]!;
+      expect(s.kind).toBe('build');
+      expect(s.derived.harm).toBe(id);
+      const rows = playingRows(s.text, s.outline, 'ground', s.workbench, {
+        library: s.library,
+        derived: s.derived,
+      });
+      const harm = rows.find((r) => r.label === 'harm')!;
+      expect(harm.id).toBeNull();
+      expect(harm.derived?.id).toBe(id);
+    },
+  );
 
   describe.each(['Funk', 'Swing jazz', 'Bossa nova'])('at %s, seed 1, solo', (name) => {
     const sections = solo(name, 2);

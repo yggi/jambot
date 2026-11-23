@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { type BandCarried, type BandEnv, band, plannedAhead } from './band.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
 import { SECTION_BARS } from './form.ts';
-import { type HarmonySlot, barsOf } from './harmony-query.ts';
+import {
+  type HarmonyRepository,
+  type HarmonySlot,
+  barsOf,
+  composedHarmony,
+} from './harmony-query.ts';
 import type { KeyWish } from './key.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { LEAD_REPOSITORY } from './lead-lines.ts';
@@ -14,6 +19,7 @@ import { HARMONY_FRAGMENTS } from './library.ts';
 import { HARMONY_TAG, sectionTheme } from './plan.ts';
 import { HARMONY_REPOSITORY, harmonyRepository, progressionText } from './progressions.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
+import { draw } from './random.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { PRESETS, type Preset, type Style, holding, writtenStyle } from './style.ts';
 import { holdingSwing } from './swing.ts';
@@ -397,5 +403,135 @@ describe('the band with harmonies carries what JSON keeps (#425)', () => {
       // (the player's chords were filed)
       expect(progressions(carried.plans.layer!).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('the progression each section plays, kept by id, a build’s as a returning theme’s (#735)', () => {
+  /** What the composer asked the harmonies with for a theme: `composedHarmony`'s ask, the only one on offer `within`. */
+  interface Asked {
+    readonly layer: LearnedLayer | undefined;
+    readonly chosen: readonly string[];
+    readonly rejected: readonly string[];
+    readonly pull: number | undefined;
+  }
+
+  /**
+   * Every preset × seeds 1 and 2 × 32 bars at entropy 0.3, the app's five repositories wired in: each section as
+   * planned, the plans before and after it, and what the composer asked the harmonies for its theme, where it asked.
+   */
+  const sections = PRESETS.flatMap((preset) =>
+    [1, 2].flatMap((seed) => {
+      const asked: Asked[] = [];
+      const harmonies: HarmonyRepository = {
+        ...HARMONY_REPOSITORY,
+        query: (point, bench, layer, chosen = [], ask, pull) => {
+          if (ask?.within !== undefined)
+            asked.push({ layer, chosen, rejected: ask.exclude ?? [], pull });
+          return HARMONY_REPOSITORY.query(point, bench, layer, chosen, ask, pull);
+        },
+      };
+      const style: Style = { ...preset.style, entropy: 0.3 };
+      let carried: BandCarried = band.initial;
+      const planned = [];
+      for (let bar = 0; bar < 32; bar++) {
+        const was = carried.plans;
+        const from = asked.length;
+        carried = band.advance(
+          {
+            seed,
+            bar,
+            style,
+            swing: presetSwing(preset)!,
+            wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+            offer: null,
+            repository: METER_REPOSITORY,
+            rhythms: RHYTHM_REPOSITORY,
+            bassLines: BASS_REPOSITORY,
+            leads: LEAD_REPOSITORY,
+            harmonies,
+            layer: EMPTY_LAYER,
+          },
+          carried,
+          null,
+        ).carried;
+        const plan = carried.plans.before!;
+        if (plan === was.before) continue;
+        planned.push({
+          preset,
+          seed,
+          style,
+          plan,
+          was,
+          plans: carried.plans,
+          asked: asked.slice(from),
+        });
+      }
+      return planned.filter(({ plan }) => plan.section.index < 32 / SECTION_BARS);
+    }),
+  );
+
+  /** What the composer's query answers for a section's theme, asked as it asked (`composedHarmony`), read as `sectionTheme` reads it. */
+  const answered = ({ seed, style, plan, was }: (typeof sections)[number], ask: Asked) => {
+    const { index } = plan.section;
+    const bench = {
+      meter: plan.meter,
+      ...(plan.meterFragment === undefined ? {} : { meterFragment: plan.meterFragment }),
+    };
+    // (a new song writes its own themes, so a section that starts one asks with no A: #655)
+    const a = plan.section.song?.at === 0 && index > 0 ? null : was.themeFragments.A;
+    const id = composedHarmony(HARMONY_REPOSITORY, style, bench, {
+      at: { kind: plan.theme.kind, index, mode: plan.key.mode, harm: style.harm },
+      draw: draw(seed, 'theme', index, 0),
+      a: a ?? undefined,
+      chosen: ask.chosen,
+      rejected: ask.rejected,
+      layer: ask.layer,
+      pull: ask.pull,
+    });
+    return id !== undefined && HARMONY_REPOSITORY.read(id, bench.meter, ask.layer) ? id : null;
+  };
+
+  it('keeps every section’s progression, by id or null where the tables wrote it, the builds included', () => {
+    expect(sections).toHaveLength(PRESETS.length * 2 * 4);
+    for (const { preset, seed, plan, plans } of sections) {
+      const at = `${preset.name}, seed ${seed}, section ${plan.section.index}`;
+      expect(plans.progressionFragment, at).not.toBeUndefined();
+      // (a returning theme's is the one its kind carries)
+      if (plan.theme.kind !== 'build')
+        expect(plans.progressionFragment, at).toBe(plans.themeFragments[plan.theme.kind]);
+    }
+  });
+
+  it('keeps the id the composer’s query returned where it asked, and where a theme returns, the one it returns with', () => {
+    for (const s of sections) {
+      const { preset, seed, plan, was, plans, asked } = s;
+      const at = `${preset.name}, seed ${seed}, section ${plan.section.index}`;
+      // (a build is always built afresh, a returning theme only where it is renewed: once at most)
+      expect(asked.length, at).toBeLessThanOrEqual(1);
+      if (plan.theme.kind === 'build') expect(asked, at).toHaveLength(1);
+      if (asked.length === 1) expect(plans.progressionFragment, at).toBe(answered(s, asked[0]!));
+      else if (plan.theme.kind !== 'build')
+        expect(plans.progressionFragment, at).toBe(was.themeFragments[plan.theme.kind]);
+    }
+  });
+
+  it('finds a progression for Techno’s builds, a seed vamp, and writes the other builds with the tables', () => {
+    // (Acid's, Happy hardcore's and Elektro's builds find none, at either seed, and the tables write them)
+    const builds = sections.filter((s) => s.plan.theme.kind === 'build');
+    expect(
+      builds.map(
+        (s) =>
+          `${s.preset.name}, seed ${s.seed}, §${s.plan.section.index}: ${s.plans.progressionFragment}`,
+      ),
+    ).toEqual([
+      'Techno, seed 1, §2: tonic_vamp',
+      'Techno, seed 2, §2: vamp_to_the_fourth',
+      'Acid, seed 1, §2: null',
+      'Acid, seed 2, §2: null',
+      'Happy hardcore, seed 1, §2: null',
+      'Happy hardcore, seed 2, §2: null',
+      'Elektro, seed 1, §2: null',
+      'Elektro, seed 2, §2: null',
+    ]);
   });
 });
