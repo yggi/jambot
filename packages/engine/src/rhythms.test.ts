@@ -1,11 +1,13 @@
-import { METERS, type MeterName } from '@jambot/theory';
+import { METERS, type MeterName, stepsOf } from '@jambot/theory';
 import { RHYTHM_FRAGMENTS } from './library.ts';
 import { cachedFit, unionOf } from '@yggi/cells/repository';
 import { resolveSeed } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, type BandCarried, band } from './band.ts';
 import { CLAVES_NOTE, DRUM_NOTES, TOM_NOTES } from './drums.ts';
-import { DRUM_ORDER } from './events.ts';
+import { DRUM_ORDER, clockOf } from './events.ts';
+import { heardDrums } from './muse-groove.ts';
+import { GROOVE_TAG } from './plan.ts';
 import {
   BENCH,
   BENCH_FRAGMENT,
@@ -711,5 +713,55 @@ describe('a groove variation kept by reference (#553)', () => {
       filed: [{ ...file, meta: { ...file.meta, [HASH]: 'e1:0000000000000000' } }],
     };
     expect(rebuiltLayer(wrong).dropped).toEqual([file.fragment.id]);
+  });
+});
+
+describe('the breathing drums, a groove that takes a built-in fill (#740)', () => {
+  const FOUR = METERS['4/4'];
+  const breathing = RHYTHM_FRAGMENTS.find((f) => f.id === 'breathing_drums')!;
+
+  it('plays its hats at `metric_accent`’s levels, none where a level is 0, none at a hat’s own velocity (#740)', () => {
+    expect(breathing.text).toMatch(/^&hatLevel from metric_accent\(/m);
+    const levels = /^&hatLevel map=amp step=16n (.*)$/m
+      .exec(grooveLines(breathing.text))![1]!
+      .split(' ')
+      .map(Number);
+    expect(levels).toHaveLength(16);
+    const hats = RHYTHM_REPOSITORY.read('breathing_drums', FOUR)!.hits.filter(
+      (h) => h.role === 'hat',
+    );
+    // (cells' MIDI out strikes a level at 127·√level)
+    expect(hats.map((h) => [h.step, h.velocity])).toEqual(
+      levels.flatMap((level, step) =>
+        level === 0 ? [] : [[step, Math.round(127 * Math.sqrt(level))]],
+      ),
+    );
+    expect(hats.every((h) => h.velocity < 127)).toBe(true);
+    expect(new Set(hats.map((h) => h.velocity)).size).toBeGreaterThan(1);
+  });
+
+  it('is known when a player plays it: the bar heard files as a use of the breathing drums, not a groove of its own (#740)', () => {
+    const played = RHYTHM_REPOSITORY.read('breathing_drums', FOUR)!;
+    const clock = clockOf([{ bar: 0, meter: FOUR }]);
+    const heard = played.hits.map((h) => ({
+      note: h.note,
+      velocity: h.velocity,
+      source: 'Ada',
+      position: stepsOf(FOUR) + h.step,
+      end: null,
+    }));
+    const [bar] = heardDrums(heard, 1, FOUR, clock);
+    expect(bar!.hits).toEqual(played.hits);
+    const { point } = breathing.association[0]!;
+    const filed = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, {
+      hits: bar!.hits,
+      bench: { meter: FOUR },
+      point: { mood: 0.5, ...point },
+      source: 'Ada',
+      created: 'song 1, bar 1',
+      tags: [GROOVE_TAG],
+    });
+    expect(filed).toMatchObject({ id: 'breathing_drums', held: true });
+    expect(filed.layer.filed).toEqual([]);
   });
 });
