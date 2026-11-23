@@ -3,6 +3,6 @@
   "points added to the share among a run’s 3 most used lead lines, and their error": ["-40.19","1.22"],
   "lines filed by the player, by the lead, by the composer, and held": [332,0,165,258],
   "lines filed that an hour’s cap dropped": 0,
-  "the heaviest layer’s bytes over 3 hours, and the sections whose filing dropped the oldest": [15989,57],
-  "sections over the 3 hours": 5358
+  "the heaviest layer’s bytes over 3 hours, and the sections whose filing dropped the oldest": [15989,63],
+  "sections over the 3 hours": 5401
 }
