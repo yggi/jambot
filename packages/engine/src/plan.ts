@@ -114,6 +114,18 @@ import { chance, draw, pick } from './random.ts';
 import type { Style } from './style.ts';
 import type { SwingLevel } from './swing.ts';
 import { type Theme, type ThemeKind, buildTheme, themeKind } from './themes.ts';
+import {
+  NO_ROTATION,
+  type Rotation,
+  type Song,
+  afterSection,
+  capOf,
+  heard,
+  made,
+  nextSong,
+  played,
+} from './rotation.ts';
+import { songFormAt } from './section-kinds.ts';
 
 export interface PlanEnv {
   readonly seed: number;
@@ -266,6 +278,10 @@ export interface PlanCarried {
   readonly progressionFragment: string | null;
   /** The point the section before the one before was asked at, and its bench: where a progression heard in it is filed (#425); null before it. */
   readonly earlier: { readonly point: StylePoint; readonly bench: Bench } | null;
+  /** The station's songs (#547 rung 5, `rotation.ts`): each with its themes, its lead line and where it fits. */
+  readonly rotation: Rotation;
+  /** The song the section before plays in, by id; null where it plays in none (the chain's sections). */
+  readonly song: number | null;
 }
 
 /** How far the harmony may move from a returning theme's before it is built anew. */
@@ -618,13 +634,7 @@ export function sectionLead(
   rejected: readonly string[] = [],
   known: readonly string[] = [],
 ): string | undefined {
-  // (a motif a player just played, which the Muse knew, is the section's line, as a player's tonic wins: #547 rung 6;
-  // once: one the section before played already is left to the composer, so a player who keeps playing it doesn't pin
-  // the lead to it, the owner's ruling of 2026-11-14)
-  const heard = known.find(
-    (id) =>
-      id !== before && !rejected.includes(id) && leads?.read(id, meter.meter, layer)?.bars === 1,
-  );
+  const heard = heardMotifOf({ leads, layer }, meter, before, rejected, known);
   if (heard !== undefined) return heard;
   return leads
     ? composedLead(
@@ -638,6 +648,24 @@ export function sectionLead(
         pullOf(style.entropy),
       )
     : undefined;
+}
+
+/**
+ * A motif a player just played, which the Muse knew, as the section's line, as a player's tonic wins (#547 rung 6):
+ * once, so one the section before played already is left to the composer, and a player who keeps playing it doesn't
+ * pin the lead to it (the owner's ruling of 2026-11-14); a bar long, readable under the section's meter, not rejected.
+ */
+export function heardMotifOf(
+  { leads, layer }: Pick<PlanEnv, 'leads' | 'layer'>,
+  meter: SectionMeter,
+  before: string | undefined,
+  rejected: readonly string[],
+  known: readonly string[],
+): string | undefined {
+  return known.find(
+    (id) =>
+      id !== before && !rejected.includes(id) && leads?.read(id, meter.meter, layer)?.bars === 1,
+  );
 }
 
 /** The tag every progression the Muse files carries, beside the session's name where there is one (#425). */
@@ -759,6 +787,8 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     themeFragments: { A: null, B: null },
     progressionFragment: null,
     earlier: null,
+    rotation: NO_ROTATION,
+    song: null,
   },
   advance(
     given,
@@ -774,6 +804,8 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       leadFragment,
       themeFragments,
       earlier,
+      rotation,
+      song,
     },
   ) {
     // The layer the song started from, until the first section has learned;
@@ -799,38 +831,52 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     const chosen = chosenOf(memory);
     const env = { ...given, layer };
     const { seed, index, style, wish } = env;
-    const section = form.advance({ seed, index, style }, before?.section ?? null, null).output;
     const from = before?.key ?? INITIAL_KEY;
     // The players' wish wins: a tonic, or a mode other than the one playing.
     const own =
       before && wish.tonic === null && wish.mode === from.mode ? bandWish(env, from) : null;
     const key = nextKey(from, own ?? wish);
+    const composed = composedSection(env, before, chosen);
+    // Where a song ends, the station chooses the next (`rotation.ts`): one of its songs again, in the key's mode and the
+    // section's meter, or a new one on the form cells finds at the style, or none, where the chain plays.
+    const songAt = before?.section.song;
+    const continues = songAt !== undefined && songAt.at + 1 < songAt.of;
+    const next = continues ? null : stationChoice(rotation, song, key, composed.meter, env);
+    const station = next?.rotation ?? rotation;
+    const playing = continues ? song : (next?.song ?? null);
+    const section = form.advance(
+      { seed, index, style, ...(next ? { form: next.form } : {}) },
+      before?.section ?? null,
+      null,
+    ).output;
+    const inSong = section.song !== undefined && playing !== null;
+    const current: Song | null = inSong ? station.songs.find((s) => s.id === playing)! : null;
     const melodic =
       wish.melodic !== null && licenceOf(style).melodic.includes(wish.melodic)
         ? wish.melodic
         : melodicDefault(style);
-    const composed = composedSection(env, before, chosen);
     const { meterFragment } = composed.meter;
     const bench = { meter: composed.meter.meter, meterFragment };
     const rejected = rejectedOf(boredom, claveOwners);
     const kind = themeKind(section.type);
-    // (a new song writes its own themes: a chorus returns within its song, and the next song brings its own, #547
-    // rung 5, #655; the chain's sections keep theirs as before)
-    const newSong = section.song?.at === 0 && before !== null;
-    const songThemes = newSong ? { A: null, B: null } : themes;
-    const songThemeFragments = newSong ? { A: null, B: null } : themeFragments;
-    const held = kind === 'build' ? null : songThemes[kind];
-    const heldFragment = kind === 'build' ? null : songThemeFragments[kind];
-    // (a theme returns unless the mode or the harmony moved, at random, or the composer tired of its progression)
+    // (a song plays its own themes, a build's too: a new one writes them as its sections come, one played again has
+    // them, #547 rung 5; the chain's sections keep the themes before, as they did)
+    const songThemes = current ? { A: current.themes.A, B: current.themes.B } : themes;
+    const songThemeFragments = current
+      ? { A: current.themeFragments.A, B: current.themeFragments.B }
+      : themeFragments;
+    const held = kind === 'build' ? (current?.themes.build ?? null) : songThemes[kind];
+    const heldFragment =
+      kind === 'build' ? (current?.themeFragments.build ?? null) : songThemeFragments[kind];
+    // (a song's theme returns in its mode, whatever else moved: the song is itself; elsewhere a theme returns unless the
+    // mode or the harmony moved, at random, or the composer tired of its progression)
     const returns =
       held &&
       held.mode === key.mode &&
-      Math.abs(held.harm - style.harm) <= THEME_REACH &&
-      // (renewed at random in the chain's sections; within a song a theme returns as it was, the song itself renewed at
-      // its end: #655)
-      (section.song !== undefined ||
-        !chance(draw(seed, 'themeRenewal', index), style.entropy * 0.3)) &&
-      (heldFragment === null || !rejected.includes(heldFragment));
+      (current !== null ||
+        (Math.abs(held.harm - style.harm) <= THEME_REACH &&
+          !chance(draw(seed, 'themeRenewal', index), style.entropy * 0.3) &&
+          (heldFragment === null || !rejected.includes(heldFragment))));
     const built = returns
       ? { theme: held, fragment: heldFragment }
       : sectionTheme(env, kind, key, bench, songThemes, songThemeFragments, rejected);
@@ -881,15 +927,34 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         )
       : { id: line, layer: ladder.layer, playing: null };
     const bassKept = lineLadder.id;
-    // The lead line, on the same bench, its ladder climbed as the bass line's is.
-    const motif = sectionLead(
+    // The lead line, on the same bench, its ladder climbed as the bass line's is; a song's own, once it has one.
+    // (a motif a player just played wins, once, and stays theirs; else each play of a song starts from the song's own
+    // lead line, which the ladder climbs as any section's, so a performer embellishes it within the play, the owner's
+    // ruling of 2026-11-23: pinned for the whole play, the homeostat lost the lead's variations and overshot, E45)
+    const heardMotif = heardMotifOf(
       env,
       composed.meter,
       leadFragment ?? undefined,
-      [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
       rejectedOf(boredom, claveOwners),
       motifs.known,
     );
+    const songLead =
+      heardMotif === undefined &&
+      section.song?.at === 0 &&
+      current?.lead != null &&
+      env.leads?.read(current.lead, composed.meter.meter, lineLadder.layer ?? undefined)
+        ? current.lead
+        : null;
+    const motif =
+      songLead ??
+      sectionLead(
+        env,
+        composed.meter,
+        leadFragment ?? undefined,
+        [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
+        rejectedOf(boredom, claveOwners),
+        motifs.known,
+      );
     const leadLadder = lineLadder.layer
       ? climbedFigure(
           env.leads,
@@ -904,6 +969,21 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       : { id: motif, layer: lineLadder.layer, playing: null };
     const leadKept = leadLadder.id;
     const plan = { section, key, ...composed.meter, ...rhythm, melodic, theme };
+    const themesAfter = kind === 'build' ? songThemes : { ...songThemes, [kind]: theme };
+    const fragmentsAfter =
+      kind === 'build' ? songThemeFragments : { ...songThemeFragments, [kind]: built.fragment };
+    // (the song keeps what it played, and the station counts a section of it)
+    const withSection = current
+      ? heard(station, current.id, {
+          themes: { ...themesAfter, build: kind === 'build' ? theme : current.themes.build },
+          themeFragments: {
+            ...fragmentsAfter,
+            build: kind === 'build' ? built.fragment : current.themeFragments.build,
+          },
+          lead: current.lead ?? (heardMotif === undefined ? (leadKept ?? null) : null),
+          mode: key.mode,
+        })
+      : station;
     const kept = [
       meterFragment,
       rhythm.rhythmFragment,
@@ -914,7 +994,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     return {
       carried: {
         before: plan,
-        themes: kind === 'build' ? songThemes : { ...songThemes, [kind]: theme },
+        themes: themesAfter,
         layer: leadLadder.layer
           ? harmonyLearned(
               env.harmonies,
@@ -959,8 +1039,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
         claveOwners: ladder.playing ? ownedWith(claveOwners, found) : claveOwners,
         bassFragment: bassKept ?? null,
         leadFragment: leadKept ?? null,
-        themeFragments:
-          kind === 'build' ? songThemeFragments : { ...songThemeFragments, [kind]: built.fragment },
+        themeFragments: fragmentsAfter,
         progressionFragment: built.fragment,
         // (a section's bench as JSON keeps it: no meter fragment where it has none)
         earlier:
@@ -975,8 +1054,45 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
                 },
               }
             : null,
+        rotation: afterSection(withSection, current?.id ?? null, style.entropy),
+        song: current?.id ?? null,
       },
       output: plan,
     };
   },
 };
+
+/**
+ * The station's choice where a song ends (`nextSong`): the song to play and its form, and the rotation with its play
+ * counted; a new song made at the style's point, in the key's mode and the section's meter, the rotation kept within
+ * its cap; none, where the chain plays.
+ */
+function stationChoice(
+  rotation: Rotation,
+  playing: number | null,
+  key: Key,
+  meter: SectionMeter,
+  { seed, index, style }: Pick<PlanEnv, 'seed' | 'index' | 'style'>,
+): { readonly rotation: Rotation; readonly song: number | null; readonly form: string | null } {
+  const point = stylePoint(style);
+  const next = nextSong(rotation, {
+    point,
+    mode: key.mode,
+    meter,
+    entropy: style.entropy,
+    seed,
+    index,
+    playing,
+    found: songFormAt(style),
+  });
+  if (next.kind === 'none') return { rotation, song: null, form: null };
+  if (next.kind === 'replay')
+    return { rotation: played(rotation, next.song.id), song: next.song.id, form: next.song.form };
+  const grown = made(
+    rotation,
+    { form: next.form, point, mode: key.mode, meter },
+    capOf(style.entropy),
+    point,
+  );
+  return { rotation: played(grown, grown.made), song: grown.made, form: next.form };
+}

@@ -27,9 +27,11 @@
     hud: Pick<Hud, 'bar' | 'beat' | 'chord' | 'next' | 'sections' | 'heading'>;
     /** The meter of the bar heard. */
     meter?: Meter | undefined;
+    /** The song the section heard plays in, and its mix, by name (#547 rung 5); none where the chain plays or for a client. */
+    playing?: string | null;
   }
 
-  let { hud, meter = SONG_METER }: Props = $props();
+  let { hud, meter = SONG_METER, playing = null }: Props = $props();
 
   const heard = $derived(hud.beat !== null);
   const clock = $derived(meterOnSteps(meter));
@@ -65,6 +67,7 @@
 <div class="song">
   <p class="where">
     <span title={keys}>{keys}</span>
+    {#if playing}<span class="playing" title="Now playing">{playing}</span>{/if}
     <span>{hud.bar?.meterName ?? ''}</span>
   </p>
 

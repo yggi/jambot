@@ -235,6 +235,7 @@ import { type Ear, browserEar } from './ear.ts';
 import { Hearing } from './hearing.ts';
 import { PlayedLog } from './played.ts';
 import { type Hud, SECTIONS, hudOf } from './hud.ts';
+import { NO_SONGS, songsAfter } from './stationView.ts';
 import { EVEN_MIX, type Mix, sounds, velocityFor } from './mix.ts';
 import { PATTERN_BARS, Pattern, type PatternBar, patternBarOf } from './pattern.ts';
 import { Sounding, type SoundingNotes, performerOf } from './sounding.ts';
@@ -499,6 +500,8 @@ export class Player {
    * solo's, read once a section; null for a client, or before a song.
    */
   workbench: Workbench | null = $state.raw(null);
+  /** The song each section plans to play in, by its index, named (#547 rung 5, `stationView.ts`): a host's and solo's; none for a client. */
+  songs: ReadonlyMap<number, string> = $state.raw(NO_SONGS);
   /**
    * What the sections planned lately derive their written parts from, one a section, the latest last (#730, `derivationOf`): read
    * off the band's carried plans as each section is planned, so a host's and solo's; empty for a client, whose band
@@ -1746,6 +1749,7 @@ export class Player {
     if (carried!.finale.bar !== this.lastBar) this.lastBar = carried!.finale.bar;
     this.#learned(carried!.source.plans.layer);
     this.#mindful(carried!.source.plans);
+    this.#stationed(carried!.source.plans);
     this.#derived(carried!.source.plans);
     // The band decided its next bar in another meter: from now the bpm counts
     // that meter's beats, every step as long as it was (#367).
@@ -1856,6 +1860,12 @@ export class Player {
     const was = this.workbench;
     if (was?.inMind === shortTerm && was.boredom === boredom) return;
     this.workbench = { inMind: shortTerm, boredom };
+  }
+
+  /** The song the section the plans planned last plays in, kept as each section is planned. */
+  #stationed(plans: Pick<PlanCarried, 'before' | 'song'>) {
+    const songs = songsAfter(this.songs, plans);
+    if (songs !== this.songs) this.songs = songs;
   }
 
   /** The derivation of the section the plans planned last, logged once each changes, the last few kept. */
