@@ -185,23 +185,28 @@ export function composedHarmony(
   { at, draw, a, chosen = [], rejected = [], layer, pull }: HarmonyAsk,
 ): string | undefined {
   const { miss } = marginsOf(repository);
-  const fits = repository
-    .query(stylePoint(style), bench, layer, chosen, miss, pull)
-    .filter((f) => f.distance <= miss && !rejected.includes(f.id))
-    .map((f) => ({ ...f, read: repository.read(f.id, bench.meter, layer) }))
-    .filter((f) => fitsHarmony(f.read, at.harm));
-  const nearest = fits[0];
-  if (!nearest) return undefined;
-  const scoreOf = (f: (typeof fits)[number]) => f.score ?? f.distance;
-  const edge = scoreOf(nearest) + (OFFER - 1) * nearest.distance + 1e-9;
-  const placeOf = (f: (typeof fits)[number]) => {
-    const vamp = vampOf(f.read!);
+  const read = (id: string) => repository.read(id, bench.meter, layer);
+  const fits = repository.query(
+    stylePoint(style),
+    bench,
+    layer,
+    chosen,
+    {
+      reach: miss,
+      exclude: rejected,
+      accept: (id) => fitsHarmony(read(id), at.harm),
+      within: OFFER,
+    },
+    pull,
+  );
+  if (!fits.length) return undefined;
+  const placeOf = (id: string) => {
+    const vamp = vampOf(read(id)!);
     const place = vamp ? vampIndex(at.mode, vamp) : -1;
     return place === -1 ? Infinity : place;
   };
   const offer = fits
-    .filter((f) => scoreOf(f) <= edge)
-    .map((f, rank) => ({ id: f.id, place: placeOf(f), rank }))
+    .map((f, rank) => ({ id: f.id, place: placeOf(f.id), rank }))
     .sort((x, y) => x.place - y.place || x.rank - y.rank);
   // (a contrast with nothing on offer but A's own is a miss: the tables write it)
   if (at.kind !== 'A' && offer.length === 1 && offer[0]!.id === a) return undefined;

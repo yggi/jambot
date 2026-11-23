@@ -32,6 +32,16 @@ const impureGlobals = [
   ]),
 ].map(([name, message]) => ({ name, message }));
 
+/**
+ * Cells' module paths, which are its internals: Jambot imports cells by its entry points alone (the root, `/edit`,
+ * `/inspect`, `/library`, `/midi`, `/repository`, `/time`; #709), so a module cells moves inside never breaks a pin.
+ */
+const CELLS_INTERNALS = {
+  group: ['@yggi/cells/engine/*', '@yggi/cells/theory/*', '@yggi/cells/repository/*'],
+  message:
+    'Import cells by an entry point (@yggi/cells, /edit, /inspect, /library, /midi, /repository, /time).',
+};
+
 /** The screens a screen may not import, by the side of the door they are on. */
 const THE_BAND = [
   { name: './Band.svelte', message: 'The door and the band do not know each other.' },
@@ -63,6 +73,7 @@ const screenImports = (paths) => [
         message:
           'A screen takes what it shows as props and sends intents: the page runs the player, the device and the sessions.',
       },
+      CELLS_INTERNALS,
     ],
   },
 ];
@@ -78,6 +89,7 @@ export default defineConfig(
   {
     ignores: pureSources,
     languageOptions: { globals: { ...globals.browser, ...globals.node, __BUILD__: 'readonly' } },
+    rules: { 'no-restricted-imports': ['error', { patterns: [CELLS_INTERNALS] }] },
   },
   {
     // Pure packages run in browsers, workers and on the root node alike: no
@@ -87,7 +99,12 @@ export default defineConfig(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [{ group: ['node:*'], message: 'Pure packages use no Node APIs.' }] },
+        {
+          patterns: [
+            { group: ['node:*'], message: 'Pure packages use no Node APIs.' },
+            CELLS_INTERNALS,
+          ],
+        },
       ],
     },
   },
@@ -105,6 +122,7 @@ export default defineConfig(
             { group: ['node:*'], message: 'Pure packages use no Node APIs.' },
             { group: ['tonal', '@tonaljs/*'], message: 'tonal is for tests only.' },
             { group: ['@strudel/*'], message: '@strudel/mini is for conformance tests only (L4).' },
+            CELLS_INTERNALS,
           ],
         },
       ],

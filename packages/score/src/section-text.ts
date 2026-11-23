@@ -123,8 +123,7 @@ import {
   wrap,
 } from '@jambot/theory';
 import { fromLine } from '@yggi/cells';
-import { bandLine } from '@yggi/cells/repository/band';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { bandLine, resolveSeed } from '@yggi/cells/library';
 import { type ScoreKey, lowerNumeral } from './score.ts';
 
 // ---------------------------------------------------------------------------

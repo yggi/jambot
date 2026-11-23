@@ -9,18 +9,10 @@
  */
 
 import { type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
-import {
-  type Bar,
-  type StyleReading,
-  readStyle as readBar,
-} from '@yggi/cells/engine/reading/style';
+import { type Bar, type StyleReading, readStyle as readBar } from '@yggi/cells/repository';
 import { type DoughNote, SONG_METER } from './events.ts';
 
-export {
-  type StyleReading,
-  type TimingReading,
-  readTiming,
-} from '@yggi/cells/engine/reading/style';
+export { type StyleReading, type TimingReading, readTiming } from '@yggi/cells/repository';
 
 /** What a reading needs of a note: where it starts, in which part, how long it sounds, and its pitch where it reads one. */
 export type Sounding = Pick<DoughNote, 'part' | 'step' | 'length'> &

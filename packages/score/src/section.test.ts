@@ -31,12 +31,19 @@ import {
   presetSwing,
 } from '@jambot/engine';
 import { METERS, type MeterName, stepsOf } from '@jambot/theory';
-import { planOf, windowAt } from '@yggi/cells';
-import type { Resolve } from '@yggi/cells/engine/program';
-import { bodyOf } from '@yggi/cells/engine/use';
-import { references } from '@yggi/cells';
-import { resolveSeed } from '@yggi/cells/repository/library';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
+import { planOf, windowAt, references } from '@yggi/cells';
+import type { Resolve } from '@yggi/cells';
+import { bodyOf } from '@yggi/cells/repository';
+import {
+  resolveSeed,
+  INSTRUMENT_REACH,
+  PERFORMER_VOICES,
+  bandAt,
+  instrumentsAt,
+  resolveBand,
+  scoreStyle,
+} from '@yggi/cells/library';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import { describe, expect, it } from 'vitest';
 import {
   bandChords,
@@ -47,14 +54,6 @@ import {
   playSection,
   soundOf,
 } from './section-play.ts';
-import {
-  INSTRUMENT_REACH,
-  PERFORMER_VOICES,
-  bandAt,
-  instrumentsAt,
-  resolveBand,
-  scoreStyle,
-} from '@yggi/cells/repository/band';
 import {
   BAND_PARTS,
   PIN_VOICES,

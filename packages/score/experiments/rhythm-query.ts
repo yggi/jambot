@@ -73,15 +73,19 @@ import {
 } from '@jambot/engine';
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { setTiming } from '@yggi/cells/engine/edit';
-import { cachedFit } from '@yggi/cells/repository/fit';
-import { resolveSeed } from '@yggi/cells/repository/library';
-import { type Fragment, type Repository, createRepository } from '@yggi/cells/repository/fragments';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { setTiming } from '@yggi/cells/edit';
+import {
+  cachedFit,
+  type Fragment,
+  type Repository,
+  createRepository,
+  wordOf,
+} from '@yggi/cells/repository';
+import { resolveSeed } from '@yggi/cells/library';
 import { METER_FRAGMENTS } from '@jambot/engine';
 import { type Hit, witnesses } from './drums-in-cells.ts';
 import { meterName } from './bar-in-cells.ts';
-import { wordOf } from '@yggi/cells/engine/renamed';
 
 /**
  * A rhythm on a workbench, as cells' fit reads a collection (`fitsAs`, #562): the union of its lines with the

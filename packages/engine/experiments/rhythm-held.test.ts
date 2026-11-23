@@ -11,7 +11,7 @@ import {
   heldRuns,
   mostUsedRhythm,
 } from './rhythm-radio.ts';
-import { wordOf } from '@yggi/cells/engine/renamed';
+import { wordOf } from '@yggi/cells/repository';
 
 // E40 (#414): E37's runs with each preset held at entropy 0.3, an hour a run: the band as `main` plays it (no layer:
 // with a seed rhythm found, nothing is filed and nothing climbs, so a held preset plays its drum bar every section),

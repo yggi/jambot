@@ -1,7 +1,7 @@
 // The presets past the prototype's eight (#517): Electro swing, Spooky and those after them, each a name and a point, its
 // meter, swing, mode, drums and bass the ones cells' seeds hold at its point (yggi/cells#305, #349, #360), found there at
 // distance 0, and played so by the band held there.
-import { STYLES } from '@yggi/cells/repository/styles';
+import { STYLES } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { type BandCarried, band } from './band.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';

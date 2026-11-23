@@ -3,7 +3,7 @@ import type { Key } from './key.ts';
 import type { LeadNote } from './lead-query.ts';
 import type { Judgement } from './muse.ts';
 import { METERS } from '@jambot/theory';
-import { writtenOut } from '@yggi/cells/repository/decompose';
+import { writtenOut } from '@yggi/cells/repository';
 import { readLead } from './lead-lines.ts';
 import {
   type LeadBar,

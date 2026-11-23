@@ -23,7 +23,7 @@ import {
   straightBench,
   workbenchOf,
 } from './rhythm-query.ts';
-import { wordOf } from '@yggi/cells/engine/renamed';
+import { wordOf } from '@yggi/cells/repository';
 
 const SECTIONS = corpus();
 const ASKED = askCorpus(SECTIONS);

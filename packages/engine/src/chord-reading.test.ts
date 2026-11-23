@@ -1,5 +1,5 @@
 import { CHORD_QUALITIES } from '@jambot/theory';
-import { QUALITY_STACKS } from '@yggi/cells/engine/reading/chords';
+import { QUALITY_STACKS } from '@yggi/cells/repository';
 import { describe, expect, it } from 'vitest';
 import { chordOf } from './chord-reading.ts';
 

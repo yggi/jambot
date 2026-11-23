@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AXES as CELLS_AXES } from '@yggi/cells/engine/style';
+import { AXES as CELLS_AXES } from '@yggi/cells/library';
 import { METERS, meterOnSteps } from '@jambot/theory';
 import { presetSwing } from './repository.ts';
 import { leanMap, swingMapAt, swingParts } from './swing.ts';

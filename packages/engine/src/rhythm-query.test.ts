@@ -4,7 +4,6 @@ import { SONG_METER } from './events.ts';
 import { sectionRhythm } from './plan.ts';
 import {
   type FragmentRead,
-  type FoundRhythm,
   LAYER_DISTANCE,
   RHYTHM_HOLD,
   RHYTHM_MISS,
@@ -14,11 +13,33 @@ import {
 } from './rhythm-query.ts';
 import { pullOf } from './novelty.ts';
 import { INITIAL_STYLE } from './style.ts';
+import { type Ask, askOptions } from './facet.ts';
+import { createRepository } from '@yggi/cells/repository';
 
-const ranked = (distances: Record<string, number>): FoundRhythm[] =>
-  Object.entries(distances)
-    .map(([id, distance]) => ({ id, distance }))
-    .sort((x, y) => x.distance - y.distance);
+/**
+ * What cells' query returns, asked as the composer asks (`askOptions`), of fragments that lie at these distances: each on
+ * one axis, so its distance is the one given exactly. The margins are cells' rule, the numbers the composer's.
+ */
+const found = (
+  distances: Record<string, number>,
+  ask?: Ask,
+): { id: string; distance: number }[] => {
+  const ids = Object.keys(distances);
+  if (!ids.length) return [];
+  const fragments = ids.map((id) => ({
+    id,
+    text: '&probe 1',
+    association: [{ point: { sync: distances[id]! }, weight: 1, facet: 'probe' }],
+  }));
+  return createRepository(fragments)
+    .query(
+      { sync: 0 },
+      ask?.k ?? ids.length,
+      {},
+      { facet: 'probe', ...(ask ? askOptions(ask) : {}) },
+    )
+    .map((f) => ({ id: f.fragment.id, distance: f.distance }));
+};
 
 /** A drum bar `d…` reads as a kick on 0; a clave `c…` as a clave line over two bars; `x…` as a hat line. */
 const reads = (id: string): FragmentRead =>
@@ -43,11 +64,12 @@ const at = (
   const asked: unknown[] = [];
   return {
     asked,
-    query: (point, bench) => {
+    query: (_point, bench, _layer, _chosen, ask) => {
       asked.push(bench);
-      return ranked(rhythms);
+      return found(rhythms, ask);
     },
-    layered: (_point, _bench, chosen) => ranked(layered).filter((f) => f.id !== chosen),
+    layered: (_point, _bench, chosen, _layer, ask) =>
+      found(Object.fromEntries(Object.entries(layered).filter(([id]) => id !== chosen)), ask),
     read: (id) => reads(id),
   };
 };
@@ -170,13 +192,13 @@ describe('the composer asks the repository for a rhythm (#397)', () => {
     const base = at({ d1: 0 }, { c1: 0.05 });
     const repository: RhythmRepository = {
       ...base,
-      query: (point, given, layer, chosen, reach, pull) => {
+      query: (point, given, layer, chosen, ask, pull) => {
         pulls.push(['query', pull]);
-        return base.query(point, given, layer, chosen, reach, pull);
+        return base.query(point, given, layer, chosen, ask, pull);
       },
-      layered: (point, given, chosen, layer, reach, more, pull) => {
+      layered: (point, given, chosen, layer, ask, more, pull) => {
         pulls.push(['layered', pull]);
-        return base.layered(point, given, chosen, layer, reach, more, pull);
+        return base.layered(point, given, chosen, layer, ask, more, pull);
       },
     };
     composedRhythm(repository, INITIAL_STYLE, bench, null, undefined, [], [], 0.05);

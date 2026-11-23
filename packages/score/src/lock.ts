@@ -10,9 +10,8 @@
  */
 
 import { fragmentHash, textLockfile } from '@yggi/cells';
-import type { Resolve } from '@yggi/cells/engine/program';
-import { resolveBand } from '@yggi/cells/repository/band';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import type { Resolve } from '@yggi/cells';
+import { resolveBand, resolveSeed } from '@yggi/cells/library';
 
 /** A fragment by its id and hash: a lock's entry, as `@jambot/session`'s `FragmentRef`. */
 export interface LockedFragment {

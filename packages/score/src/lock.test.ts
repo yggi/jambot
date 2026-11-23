@@ -8,9 +8,8 @@ import {
   presetSwing,
 } from '@jambot/engine';
 import { fragmentHash } from '@yggi/cells';
-import type { Resolve } from '@yggi/cells/engine/program';
-import { resolveBand } from '@yggi/cells/repository/band';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import type { Resolve } from '@yggi/cells';
+import { resolveBand, resolveSeed } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BAND, isSeed, scoreLock } from './lock.ts';
 import { sectionAsCells, sectionTextOf } from './section-text.ts';

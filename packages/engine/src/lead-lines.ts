@@ -38,14 +38,18 @@
 
 import type { Meter, MeterName } from '@jambot/theory';
 import { METERS, stepsOf } from '@jambot/theory';
-import { bodyOf, signatureOf } from '@yggi/cells/engine/use';
-import { flatten, tapped } from '@yggi/cells/engine/flatten';
-import { fromId, headOf, resolveSeed, usesOf } from '@yggi/cells/repository/library';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { type Operator, variations } from '@yggi/cells/engine/vary/index';
-import { tapWhole } from '@yggi/cells/engine/vary/lines';
-import { useOn } from '@yggi/cells/repository/fit';
-import { createRepository, type Fragment, type StylePoint } from '@yggi/cells/repository/fragments';
+import {
+  bodyOf,
+  signatureOf,
+  useOn,
+  createRepository,
+  type Fragment,
+  type StylePoint,
+} from '@yggi/cells/repository';
+import { flatten, tapped } from '@yggi/cells/inspect';
+import { fromId, headOf, resolveSeed, usesOf } from '@yggi/cells/library';
+import { codeShifts } from '@yggi/cells';
+import { type Operator, variations, tapWhole } from '@yggi/cells/edit';
 import { FORM_FRAGMENTS, MOTIF_FRAGMENTS } from './library.ts';
 import { LEAD_FACET, type LeadNote, type LeadRead, type LeadRepository } from './lead-query.ts';
 import type { LearnedLayer } from './layer.ts';

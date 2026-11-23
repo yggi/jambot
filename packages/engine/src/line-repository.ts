@@ -14,12 +14,16 @@
  */
 
 import { METERS, type Meter, type MeterName, stepsOf } from '@jambot/theory';
-import { type VaryOptions, type Variation, drawn, variations } from '@yggi/cells/engine/vary/index';
-import { type Fragment, createRepository } from '@yggi/cells/repository/fragments';
-import { fileFragment, useFragments } from '@yggi/cells/repository/learned';
-import { METER_FRAGMENTS } from './library.ts';
+import { type VaryOptions, type Variation, drawn, variations } from '@yggi/cells/edit';
+import {
+  type Fragment,
+  createRepository,
+  fileFragment,
+  useFragments,
+} from '@yggi/cells/repository';
+import { isLibraryFragment } from '@yggi/cells/library';
 import { sameMeter } from './events.ts';
-import type { FacetRepository } from './facet.ts';
+import { type Ask, type FacetRepository, askOptions } from './facet.ts';
 import { type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { instrumentsFor } from './instruments.ts';
@@ -84,9 +88,9 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
 > {
   const { facet, fragments, read, bars = 1 } = kind;
   const varyOptions = kind.vary;
-  // (the lines with cells' meters beside them, which a line query never ranks, its facet theirs alone: so a line and
-  // the meter it was kept with count as used together)
-  const cells = createRepository([...fragments, ...METER_FRAGMENTS]);
+  // (the lines, and every other fragment of the library known, which a line query never ranks: so a line and the meter
+  // it was kept with count as used together, yggi/cells#861)
+  const cells = createRepository(fragments, { known: isLibraryFragment });
   const texts = new Map(fragments.map((f) => [f.id, f.text]));
   const textOf = (id: string, layer?: LearnedLayer) =>
     texts.get(id) ?? layer?.filed.find((f) => f.fragment.id === id)?.fragment.text;
@@ -113,31 +117,39 @@ export function lineRepositoryOf<N extends { readonly step: number }>(
     }
     return varied.get(key)!;
   };
-  const ranked = (
+  // Ranked as cells' query ranks them, the seed's every line and those the layer filed; a line the member can't read
+  // under the bench's meter is no find. With an ask, cells' query tests a read only for a line that could be taken.
+  const found = (
     point: StylePoint,
+    meter: Meter,
     layer: LearnedLayer | undefined,
     chosen: readonly string[],
-    reach: number,
+    ask: Ask | undefined,
     pull: number | undefined,
-  ) =>
-    cells
-      .query(
-        point,
-        fragments.length + METER_FRAGMENTS.length + (layer?.filed.length ?? 0),
-        {},
-        {
-          facet,
-          ...(layer ? { layer } : {}),
-          ...(chosen.length ? { chosen } : {}),
-          ...(pull === undefined ? {} : { pull }),
-        },
-      )
-      .filter((f) => texts.has(f.fragment.id) || f.distance <= reach);
+  ) => {
+    const all = fragments.length + (layer?.filed.length ?? 0);
+    const readable = (fragment: Fragment) => readText(fragment.text, meter) !== null;
+    const asked = cells.query(
+      point,
+      ask?.k ?? all,
+      {},
+      {
+        facet,
+        ...(layer ? { layer } : {}),
+        ...(chosen.length ? { chosen } : {}),
+        ...(pull === undefined ? {} : { pull }),
+        ...(ask ? askOptions(ask, readable) : {}),
+      },
+    );
+    return ask ? asked : asked.filter((f) => readable(f.fragment));
+  };
   return {
-    query(point, bench, layer, chosen = [], reach = Infinity, pull) {
-      return ranked(point, layer, chosen, reach, pull)
-        .filter((f) => readText(f.fragment.text, bench.meter) !== null)
-        .map((f) => ({ id: f.fragment.id, distance: f.distance, score: f.score }));
+    query(point, bench, layer, chosen = [], ask, pull) {
+      return found(point, bench.meter, layer, chosen, ask, pull).map((f) => ({
+        id: f.fragment.id,
+        distance: f.distance,
+        score: f.score,
+      }));
     },
     used: (layer, ids, point, alongside = []) =>
       cappedLayer(

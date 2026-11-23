@@ -1,8 +1,8 @@
 import { PROTOTYPE_PRESETS, SECTION_BARS, STRAIGHT, licenceOf, slotStepOn } from '@jambot/engine';
 import { joinChord } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { bandLine } from '@yggi/cells/repository/band';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { bandLine } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { characters as barCharacters, barAsCells, indexOf, statedChords } from './bar-in-cells.ts';
 import { degreeText, keyText, pinTone } from './pitch-in-cells.ts';

@@ -33,7 +33,7 @@ import {
   type Varied,
   nearestFigure,
 } from './facet.ts';
-import type { StylePoint } from '@yggi/cells/repository/fragments';
+import type { StylePoint } from '@yggi/cells/repository';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
 import { FORM_BARS } from './muse-lead.ts';

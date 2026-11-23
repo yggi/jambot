@@ -31,6 +31,7 @@
  */
 
 import type { Meter } from '@jambot/theory';
+import type { Ask } from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
 import { CELLS_AXIS, STYLE_AXIS_NAMES, type Style, type StyleAxisName } from './style.ts';
 import type { MeterSwing } from './swing.ts';
@@ -49,12 +50,13 @@ export type StylePoint = Readonly<Record<string, number>>;
 export interface MeterRepository {
   /** The fragments the band can play, by id. */
   readonly fragments: ReadonlyMap<string, MeterFragment>;
-  /** Every fragment the band can play, with its distance from a point, nearest first, with what was learned merged where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046), as strongly as `pull` (cells' default where none, #389). */
+  /** Every fragment the band can play, with its distance from a point, in the order cells' query ranks them, with what was learned merged where a layer is given; a fragment used often with those `chosen` (the composer's short-term memory, `short-term.ts`) ranks nearer, as cells' query weighs use together (decision 046), as strongly as `pull` (cells' default where none, #389). Where an `ask` is given, only what the composer may take (`Ask`, `facet.ts`). */
   query(
     point: StylePoint,
     layer?: LearnedLayer,
     chosen?: readonly string[],
     pull?: number,
+    ask?: Ask,
   ): readonly { readonly id: string; readonly distance: number }[];
   /** The layer after the composer kept fragment `id` at `point`: a use of it there (cells' `useFragments`), the layer within its cap. None where the repository learns nothing. */
   used?(layer: LearnedLayer, id: string, point: StylePoint): LearnedLayer;
@@ -108,16 +110,11 @@ export function composedMeter(
   pull?: number,
 ): MeterFragment | null {
   const { miss, hold } = repository.margins ?? { miss: MISS_DISTANCE, hold: METER_HOLD };
-  const found =
-    pull === undefined
-      ? repository.query(stylePoint(style), layer, ...(chosen.length ? [chosen] : []))
-      : repository.query(stylePoint(style), layer, chosen, pull);
-  const nearest = found[0];
-  if (!nearest || nearest.distance > miss) return null;
-  const held = playing === null ? undefined : found.find((f) => f.id === playing);
-  const id =
-    held && held.distance <= miss && held.distance - nearest.distance <= hold
-      ? held.id
-      : nearest.id;
-  return repository.fragments.get(id)!;
+  const ask: Ask = {
+    reach: miss,
+    playing: playing === null ? undefined : { id: playing, hold },
+    k: 1,
+  };
+  const [found] = repository.query(stylePoint(style), layer, chosen, pull, ask);
+  return found ? repository.fragments.get(found.id)! : null;
 }

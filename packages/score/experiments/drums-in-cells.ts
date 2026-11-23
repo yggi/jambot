@@ -43,7 +43,7 @@ import {
   withInstruments,
 } from '@jambot/engine';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 
 /** The drums' voices and levels E31 found, which the engine holds (`muse-groove.ts`) and the section's builder shares. */
 export { VOICE_OF_NOTE, euclidOf, levelOf } from '@jambot/engine';

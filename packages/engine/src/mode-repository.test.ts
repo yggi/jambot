@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Fragment } from '@yggi/cells/repository/fragments';
+import type { Fragment } from '@yggi/cells/repository';
 import { MODE_FRAGMENTS } from './library.ts';
 import { COMPOSER_MODES, INITIAL_KEY, type ComposerMode } from './key.ts';
 import { stylePoint } from './meter-query.ts';

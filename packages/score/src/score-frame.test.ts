@@ -16,7 +16,7 @@ import {
   sameMeter,
 } from '@jambot/engine';
 import { METERS, type MeterName } from '@jambot/theory';
-import { resolveBand } from '@yggi/cells/repository/band';
+import { resolveBand } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BAND } from './lock.ts';
 import { lockLacks, scoreFrame, scoreResolver } from './score-frame.ts';

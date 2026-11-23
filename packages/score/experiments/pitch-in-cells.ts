@@ -74,9 +74,8 @@ import {
   wrap,
 } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { SCALES } from '@yggi/cells/theory/modes';
-import { TONAL_SCALES } from '@yggi/cells/theory/tonal';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { SCALES, TONAL_SCALES } from '@yggi/cells/library';
 import {
   BASS_INITIAL,
   type ScoreBar,

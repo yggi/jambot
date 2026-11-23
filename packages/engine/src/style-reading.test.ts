@@ -1,5 +1,5 @@
 import { METERS, type Meter, meterOnSteps, stepsOf } from '@jambot/theory';
-import { BAR_4_4, readStyle as readCellsStyle } from '@yggi/cells/engine/reading/style';
+import { BAR_4_4, readStyle as readCellsStyle } from '@yggi/cells/repository';
 import { describe, expect, it } from 'vitest';
 import { type BandEnv, band } from './band.ts';
 import { type Part, SONG_METER, type WrittenNote } from './events.ts';

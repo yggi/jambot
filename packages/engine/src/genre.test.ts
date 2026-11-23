@@ -1,4 +1,4 @@
-import { readPoint } from '@yggi/cells/engine/reading/point';
+import { readPoint } from '@yggi/cells/repository';
 import { describe, expect, it } from 'vitest';
 import {
   PRESET_LANDMARKS,

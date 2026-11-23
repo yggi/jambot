@@ -1,11 +1,11 @@
 import { METERS, type MeterName, alteredHeight, stepsOf, wrap } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
 import { describe, expect, it } from 'vitest';
 import { keyHelix } from './key.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { MOTIF_FRAGMENTS, INSTRUMENT_FRAGMENTS } from './library.ts';
-import { bodyOf } from '@yggi/cells/engine/use';
+import { bodyOf } from '@yggi/cells/repository';
 import {
   LEAD_FORM,
   LEAD_REPOSITORY,

@@ -6,7 +6,7 @@ import { GROOVE_FEWEST, grooveText } from '../src/muse-groove.ts';
 import { instrumentsFor } from '../src/instruments.ts';
 import { GROOVE_KEEP, familyOf } from '../src/novelty.ts';
 import { RHYTHM_FRAGMENTS } from '../src/library.ts';
-import { variations } from '@yggi/cells/engine/vary/index';
+import { variations } from '@yggi/cells/edit';
 import { COMPOSER } from '../src/facet.ts';
 import { benchText, grooveLines, readRhythm, rhythmRepository } from '../src/rhythms.ts';
 import {

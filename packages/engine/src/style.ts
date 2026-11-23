@@ -22,9 +22,8 @@
  * Positions are steps of the song, counted from its start, 16 to a bar.
  */
 
-import { AXES as CELLS_AXES } from '@yggi/cells/engine/style';
-import { STYLES } from '@yggi/cells/repository/styles';
-export { pointDistance } from '@yggi/cells/repository/fragments';
+import { AXES as CELLS_AXES, STYLES } from '@yggi/cells/library';
+export { pointDistance } from '@yggi/cells/repository';
 import { barStart } from './events.ts';
 
 export interface AxisRange {

@@ -1,4 +1,4 @@
-import type { Recogniser } from '@yggi/cells/repository/recognise';
+import type { Recogniser } from '@yggi/cells/repository';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LEAN_AHEAD } from '../src/index.ts';
 import { warmedRecogniser } from '../src/recognised.ts';

@@ -1,5 +1,5 @@
 import { METERS, type Meter, stepsOf } from '@jambot/theory';
-import { readVoice as readCellsVoice } from '@yggi/cells/engine/reading/voice';
+import { readVoice as readCellsVoice } from '@yggi/cells/repository';
 import { describe, expect, it } from 'vitest';
 import type { Part } from './events.ts';
 import { VOICES, readVoice } from './part-reading.ts';

@@ -65,7 +65,7 @@ import {
   type Filing,
   type Found,
   type Varied,
-  heldNearest,
+  type Ask,
   nearestFigure,
 } from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
@@ -113,13 +113,13 @@ export type RhythmVariation = Varied<GrooveContent>;
  * drums' own step beside it: a line that layers on a rhythm, the clave.
  */
 export interface RhythmRepository extends FacetRepository<FragmentRead, GrooveContent> {
-  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), nearest first, the layer merged as for `query`, so use together with `chosen`, and with `more` chosen beside it, pulls; none farther than `reach`, where it is given, so a fit is tested only for those that can be taken; use together pulling as strongly as `pull`, as for `query`. */
+  /** Every other fragment that fits the bench with `chosen` on it and layers there (its union renames none of its names), in the order cells' query ranks them, the layer merged as for `query`, so use together with `chosen`, and with `more` chosen beside it, pulls; where an `ask` is given, only what the composer may take (`Ask`), as for `query`; use together pulling as strongly as `pull`, as for `query`. */
   layered(
     point: StylePoint,
     bench: RhythmBench,
     chosen: string,
     layer?: LearnedLayer,
-    reach?: number,
+    ask?: Ask,
     more?: readonly string[],
     pull?: number,
   ): readonly FoundRhythm[];
@@ -196,14 +196,31 @@ export function composedRhythm(
   );
   if (rhythm === undefined) return {};
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
-  const lines = repository
-    .layered(point, bench, rhythm, layer, reach + hold, chosen, pull)
-    .filter((f) => f.distance <= reach + hold && !rejected.includes(f.id))
-    .filter((f) => {
-      const read = repository.read(f.id, bench.meter, layer);
-      return read !== null && isOwnLine(read);
-    });
-  const clave = heldNearest(lines, playing?.claveFragment, reach, hold, hold);
+  const ownLine = (id: string) => {
+    const read = repository.read(id, bench.meter, layer);
+    return read !== null && isOwnLine(read);
+  };
+  const playingClave = playing?.claveFragment;
+  const [found] = repository.layered(
+    point,
+    bench,
+    rhythm,
+    layer,
+    {
+      reach: reach + hold,
+      exclude: rejected,
+      accept: ownLine,
+      playing: playingClave === undefined ? undefined : { id: playingClave, hold },
+      k: 1,
+    },
+    chosen,
+    pull,
+  );
+  // (asked a margin past the reach, so the clave playing is held there; a clave newly taken lies within reach, and where
+  // the nearest lies in the margin none is taken, as before cells' query held it: `slack` would take the next within
+  // reach in its place, which moves 6 of E38's 157,706 claves, for the owner)
+  const clave =
+    found && (found.id === playingClave || found.distance <= reach) ? found.id : undefined;
   return clave === undefined
     ? { rhythmFragment: rhythm }
     : { rhythmFragment: rhythm, claveFragment: clave };

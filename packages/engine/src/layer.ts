@@ -17,13 +17,11 @@
  * filed fragments, each list oldest first, as each grows at its end.
  */
 
-import { fragmentHash } from '@yggi/cells/engine/use';
-import type { FragmentFile } from '@yggi/cells/repository/files';
-import { writeFragment } from '@yggi/cells/repository/files';
-import type { LearnedLayer, Repository } from '@yggi/cells/repository/fragments';
+import { fragmentHash, writeFragment } from '@yggi/cells/repository';
+import type { FragmentFile, LearnedLayer, Repository } from '@yggi/cells/repository';
 import { RHYTHM_FRAGMENTS } from './library.ts';
 
-export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments';
+export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository';
 
 /**
  * The most a layer may weigh, in bytes of its JSON (UTF-8): 16,000, so the
@@ -130,8 +128,9 @@ export function cappedLayer(layer: LearnedLayer, cap: number = LAYER_CAP): Learn
 }
 
 /**
- * Those of `ids` a repository with a layer still holds: its seeds, and the
- * fragments the layer files. A fragment the layer's cap dropped meanwhile
+ * Those of `ids` a repository with a layer still holds: its seeds, the ids it
+ * knows (another facet's, the library's: cells' `knows`), and the fragments
+ * the layer files. A fragment the layer's cap dropped meanwhile
  * (`cappedLayer`), which a section may still have been playing, is gone, so
  * its use is learned no more.
  */
@@ -141,7 +140,7 @@ export function stillHeld(
   ids: readonly string[],
 ): string[] {
   const held = (id: string) =>
-    repository.fragments.some((f) => f.id === id) || layer.filed.some((f) => f.fragment.id === id);
+    repository.knows(id) || layer.filed.some((f) => f.fragment.id === id);
   return ids.filter(held);
 }
 
