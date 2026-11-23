@@ -4,7 +4,9 @@
  * 2, for 3 hours of sections (counted as 4/4 bars at the preset's tempo), held at its point or walked by the radio
  * (`walkRadio`). It measures what the plan's bounds name: whether a song ever follows itself, how often the draw takes
  * the song that fits best, whether a song plays its themes again as it first did, whether each play starts from its
- * lead line, and whether the rotation keeps within its cap.
+ * lead line, and whether the rotation keeps within its cap. And the mixes (step 2a): how often a song played again is
+ * one, whether each play starts from its version's tonic, drum bar and bass line, whether each new mix differs from the
+ * original, and how many mixes a song keeps.
  */
 
 import { NO_HISTORY } from '../src/history.ts';
@@ -18,7 +20,7 @@ import { HARMONY_REPOSITORY } from '../src/progressions.ts';
 import { walkRadio } from '../src/radio.ts';
 import { METER_REPOSITORY } from '../src/repository.ts';
 import { RHYTHM_REPOSITORY } from '../src/rhythms.ts';
-import { familyOf } from '../src/novelty.ts';
+import { familyOf, rejectedOf } from '../src/novelty.ts';
 import { capOf, sameSongMeter, weightOf } from '../src/rotation.ts';
 import { PRESETS, type Style, pointDistance } from '../src/style.ts';
 import { MISS_DISTANCE } from '../src/meter-query.ts';
@@ -56,6 +58,22 @@ export interface StationRun {
   readonly leadsDiffering: number;
   /** Sections where the rotation held more songs than its cap. */
   readonly overCap: number;
+  /** Plays after a song's first, and how many of them were mixes. */
+  readonly replays: number;
+  readonly mixed: number;
+  /**
+   * Plays of a version kept; how many of them found its drum bar or bass line rejected by the ladder, which then plays the
+   * next nearest; and how many didn't start from its tonic, or from its drum bar or bass line where it has one and the
+   * ladder hadn't rejected it (or a variation the ladder made of them at once).
+   */
+  readonly versionsCompared: number;
+  readonly versionsRejected: number;
+  readonly versionsDiffering: number;
+  /** New mixes, and how many play the original's tonic, drum bar and bass line all the same. */
+  readonly mixesMade: number;
+  readonly mixesSame: number;
+  /** The most mixes a song kept, at any section. */
+  readonly mostMixes: number;
 }
 
 /** One run of the station (see the module's comment). */
@@ -73,6 +91,8 @@ export function stationRun(
   const seen = new Map<number, number>();
   let [starts, backToBack, draws, nearest, uniform] = [0, 0, 0, 0, 0];
   let [themesCompared, themesDiffering, leadsCompared, leadsDiffering, overCap] = [0, 0, 0, 0, 0];
+  let [replays, mixed, versionsCompared, versionsRejected, versionsDiffering] = [0, 0, 0, 0, 0];
+  let [mixesMade, mixesSame, mostMixes] = [0, 0, 0];
   for (let index = 0; index < sections; index++) {
     const before = carried;
     const env: PlanEnv = {
@@ -91,6 +111,8 @@ export function stationRun(
     const { output: plan, carried: next } = planner.advance(env, carried, null);
     carried = next;
     if (carried.rotation.songs.length > capOf(style.entropy)) overCap++;
+    for (const s of carried.rotation.songs)
+      mostMixes = Math.max(mostMixes, s.versions.filter((v) => v.id > 0).length);
     const song = carried.song;
     const at = plan.section.song?.at;
     if (song !== null && at === 0) {
@@ -120,6 +142,45 @@ export function stationRun(
         const family = familyOf(carried.layer ?? EMPTY_LAYER, kept);
         if (carried.leadFragment === null || !family.includes(carried.leadFragment))
           leadsDiffering++;
+      }
+      // (the version it plays: one kept starts from its tonic, drum bar and bass line; a new mix differs from the original)
+      const was = before.rotation.songs.find((s) => s.id === song);
+      const now = carried.rotation.songs.find((s) => s.id === song)!;
+      const version = now.versions.find((v) => v.id === carried.version)!;
+      const original = now.versions.find((v) => v.id === 0)!;
+      if (plays > 1) {
+        replays++;
+        if (version.id > 0) mixed++;
+      }
+      const layer = carried.layer ?? EMPTY_LAYER;
+      const sameOrVaried = (kept: string | undefined | null, playing: string | undefined | null) =>
+        (kept ?? null) === (playing ?? null) ||
+        (kept != null && playing != null && familyOf(layer, kept).includes(playing));
+      if (was?.versions.some((v) => v.id === version.id)) {
+        versionsCompared++;
+        const rejected = rejectedOf(before.boredom, before.claveOwners);
+        const drumsOut =
+          version.drums.rhythmFragment !== undefined &&
+          rejected.includes(version.drums.rhythmFragment);
+        const bassOut = version.bass !== null && rejected.includes(version.bass);
+        if (drumsOut || bassOut) versionsRejected++;
+        // (a version keeps only a drum bar and bass line it has: where the drummer or the bass invented, a play finds one)
+        const drumsKept = version.drums.rhythmFragment !== undefined && !drumsOut;
+        const bassKept = version.bass !== null && !bassOut;
+        if (
+          plan.key.tonic !== version.tonic ||
+          (drumsKept && !sameOrVaried(version.drums.rhythmFragment, plan.rhythmFragment)) ||
+          (bassKept && !sameOrVaried(version.bass, carried.bassFragment))
+        )
+          versionsDiffering++;
+      } else if (version.id > 0) {
+        mixesMade++;
+        if (
+          version.tonic === original.tonic &&
+          version.drums.rhythmFragment === original.drums.rhythmFragment &&
+          version.bass === original.bass
+        )
+          mixesSame++;
       }
     }
     if (song !== null && at !== undefined) {
@@ -152,6 +213,14 @@ export function stationRun(
     leadsCompared,
     leadsDiffering,
     overCap,
+    replays,
+    mixed,
+    versionsCompared,
+    versionsRejected,
+    versionsDiffering,
+    mixesMade,
+    mixesSame,
+    mostMixes,
   };
 }
 

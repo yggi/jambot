@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MIXES_KEPT,
+  MIX_BOTH,
   NO_ROTATION,
   ROTATION_FLOOR,
   ROTATION_SPAN,
@@ -10,8 +12,12 @@ import {
   heard,
   made,
   nextSong,
+  nextVersion,
   played,
   titleOf,
+  type SongVersion,
+  versioned,
+  versionTitle,
 } from './rotation.ts';
 import { MISS_DISTANCE } from './meter-query.ts';
 import { METERS } from '@jambot/theory';
@@ -199,5 +205,100 @@ describe('a song as it plays', () => {
     expect([one!.boredom, two!.boredom].map((b) => b.toFixed(4))).toEqual(['0.3000', '0.3000']);
     r = afterSection(afterSection(r, null, 0.3), null, 0.3);
     expect(r.songs.map((s) => s.boredom)).toEqual([0, 0]);
+  });
+});
+
+/** A version of a song: the original (0) or a mix, its tonic, drum bar and bass line. */
+const version = (id: number, over: Partial<SongVersion> = {}): SongVersion => ({
+  id,
+  tonic: 0,
+  drums: { rhythmFragment: 'four_on_the_floor' },
+  bass: 'root_bass',
+  changes: id === 0 ? [] : ['key'],
+  ...over,
+});
+
+/** Song 1 of a rotation, heard in these versions, the last of them played last. */
+const songIn = (...versions: SongVersion[]): Song =>
+  versions.reduce((r, v) => versioned(r, 1, v), rotationOf(0.5)).songs[0]!;
+
+const versionAsk = (over: Partial<Parameters<typeof nextVersion>[1]> = {}) => ({
+  entropy: 0.3,
+  seed: 1,
+  index: 8,
+  ...over,
+});
+
+describe('a song’s versions: its original and its mixes (#547 rung 5 step 2, the owner’s rulings of 2026-11-23)', () => {
+  it('plays a new song as its original, and keeps what the original plays: its tonic, drum bar and bass line', () => {
+    const fresh = rotationOf(0.5).songs[0]!;
+    expect(fresh.versions).toEqual([]);
+    expect(nextVersion(fresh, versionAsk())).toEqual({ kind: 'original' });
+    const song = songIn(version(0, { tonic: 7 }));
+    expect([song.versions.length, song.versions[0]!.tonic, song.version]).toEqual([1, 7, 0]);
+  });
+
+  it('plays the version it played last at entropy 0: the station holds, a mix too', () => {
+    expect(nextVersion(songIn(version(0)), versionAsk({ entropy: 0 }))).toEqual({
+      kind: 'original',
+    });
+    expect(nextVersion(songIn(version(0), version(1)), versionAsk({ entropy: 0 }))).toEqual({
+      kind: 'mix',
+      version: 1,
+    });
+  });
+
+  it('mixes a song played again as often as the entropy says: 0.3 of its plays at 0.3, 0.7 at 0.7', () => {
+    const song = songIn(version(0));
+    for (const entropy of [0.3, 0.7]) {
+      const plays = Array.from({ length: 4000 }, (_, index) =>
+        nextVersion(song, versionAsk({ entropy, index })),
+      );
+      const mixed = plays.filter((p) => p.kind !== 'original').length / plays.length;
+      expect(Math.abs(mixed - entropy), `at ${entropy}`).toBeLessThan(0.03);
+    }
+  });
+
+  it('makes a new mix while the song keeps fewer than MIXES_KEPT, changing its key or its groove, now and then both', () => {
+    expect([MIXES_KEPT, MIX_BOTH]).toEqual([3, 0.5]);
+    const song = songIn(version(0), version(1), version(2));
+    const made = Array.from({ length: 4000 }, (_, index) =>
+      nextVersion(song, versionAsk({ index })),
+    ).filter((p) => p.kind === 'new mix');
+    expect(made.length).toBeGreaterThan(1000);
+    const changes = made.map((p) => (p.kind === 'new mix' ? [...p.changes].sort().join('+') : ''));
+    const share = (c: string) => changes.filter((x) => x === c).length / changes.length;
+    // (one change each, key or groove alike; both at entropy 0.3 × MIX_BOTH, 0.15)
+    expect(Math.abs(share('groove+key') - 0.15)).toBeLessThan(0.03);
+    expect(Math.abs(share('key') - share('groove'))).toBeLessThan(0.05);
+    expect(changes.every((c) => ['key', 'groove', 'groove+key'].includes(c))).toBe(true);
+  });
+
+  it('plays one of the mixes it keeps once it keeps MIXES_KEPT, never the one it played last', () => {
+    const song = songIn(version(0), version(1), version(3), version(2));
+    const mixes = Array.from({ length: 2000 }, (_, index) =>
+      nextVersion(song, versionAsk({ index })),
+    ).filter((p) => p.kind !== 'original');
+    expect(mixes.every((p) => p.kind === 'mix')).toBe(true);
+    const played = new Set(mixes.map((p) => (p.kind === 'mix' ? p.version : -1)));
+    expect([...played].sort()).toEqual([1, 3]);
+  });
+
+  it('is the same for the same seed and index', () => {
+    const song = songIn(version(0), version(1));
+    const at = (seed: number) =>
+      Array.from({ length: 64 }, (_, index) => nextVersion(song, versionAsk({ seed, index })));
+    expect(at(1)).toEqual(at(1));
+    expect(at(1)).not.toEqual(at(2));
+  });
+
+  it('keeps a version heard again in its place, and names the original and each mix', () => {
+    const song = songIn(version(0), version(1), version(0, { tonic: 2 }));
+    expect(song.versions.map((v) => [v.id, v.tonic])).toEqual([
+      [0, 2],
+      [1, 0],
+    ]);
+    expect(song.version).toBe(0);
+    expect([0, 1, 2].map(versionTitle)).toEqual(['original', 'mix 1', 'mix 2']);
   });
 });

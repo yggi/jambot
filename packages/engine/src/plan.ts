@@ -60,7 +60,7 @@ import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from 
 import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
 import { SONG_METER } from './events.ts';
 import type { Machine } from './machine.ts';
-import type { LearnedLayer } from './layer.ts';
+import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import {
   type MeterFragment,
   type MeterRepository,
@@ -99,6 +99,7 @@ import {
   NO_BOREDOM,
   NO_CLAVE_OWNERS,
   boredAfter,
+  familyOf,
   pullOf,
   rejectedOf,
   ownedWith,
@@ -115,15 +116,20 @@ import type { Style } from './style.ts';
 import type { SwingLevel } from './swing.ts';
 import { type Theme, type ThemeKind, buildTheme, themeKind } from './themes.ts';
 import {
+  type MixChange,
   NO_ROTATION,
+  type NextVersion,
   type Rotation,
   type Song,
+  type SongVersion,
   afterSection,
   capOf,
   heard,
   made,
   nextSong,
+  nextVersion,
   played,
+  versioned,
 } from './rotation.ts';
 import { songFormAt } from './section-kinds.ts';
 
@@ -282,6 +288,8 @@ export interface PlanCarried {
   readonly rotation: Rotation;
   /** The song the section before plays in, by id; null where it plays in none (the chain's sections). */
   readonly song: number | null;
+  /** The version of that song it plays (#547 step 2, `rotation.ts`): 0 its original, a mix from 1; null where no song plays. */
+  readonly version: number | null;
 }
 
 /** How far the harmony may move from a returning theme's before it is built anew. */
@@ -308,6 +316,14 @@ export function bandWish(
 ): Pick<KeyWish, 'tonic' | 'mode'> | null {
   const reach = harmonicReach(style);
   if (reach === 0 || !chance(draw(seed, 'keyJump', index), style.entropy * KEY_JUMP)) return null;
+  return keyNear(history, key, reach, draw(seed, 'keyJump', index, 1));
+}
+
+/**
+ * Another key in the same mode within `reach` fifths of `key`, picked at `at` by how much its scale weighs in the
+ * history: where the band moves the key itself (`bandWish`), and where a mix moves a song's tonic (#547 step 2).
+ */
+function keyNear(history: PlanEnv['history'], key: Key, reach: number, at: number): Key {
   // In one mode, keys lie as many fifths apart as their tonics do on the wheel.
   const home = fifthsIndex(key.tonic);
   const candidates = [...Array(12).keys()]
@@ -317,7 +333,7 @@ export function bandWish(
     })
     .map((tonic) => ({ tonic, mode: key.mode }));
   const weights = candidates.map((c) => keyWeight(history, c));
-  return candidates[pick(draw(seed, 'keyJump', index, 1), leaning(weights, LEAN))]!;
+  return candidates[pick(at, leaning(weights, LEAN))]!;
 }
 
 /** A section's meter: the meter, the level it swings on, and where the composer took it from the repository, the share and the fragment. */
@@ -413,6 +429,7 @@ export function sectionRhythm(
   before: SectionRhythm | null,
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
+  taking?: string,
 ): SectionRhythm {
   return rhythms
     ? composedRhythm(
@@ -424,6 +441,7 @@ export function sectionRhythm(
         chosen,
         rejected,
         pullOf(style.entropy),
+        taking,
       )
     : {};
 }
@@ -789,6 +807,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     earlier: null,
     rotation: NO_ROTATION,
     song: null,
+    version: null,
   },
   advance(
     given,
@@ -806,6 +825,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       earlier,
       rotation,
       song,
+      version,
     },
   ) {
     // The layer the song started from, until the first section has learned;
@@ -835,13 +855,13 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     // The players' wish wins: a tonic, or a mode other than the one playing.
     const own =
       before && wish.tonic === null && wish.mode === from.mode ? bandWish(env, from) : null;
-    const key = nextKey(from, own ?? wish);
+    const wished = nextKey(from, own ?? wish);
     const composed = composedSection(env, before, chosen);
     // Where a song ends, the station chooses the next (`rotation.ts`): one of its songs again, in the key's mode and the
     // section's meter, or a new one on the form cells finds at the style, or none, where the chain plays.
     const songAt = before?.section.song;
     const continues = songAt !== undefined && songAt.at + 1 < songAt.of;
-    const next = continues ? null : stationChoice(rotation, song, key, composed.meter, env);
+    const next = continues ? null : stationChoice(rotation, song, wished, composed.meter, env);
     const station = next?.rotation ?? rotation;
     const playing = continues ? song : (next?.song ?? null);
     const section = form.advance(
@@ -851,6 +871,49 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
     ).output;
     const inSong = section.song !== undefined && playing !== null;
     const current: Song | null = inSong ? station.songs.find((s) => s.id === playing)! : null;
+    // Where a play starts, the version it plays (#547 step 2): its original or a mix kept, which the play starts from, or a
+    // new one, the original at a song's first play, a mix changing the original's key or groove.
+    const starts = current !== null && next !== null && next.version !== null;
+    const original = current?.versions.find((v) => v.id === 0) ?? null;
+    const chosenVersion: NextVersion | null = starts ? next.version : null;
+    const keptVersion =
+      chosenVersion?.kind === 'mix'
+        ? (current!.versions.find((v) => v.id === chosenVersion.version) ?? null)
+        : chosenVersion?.kind === 'original'
+          ? original
+          : null;
+    const changes: readonly MixChange[] =
+      chosenVersion?.kind === 'new mix' && original
+        ? feasible(chosenVersion.changes, original)
+        : [];
+    // (a new mix plays the original's but for what it changes)
+    const startFrom: SongVersion | null =
+      keptVersion ?? (chosenVersion?.kind === 'new mix' ? original : null);
+    // The key: a play starts in its version's tonic, a key mix's moved within the harmony's reach; a players' tonic wins.
+    const tonic =
+      !startFrom || wish.tonic !== null
+        ? null
+        : changes.includes('key')
+          ? keyNear(
+              env.history,
+              { tonic: startFrom.tonic, mode: wished.mode },
+              Math.max(1, harmonicReach(style)),
+              draw(seed, 'mix', index, 4),
+            ).tonic
+          : startFrom.tonic;
+    const key: Key = tonic === null ? wished : { tonic, mode: wished.mode };
+    // The groove: a play starts from its version's drum bar and bass line, where it has them and they read, and holds them,
+    // or the variations the ladder makes of them, through the play until the ladder rejects them; a groove mix leaves the
+    // original's out, so the next nearest plays.
+    const grooveFrom = startFrom && !changes.includes('groove') ? startFrom : null;
+    const playingVersion =
+      current && !starts ? (current.versions.find((v) => v.id === version) ?? null) : null;
+    const leftOut =
+      changes.includes('groove') && original
+        ? [original.drums.rhythmFragment, original.bass].filter(
+            (id): id is string => id !== undefined && id !== null,
+          )
+        : [];
     const melodic =
       wish.melodic !== null && licenceOf(style).melodic.includes(wish.melodic)
         ? wish.melodic
@@ -894,12 +957,35 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
           bench,
         )
       : { playing: null };
+    // (as the lead line: a version's drum bar and bass line start its play wherever they read, rejected or not; within the
+    // play what of their family plays holds while it reads and the ladder hasn't rejected it)
+    const reads = (repository: PlanEnv['rhythms'] | PlanEnv['bassLines'], id: string) =>
+      (repository?.read(id, composed.meter.meter, layer ?? undefined) ?? null) !== null;
+    const holds = (kept: string | null | undefined, playingNow: string | null | undefined) =>
+      kept != null &&
+      playingNow != null &&
+      !rejected.includes(playingNow) &&
+      familyOf(layer ?? EMPTY_LAYER, kept).includes(playingNow);
+    const startDrums =
+      grooveFrom?.drums.rhythmFragment !== undefined &&
+      !rejected.includes(grooveFrom.drums.rhythmFragment) &&
+      reads(env.rhythms, grooveFrom.drums.rhythmFragment)
+        ? grooveFrom.drums.rhythmFragment
+        : null;
+    const heldDrums =
+      before &&
+      holds(playingVersion?.drums.rhythmFragment, before.rhythmFragment) &&
+      reads(env.rhythms, before.rhythmFragment!)
+        ? before.rhythmFragment!
+        : null;
+    // (the drum bar a play keeps is taken, its clave layered on it as on any drum bar found)
     const found = sectionRhythm(
       env,
       composed.meter,
       before,
       [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
-      rejectedOf(boredom, claveOwners),
+      [...rejectedOf(boredom, claveOwners), ...leftOut],
+      startDrums ?? heldDrums ?? undefined,
     );
     // Bored with a groove, the composer varies it, and the variation plays in its place.
     const ladder = layer
@@ -907,13 +993,26 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       : { rhythm: found, layer, playing: null };
     const { rhythm } = ladder;
     // The bass line, on the same bench, its ladder climbed as the rhythm's is (`facet.ts`).
-    const line = sectionLine(
-      env,
-      composed.meter,
-      bassFragment ?? undefined,
-      [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
-      rejectedOf(boredom, claveOwners),
-    );
+    const startBass =
+      grooveFrom?.bass != null &&
+      !rejected.includes(grooveFrom.bass) &&
+      reads(env.bassLines, grooveFrom.bass)
+        ? grooveFrom.bass
+        : null;
+    const heldBass =
+      holds(playingVersion?.bass, bassFragment) && reads(env.bassLines, bassFragment!)
+        ? bassFragment
+        : null;
+    const line =
+      startBass ??
+      heldBass ??
+      sectionLine(
+        env,
+        composed.meter,
+        bassFragment ?? undefined,
+        [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
+        [...rejectedOf(boredom, claveOwners), ...leftOut],
+      );
     const lineLadder = ladder.layer
       ? climbedFigure(
           env.bassLines,
@@ -984,6 +1083,22 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
           mode: key.mode,
         })
       : station;
+    // (a version a play starts is kept as it plays there: the original's, or a new mix's, numbered next)
+    const heardVersion: SongVersion | null =
+      !starts || !current
+        ? null
+        : (keptVersion ?? {
+            id:
+              chosenVersion?.kind === 'new mix'
+                ? Math.max(...current.versions.map((v) => v.id)) + 1
+                : 0,
+            tonic: key.tonic,
+            drums: found,
+            bass: line ?? null,
+            changes,
+          });
+    const withVersion =
+      heardVersion && current ? versioned(withSection, current.id, heardVersion) : withSection;
     const kept = [
       meterFragment,
       rhythm.rhythmFragment,
@@ -1054,8 +1169,9 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
                 },
               }
             : null,
-        rotation: afterSection(withSection, current?.id ?? null, style.entropy),
+        rotation: afterSection(withVersion, current?.id ?? null, style.entropy),
         song: current?.id ?? null,
+        version: heardVersion ? heardVersion.id : current ? version : null,
       },
       output: plan,
     };
@@ -1073,7 +1189,12 @@ function stationChoice(
   key: Key,
   meter: SectionMeter,
   { seed, index, style }: Pick<PlanEnv, 'seed' | 'index' | 'style'>,
-): { readonly rotation: Rotation; readonly song: number | null; readonly form: string | null } {
+): {
+  readonly rotation: Rotation;
+  readonly song: number | null;
+  readonly form: string | null;
+  readonly version: NextVersion | null;
+} {
   const point = stylePoint(style);
   const next = nextSong(rotation, {
     point,
@@ -1085,14 +1206,31 @@ function stationChoice(
     playing,
     found: songFormAt(style),
   });
-  if (next.kind === 'none') return { rotation, song: null, form: null };
+  if (next.kind === 'none') return { rotation, song: null, form: null, version: null };
   if (next.kind === 'replay')
-    return { rotation: played(rotation, next.song.id), song: next.song.id, form: next.song.form };
+    return {
+      rotation: played(rotation, next.song.id),
+      song: next.song.id,
+      form: next.song.form,
+      version: nextVersion(next.song, { entropy: style.entropy, seed, index }),
+    };
   const grown = made(
     rotation,
     { form: next.form, point, mode: key.mode, meter },
     capOf(style.entropy),
     point,
   );
-  return { rotation: played(grown, grown.made), song: grown.made, form: next.form };
+  return {
+    rotation: played(grown, grown.made),
+    song: grown.made,
+    form: next.form,
+    version: { kind: 'original' },
+  };
 }
+
+/** What a new mix can change of the original: a groove only where the original played a drum bar or a bass line to leave out, else its key. */
+const feasible = (changes: readonly MixChange[], original: SongVersion): readonly MixChange[] => {
+  const groove = original.drums.rhythmFragment !== undefined || original.bass !== null;
+  const can = changes.filter((c) => c !== 'groove' || groove);
+  return can.length > 0 ? can : ['key'];
+};

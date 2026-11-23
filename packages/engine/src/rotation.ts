@@ -4,7 +4,13 @@
  * A **song** is made once, on the song form cells finds at the style (`songFormAt`), and keeps what makes it itself:
  * its themes A and B (the progressions it plays, by id where the repository gave them), its lead line, its mode, its
  * meter and the point it was made at, which is where it fits. Whatever plays it never changes those, so a chorus is the same
- * chorus every time the song is on air. (A mix, which varies a song with its themes kept, is step 2.)
+ * chorus every time the song is on air.
+ *
+ * A song is played in **versions** (step 2; the owner's rulings of 2026-11-23): its original, which its first play makes,
+ * and its mixes. A version keeps a tonic, a drum bar and a bass line, and each play starts from its version's, the
+ * ladders free within the play, as the lead line starts from the song's. A play again is a mix as often as the entropy
+ * says (`nextVersion`); a mix changes the key, the groove or both, never a theme, the lead line or the mode. A song keeps
+ * `MIXES_KEPT` mixes, so a mix comes round again; at entropy 0 a song plays the version it played last.
  *
  * The **rotation** is the songs a session has made, at most `capOf(entropy)` of them: 4 at entropy 0 up to 16 at 1.
  * At a song's end the next one is chosen (`nextSong`):
@@ -23,7 +29,8 @@ import type { Meter } from '@jambot/theory';
 import type { ComposerMode } from './key.ts';
 import type { SwingLevel } from './swing.ts';
 import { MISS_DISTANCE, type StylePoint } from './meter-query.ts';
-import { draw, pick, quantize } from './random.ts';
+import { chance, draw, pick, quantize } from './random.ts';
+import type { SectionRhythm } from './rhythm-query.ts';
 import { pointDistance } from './style.ts';
 import type { Theme } from './themes.ts';
 
@@ -53,6 +60,22 @@ export interface SongMeter {
   readonly meterFragment?: string;
 }
 
+/** What a mix changes of the original: the key's tonic, or the groove (the drum bar, the bass line or both). */
+export type MixChange = 'key' | 'groove';
+
+/** A version of a song: its original (0) or a mix of it (1 on), and the tonic, drum bar and bass line each play starts from. */
+export interface SongVersion {
+  readonly id: number;
+  /** Its key's tonic, the mode the song's. */
+  readonly tonic: number;
+  /** Its drum bar, and the clave on it, as the repository gave them; none where the drummer invented. */
+  readonly drums: SectionRhythm;
+  /** Its bass line, by id; null where the bass invented. */
+  readonly bass: string | null;
+  /** What it changed of the original: none for the original. */
+  readonly changes: readonly MixChange[];
+}
+
 /** A song of the rotation: what it is, where it fits, and how the station has played it. */
 export interface Song extends SongThemes {
   /** Its number in the session, in the order the songs were made, from 1. */
@@ -70,6 +93,10 @@ export interface Song extends SongThemes {
   readonly plays: number;
   /** How tired of it the station is: the entropy of each section it played, less that of each it didn't, to none. */
   readonly boredom: number;
+  /** The versions it was heard in, the original first; none before its first play is heard. */
+  readonly versions: readonly SongVersion[];
+  /** The version it played last, by id; null before its first. */
+  readonly version: number | null;
 }
 
 /** The songs a session has made, and how many it has made, which numbers the next. */
@@ -170,6 +197,8 @@ export function made(
     lead: null,
     plays: 0,
     boredom: 0,
+    versions: [],
+    version: null,
   };
   let songs = [...rotation.songs, fresh];
   while (songs.length > Math.max(1, cap)) {
@@ -211,6 +240,76 @@ export function afterSection(
     })),
   };
 }
+
+/** How many mixes a song keeps: a mixed play makes a new one while it keeps fewer (chosen in #547 step 2). */
+export const MIXES_KEPT = 3;
+
+/** How likely a new mix changes both the key and the groove, at entropy 1: a mix varies more as entropy rises. */
+export const MIX_BOTH = 0.5;
+
+/** What a song plays as, where it starts: its original, a mix it keeps, or a new mix with what it changes. */
+export type NextVersion =
+  | { readonly kind: 'original' }
+  | { readonly kind: 'mix'; readonly version: number }
+  | { readonly kind: 'new mix'; readonly changes: readonly MixChange[] };
+
+/**
+ * The version a song plays, where it starts (see the module's comment): its original first; at entropy 0 the version it
+ * played last; else a mix as often as the entropy says, a new one while it keeps fewer than `MIXES_KEPT`, or one of
+ * those it keeps, never the one it played last; otherwise its original.
+ */
+export function nextVersion(
+  song: Pick<Song, 'versions' | 'version'>,
+  {
+    entropy,
+    seed,
+    index,
+  }: { readonly entropy: number; readonly seed: number; readonly index: number },
+): NextVersion {
+  if (song.versions.length === 0) return { kind: 'original' };
+  if (quantize(entropy) === 0)
+    return song.version === null || song.version === 0
+      ? { kind: 'original' }
+      : { kind: 'mix', version: song.version };
+  if (!chance(draw(seed, 'mix', index), entropy)) return { kind: 'original' };
+  const mixes = song.versions.filter((v) => v.id > 0);
+  if (mixes.length < MIXES_KEPT) {
+    const one: MixChange = pick(draw(seed, 'mix', index, 1), [1, 1]) === 0 ? 'key' : 'groove';
+    const both = chance(draw(seed, 'mix', index, 2), quantize(entropy) * MIX_BOTH);
+    return { kind: 'new mix', changes: both ? ['key', 'groove'] : [one] };
+  }
+  const others = mixes.filter((v) => v.id !== song.version);
+  const from = others.length > 0 ? others : mixes;
+  return {
+    kind: 'mix',
+    version:
+      from[
+        pick(
+          draw(seed, 'mix', index, 3),
+          from.map(() => 1),
+        )
+      ]!.id,
+  };
+}
+
+/** The rotation with a song heard in a version, kept in its place or added, and played last. */
+export const versioned = (rotation: Rotation, id: number, version: SongVersion): Rotation => ({
+  ...rotation,
+  songs: rotation.songs.map((s) =>
+    s.id !== id
+      ? s
+      : {
+          ...s,
+          versions: s.versions.some((v) => v.id === version.id)
+            ? s.versions.map((v) => (v.id === version.id ? version : v))
+            : [...s.versions, version],
+          version: version.id,
+        },
+  ),
+});
+
+/** A version's name as the app says it: the original, or the mix's number. */
+export const versionTitle = (id: number): string => (id === 0 ? 'original' : `mix ${id}`);
 
 /** A song's name as the app says it: its number. */
 export const titleOf = (song: Pick<Song, 'id'>): string => `Song ${song.id}`;

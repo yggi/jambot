@@ -20,6 +20,9 @@ import { presetMode } from './mode-repository.ts';
 import { HARMONY_REPOSITORY } from './progressions.ts';
 import { LEAD_REPOSITORY } from './lead-lines.ts';
 import { EMPTY_LAYER } from './layer.ts';
+import { RHYTHM_REPOSITORY } from './rhythms.ts';
+import { BASS_REPOSITORY } from './bass-lines.ts';
+import { MIXES_KEPT, type SongVersion } from './rotation.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -380,11 +383,26 @@ describe('the melodic scale a section plays', () => {
 
 describe('the station (#547 rung 5, the owner’s rulings of 2026-11-23): songs in a rotation', () => {
   /** Each section's plan and the song the station plays it in, by id, held at a preset with the repositories. */
-  const station = (presetName: string, entropy: number, sections: number, seed = 1) => {
+  const station = (
+    presetName: string,
+    entropy: number,
+    sections: number,
+    seed = 1,
+    grooves = false,
+    walk = 0,
+  ) => {
     const preset = PRESETS.find((p) => p.name === presetName)!;
-    const style = { ...preset.style, entropy };
     let carried = planner.initial;
     return range(sections).map((index) => {
+      // (walked: the style's sync and harmony swing `walk` either way of the preset's, slowly, as a radio walks)
+      const swing = walk * Math.sin(index / 9);
+      const clamp = (x: number) => Math.min(1, Math.max(0, x));
+      const style = {
+        ...preset.style,
+        entropy,
+        sync: clamp(preset.style.sync + swing),
+        harm: clamp(preset.style.harm - swing),
+      };
       const env: PlanEnv = {
         seed,
         index,
@@ -393,14 +411,17 @@ describe('the station (#547 rung 5, the owner’s rulings of 2026-11-23): songs 
         history: NO_HISTORY,
         harmonies: HARMONY_REPOSITORY,
         leads: LEAD_REPOSITORY,
+        ...(grooves ? { rhythms: RHYTHM_REPOSITORY, bassLines: BASS_REPOSITORY } : {}),
       };
       const next = planner.advance(env, carried, null);
       carried = next.carried;
       return {
         plan: next.output,
         song: carried.song,
+        version: carried.version,
         rotation: carried.rotation,
         lead: carried.leadFragment,
+        bass: carried.bassFragment,
       };
     });
   };
@@ -483,6 +504,103 @@ describe('the station (#547 rung 5, the owner’s rulings of 2026-11-23): songs 
       expect(carried.rotation.songs.length, name).toBe(8);
       expect(leads.size, name).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  describe('mixes (step 2a, the owner’s rulings of 2026-11-23): a version keeps its tonic, drum bar and bass line', () => {
+    /** Each play's start: the version it plays, and the tonic, drum bar and bass line it starts from. */
+    const startsOf = (run: ReturnType<typeof station>) =>
+      run
+        .filter((s) => s.plan.section.song?.at === 0 && s.song !== null)
+        .map((s) => {
+          const song = s.rotation.songs.find((x) => x.id === s.song)!;
+          return {
+            song,
+            version: song.versions.find((v) => v.id === s.version)!,
+            original: song.versions.find((v) => v.id === 0)!,
+            tonic: s.plan.key.tonic,
+            drums: s.plan.rhythmFragment,
+            bass: s.bass,
+            themes: s.plan.theme,
+          };
+        });
+    const grooveOf = (v: SongVersion) => [v.drums.rhythmFragment, v.bass];
+    const NAMES = ['Synth-pop', 'Techno', 'Swing jazz', 'Kinderlied'];
+
+    it('starts each play from its version’s tonic, drum bar and bass line, held or walked', () => {
+      let walkedApart = 0;
+      for (const name of NAMES)
+        for (const walk of [0, 0.15]) {
+          const starts = startsOf(station(name, 0.3, 200, 1, true, walk));
+          expect(starts.length, name).toBeGreaterThan(20);
+          for (const { song, version, tonic, drums, bass } of starts) {
+            expect(version, `${name}, song ${song.id}`).toBeDefined();
+            expect([tonic, drums, bass], `${name}, song ${song.id}`).toEqual([
+              version.tonic,
+              version.drums.rhythmFragment,
+              version.bass,
+            ]);
+          }
+          if (walk > 0) walkedApart += starts.filter((s) => s.song.plays > 1).length;
+        }
+      expect(walkedApart).toBeGreaterThan(20);
+    });
+
+    it('mixes a song played again about as often as the entropy says, each song keeping at most MIXES_KEPT mixes', () => {
+      let again = 0;
+      let mixed = 0;
+      for (const name of NAMES) {
+        const run = station(name, 0.3, 200, 1, true);
+        const starts = startsOf(run);
+        const seen = new Set<number>();
+        for (const { song, version } of starts) {
+          if (seen.has(song.id)) {
+            again++;
+            if (version.id > 0) mixed++;
+          }
+          seen.add(song.id);
+        }
+        const last = run.at(-1)!.rotation;
+        for (const song of last.songs)
+          expect(song.versions.filter((v) => v.id > 0).length).toBeLessThanOrEqual(MIXES_KEPT);
+      }
+      expect(again).toBeGreaterThan(60);
+      expect(Math.abs(mixed / again - 0.3)).toBeLessThan(0.1);
+    });
+
+    it('changes the key or the groove of the original in every mix, never a theme or the mode', () => {
+      let mixes = 0;
+      for (const name of NAMES) {
+        for (const { song, version, original } of startsOf(station(name, 0.3, 200, 1, true))) {
+          if (version.id === 0) continue;
+          mixes++;
+          const key = version.tonic !== original.tonic;
+          const groove = grooveOf(version).join() !== grooveOf(original).join();
+          expect(key || groove, `${name}, song ${song.id} mix ${version.id}`).toBe(true);
+          if (version.changes.includes('key')) expect(key).toBe(true);
+          if (version.changes.includes('groove')) expect(groove).toBe(true);
+        }
+      }
+      expect(mixes).toBeGreaterThan(15);
+    });
+
+    it('moves a mix’s tonic within the harmony’s reach on the wheel of fifths, the song’s mode kept', () => {
+      for (const name of NAMES) {
+        const preset = PRESETS.find((p) => p.name === name)!;
+        const reach = Math.max(1, harmonicReach({ ...preset.style, entropy: 0.3 }));
+        for (const { version, original, song } of startsOf(station(name, 0.3, 200, 1, true))) {
+          if (!version.changes.includes('key')) continue;
+          const apart = Math.abs(
+            fifthsApart(
+              { tonic: version.tonic, mode: song.mode },
+              { tonic: original.tonic, mode: song.mode },
+            ),
+          );
+          expect(apart, `${name}, song ${song.id}`).toBeGreaterThan(0);
+          expect(apart).toBeLessThanOrEqual(reach);
+          expect(song.mode).toBe(presetMode(preset));
+        }
+      }
+    });
   });
 
   it('plays one song over and over at entropy 0, the same plans every time', () => {
