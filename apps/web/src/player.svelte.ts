@@ -201,7 +201,6 @@ import {
 import { type Meter, mod, stepsOf } from '@jambot/theory';
 import { type Output, webAudioOutput } from './audio/output.ts';
 import type { Workbench } from './fragmentsView.ts';
-import { DERIVED_PARTS, type SectionDerivation, derivationOf } from './playingView.ts';
 import { browserLayerStore } from './layer-storage.ts';
 import { warmAtIdle, warmedOnFiling } from './warm.ts';
 import {
@@ -394,9 +393,6 @@ export interface HumanNote extends HeardNote {
 /** How many of the Muse's judgements the log keeps, as the prototype shows. */
 const MUSE_LOG = 5;
 
-/** How many sections' derivations the player keeps (#730): the one heard, the next, and those planned ahead. */
-const DERIVATIONS_KEPT = 4;
-
 /** How many notes are kept before the oldest half is dropped, as the prototype does. */
 const HUMAN_NOTES_MAX = 240;
 
@@ -499,12 +495,6 @@ export class Player {
    * solo's, read once a section; null for a client, or before a song.
    */
   workbench: Workbench | null = $state.raw(null);
-  /**
-   * What the sections planned lately derive their written parts from, one a section, the latest last (#730, `derivationOf`): read
-   * off the band's carried plans as each section is planned, so a host's and solo's; empty for a client, whose band
-   * state is its host's.
-   */
-  derivations: readonly SectionDerivation[] = $state.raw([]);
   /**
    * The score of the section heard and cells' outline of it, as the shadow took it (#642): a host's and a band
    * alone's as built, a client's as given. None before a section's score is taken, or where none states it.
@@ -1246,7 +1236,6 @@ export class Player {
   #begin(output: Output) {
     output.starting?.(this.#start - this.skew);
     this.#carried = null;
-    this.derivations = [];
     this.lastBar = null;
     this.loop = null;
     this.loopMenu = loopView(null, 0);
@@ -1746,7 +1735,6 @@ export class Player {
     if (carried!.finale.bar !== this.lastBar) this.lastBar = carried!.finale.bar;
     this.#learned(carried!.source.plans.layer);
     this.#mindful(carried!.source.plans);
-    this.#derived(carried!.source.plans);
     // The band decided its next bar in another meter: from now the bpm counts
     // that meter's beats, every step as long as it was (#367).
     const decided = carried!.source.next;
@@ -1856,16 +1844,6 @@ export class Player {
     const was = this.workbench;
     if (was?.inMind === shortTerm && was.boredom === boredom) return;
     this.workbench = { inMind: shortTerm, boredom };
-  }
-
-  /** The derivation of the section the plans planned last, logged once each changes, the last few kept. */
-  #derived(plans: PlanCarried) {
-    const now = derivationOf(plans);
-    if (!now) return;
-    const was = this.derivations.find((d) => d.section === now.section);
-    if (was && DERIVED_PARTS.every((part) => was[part] === now[part])) return;
-    const kept = this.derivations.filter((d) => d.section !== now.section);
-    this.derivations = [...kept.slice(1 - DERIVATIONS_KEPT), now];
   }
 
   /** Whether the song's last bar has ended and its last chord has rung out, at `now` on the transport's clock. */

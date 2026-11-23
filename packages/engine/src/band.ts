@@ -232,6 +232,20 @@ export interface BandBar extends BarEnv {
   readonly written: readonly WrittenNote[];
   /** The written notes, each played by a performer. */
   readonly dough: readonly DoughNote[];
+  /**
+   * The fragments its section's plans took that the plan doesn't carry (#731): the progression, the bass line and the
+   * lead line, by id, each null where the band wrote its own; the drums' is the plan's `rhythmFragment`. The score
+   * writes each as its `from` line (`section-text.ts`), so a client reads it there; a bar a score states, a finale's,
+   * or one played again on a passed bar names none. It never travels on a bar of session version 1 (`writtenBar`).
+   */
+  readonly derivedFrom?: DerivedFrom;
+}
+
+/** What a section's progression, bass line and lead line are taken from, by id; null where the band wrote its own. */
+export interface DerivedFrom {
+  readonly harmony: string | null;
+  readonly bass: string | null;
+  readonly lead: string | null;
 }
 
 const INITIAL: BandCarried = {
@@ -607,7 +621,12 @@ export const band: Machine<BandEnv, BandCarried, null, BandBar> = {
       ...comping.output,
       ...melody.output,
     ];
-    const output = playBar(bar, written);
+    const derivedFrom: DerivedFrom = {
+      harmony: at.progressionFragment,
+      bass: at.bassFragment,
+      lead: at.leadFragment,
+    };
+    const output = { ...playBar(bar, written), derivedFrom };
     return { carried: { ...after, parts, kept: withPlayed(after.kept, output) }, output };
   },
 };

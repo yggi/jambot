@@ -78,13 +78,16 @@ describe('the cells card', () => {
     expect(screen.getByText('2 from fragments · 6 written')).toBeInTheDocument();
   });
 
-  it('says how each part came, joined to the Library, and opens its fragment beside its lines (#730)', async () => {
+  it('says how each part came, joined to the Library, and opens its fragment beside its lines (#730), read off the score on a host and a client alike (#731)', async () => {
     const text = [
+      '&harm, &key from',
       '&bar from meter 120bpm',
       '&key from diatonic(mode=aeolian) A',
+      '&harm over=&key step=1m [0,2,4]',
       '&kick role=kick step=16n &bd:0:.4 ~ ~ ~',
       '&drumlines [&kick]',
-      '&bassline part=bass over=&key step=16n 0@4 3@4',
+      '* from funk_bass &harm',
+      '&bassline part=bass over=&harm step=16n 0@4 3@4',
       '&leadline part=lead over=&key step=4n 0 2 4 2',
       '* from band(drumlines=&drumlines, bassline=&bassline, leadline=&leadline)',
     ].join('\n');
@@ -93,20 +96,20 @@ describe('the cells card', () => {
       within(screen.getAllByRole('table', { name: 'Playing' }).at(-1)!)
         .getByRole('button', { name: label })
         .closest('tr')!.textContent;
-    // (a host's: the bass's line and the lead's miss off the band's carried plans, the bass line in mind)
+    // (a host's, the bass line in mind: the drums written out here, so derived from the rhythm their bar names; the bass
+    // from the take its line overrides; the lead from nothing the score takes)
     render(
       Cells,
       props({
         bar: bar(0, { rhythm: 'funk_drums' }),
         score,
         workbench: { inMind: [{ id: 'funk_bass', weight: 0.5 }], boredom: [] },
-        derivations: [{ section: 0, bass: 'funk_bass', lead: null }],
       }),
     );
     expect(line('drums')).toContain('written from funk_drums');
     expect(line('drums')).toContain('a seed');
     expect(line('bass')).toContain('written from funk_bass');
-    expect(line('lead')).toContain('written, the band’s own');
+    expect(line('lead')).toMatch(/written(?! from)/);
     await fireEvent.click(screen.getByRole('button', { name: 'drums' }));
     const detail = screen.getByRole('region', { name: 'drums' });
     expect(detail).toHaveTextContent(/Derived from\s*funk_drums/);
@@ -114,30 +117,35 @@ describe('the cells card', () => {
     expect(detail).toHaveTextContent('&kick role=kick');
     // (the Library's detail of funk_drums: its own text, the seed's)
     expect(within(detail).getByRole('heading', { level: 4 })).toHaveTextContent('funk_drums');
-    // (a client's: the drums off its bar, nothing else derived)
+    // (a client's: the same score, so the same derivations)
     render(Cells, props({ bar: bar(0, { rhythm: 'funk_drums' }), score }));
     expect(line('drums')).toContain('written from funk_drums');
-    expect(line('bass')).not.toContain('from');
-    expect(line('lead')).not.toContain('own');
+    expect(line('bass')).toContain('written from funk_bass');
+    expect(line('lead')).not.toContain('from');
   });
 
-  it('shows the next section, as built ahead, in a tab of its own (#642)', async () => {
-    const at = (tonic: string) => {
+  it('shows the next section, as built ahead, in a tab of its own (#642), what its parts came from as soon as its score is built (#731)', async () => {
+    const at = (tonic: string, motif?: string) => {
+      const lead = motif ? `&${motif}` : '&leadline';
       const text = [
         '&bar from meter 120bpm',
         `&key from diatonic(mode=aeolian) ${tonic}`,
-        '&leadline part=lead over=&key step=4n 0 2 4 2',
-        '* from band(leadline=&leadline)',
+        ...(motif ? [`* from ${motif} &key`] : []),
+        `${lead} part=lead over=&key step=4n 0 2 4 2`,
+        `* from band(leadline=${lead})`,
       ].join('\n');
       return { text, outline: sectionOutline(compileSection(text)) };
     };
     render(Cells, props({ score: at('A'), next: null }));
     await fireEvent.click(screen.getByRole('radio', { name: 'Next section' }));
     expect(screen.getByText(/the tree shows the next section once/)).toBeInTheDocument();
-    render(Cells, props({ score: at('A'), next: at('C') }));
+    render(Cells, props({ score: at('A'), next: at('C', 'hook') }));
     const tabs = screen.getAllByRole('radio', { name: 'Next section' });
     await fireEvent.click(tabs.at(-1)!);
     const table = screen.getByRole('table', { name: 'Next section' });
+    expect(
+      within(table).getByRole('button', { name: 'lead' }).closest('tr')!.textContent,
+    ).toContain('written from hook');
     await fireEvent.click(within(table).getByRole('button', { name: 'key' }));
     expect(screen.getByRole('region', { name: 'key' })).toHaveTextContent(
       'diatonic(mode=aeolian) C',

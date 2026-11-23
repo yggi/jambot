@@ -20,8 +20,19 @@
  *   its last bar's where the style moves within it (`style=&from..&to`), each
  *   end named by its preset's id in cells' library of styles where it sits on
  *   one (`&funk from styles`);
+ * - each part the composer took from a fragment, the progression, the drum
+ *   bar, the bass line and the lead line (#731, `takenFragments`), by its
+ *   `from` line with the argument it is taken on: alone where it plays what the
+ *   band plays (`&harm from vamp_to_the_seventh &key`, a progression the band
+ *   doesn't colour), else with every head the band's own lines write over it,
+ *   which win (`* from funk_bass &harm`, then `&bassline …`: the band thins a
+ *   found drum bar and bass line to its own count and register, #656, and plays
+ *   a lead line as its phrase's shape); the lead's own line then takes its
+ *   motif's head (`&riff part=lead …`, passed as `leadline=&riff`); a part
+ *   whose bars took a fragment the seed library lacks is written out;
  * - the harmony once, `&harm over=&key step=1m [0,2,4] [3,5,7] …`, every
- *   chord the band writes in the section at its slot (E32's stacks);
+ *   chord the band writes in the section at its slot (E32's stacks), unless
+ *   the progression's `from` line plays it;
  * - the drums, a line a role on `16n` over the section's steps (E31), the
  *   rim a Euclid token a bar on `1m` where the meter is straight (E33's gap 4),
  *   stacked as the drummer's part (`&drumlines`), each line its role as a
@@ -29,8 +40,7 @@
  *   name (cells decision 075, feel v3, #615); the clave the composer chose
  *   with the rhythm taken by its `from` line where the section plays it
  *   whole (`&clave from son_clave_3_2`, at the drummer's level in the mix,
- *   `takenClave`); the drums and the bass the composer found are written out
- *   until the band plays a found part whole (#656);
+ *   `takenClave`);
  * - the bass, the pad and the stab, each a line on `16n` over the chord in
  *   force (`over=&harm`, E33), a line with a note no index reaches over the
  *   key (`over=&key`), held `@k` for the written length and sounding its share
@@ -98,6 +108,8 @@ import {
   keyHelix,
   melodicHelix,
   readRhythm,
+  readProgression,
+  SLOT_BAR,
   sameMeter,
   slotStepOn,
 } from '@jambot/engine';
@@ -122,7 +134,7 @@ import {
   stepsOf,
   wrap,
 } from '@jambot/theory';
-import { fromLine } from '@yggi/cells';
+import { fromLine, signatureOf } from '@yggi/cells';
 import { bandLine, resolveSeed } from '@yggi/cells/library';
 import { type ScoreKey, lowerNumeral } from './score.ts';
 
@@ -427,19 +439,27 @@ const sameStyle = (a: StylePoint, b: StylePoint) =>
  * a range from its first bar's point to its last's (`style=&funk..&bossaNova`), which cells glides over the score's
  * bars. Each end is named by its preset's id in cells' library of styles where it sits on one (`&funk from styles`,
  * #596), else written at its point, each axis by its name in cells' table (`STYLE_AXIS_NAMES`, `CELLS_AXIS`), so a
- * cells version whose axes differ says so rather than reading it otherwise.
+ * cells version whose axes differ says so rather than reading it otherwise. A style named as a part the score takes is
+ * renamed where it is taken (`&marchStyle=march from styles`, beside a march motif's `&march`, #731).
  */
-const styleLines = (first: StylePoint, last: StylePoint, label: string): string[] => {
+const styleLines = (
+  first: StylePoint,
+  last: StylePoint,
+  label: string,
+  given: ReadonlySet<string> = new Set(),
+): string[] => {
   const ends = sameStyle(first, last) ? [first] : [first, last];
   const named = ends.map((style) => PRESETS.find((p) => sameStyle(p.style, style))?.id);
   const taken = [...new Set(named.filter((id) => id !== undefined))];
+  const nameOf = (id: string) => (given.has(`&${id}`) ? `&${id}Style` : `&${id}`);
   const written = ends.map((style, i) =>
     named[i] !== undefined
-      ? `&${named[i]}`
+      ? nameOf(named[i])
       : `&(map=style ${STYLE_AXIS_NAMES.map((a) => `${CELLS_AXIS[a]}=${axisText(style[a])}`).join(' ')})`,
   );
+  const binds = taken.map((id) => (nameOf(id) === `&${id}` ? `&${id}` : `${nameOf(id)}=${id}`));
   return [
-    ...(taken.length ? [`${taken.map((id) => `&${id}`).join(', ')} from styles`] : []),
+    ...(taken.length ? [`${binds.join(', ')} from styles`] : []),
     `&style label="${label}" style=${written.join('..')}`,
   ];
 };
@@ -526,6 +546,8 @@ export interface SectionText {
   readonly lines: readonly SectionLine[];
   readonly pitched: readonly PitchedLine[];
   readonly cuts: readonly SectionCut[];
+  /** Each part the composer took from a fragment, and how the score writes it (#731). */
+  readonly taken: readonly TakenFragment[];
 }
 
 export const sectionTextOf = (s: SectionText) => s.lines.map((l) => l.text).join('\n');
@@ -1050,6 +1072,151 @@ function takenClave(
   };
 }
 
+/**
+ * The parts the composer takes from a fragment (#731), each with the head its fragment gives and the argument it is
+ * taken on: the harmony over the key, the bass over the harmony, the lead over the key, the drums on nothing (a groove's
+ * drums are its optional parameters, filled from cells' kit).
+ */
+export const TAKEN_PARTS = {
+  harmony: { head: '&harm', main: '&key' },
+  bass: { head: '&bassline', main: '&harm' },
+  lead: { head: '&leadline', main: '&key' },
+  drums: { head: null, main: null },
+} as const;
+export type TakenPart = keyof typeof TAKEN_PARTS;
+
+/**
+ * How the score writes a part the composer took from a fragment (#731): `whole`, its `from` line alone, where that
+ * plays what the band plays; `over`, where the band changed it, the fragment taken with every head it gives the band's
+ * own lines' (`* from funk_bass &harm`, then `&bassline …`: a template's head the piece writes is the piece's, cells'
+ * `docs/language/use.md`); `written`, written out with no `from` line, and why.
+ */
+export interface TakenFragment {
+  readonly part: TakenPart;
+  readonly id: string;
+  readonly as: 'whole' | 'over' | 'written';
+  /**
+   * The head its fragment gives a pitched part, which the band's own line over it takes, so it wins (a motif's, `&hook`,
+   * passed to the band as `leadline=&hook`); none for the drums, whose role lines are the heads a groove gives.
+   */
+  readonly head?: string;
+  readonly why?: string;
+}
+
+/** Why a part taken from a fragment is written out: its bars part on what they took, or the score can't resolve it. */
+export const WRITTEN_WHY = {
+  parts: 'its bars take different fragments, or some none',
+  filed: 'it isn’t in the seed library, which the score reads its `from` lines through',
+  head: 'its fragment’s head isn’t the one the band’s other lines read',
+  named: 'its fragment’s head is a name the score gives already',
+} as const;
+
+/** The names a line of a score defines: its head, or each a `from` line binds (`&funk, &march from styles`). */
+const headsOfLine = (text: string): string[] => {
+  const left = /^(&[A-Za-z_]\w*(?:\s*,\s*&[A-Za-z_]\w*)*)(?=\s|$)/.exec(text)?.[1];
+  return left ? left.split(/\s*,\s*/) : [];
+};
+
+/** The fragment each bar of a section took for a part: the progression, the bass and lead lines, the drum bar. */
+const fragmentOf = (bar: BandBar, part: TakenPart): string | null =>
+  part === 'drums' ? (bar.plan.rhythmFragment ?? null) : (bar.derivedFrom?.[part] ?? null);
+
+/** A progression's chords by its id and meter, as cells reads its seed (`readProgression`), read once each. */
+const progressions = new Map<string, ReturnType<typeof readProgression>>();
+function seedProgression(id: string, meter: Meter): ReturnType<typeof readProgression> {
+  const key = `${id} ${meter.cycle}:${meter.heights.join(',')}`;
+  if (!progressions.has(key)) {
+    const text = resolveSeed(id);
+    progressions.set(key, text === null ? null : readProgression(text, meter));
+  }
+  return progressions.get(key)!;
+}
+
+/** A chord's tones as a word, to compare: each degree and accidental. */
+const tonesKey = (tones: readonly Tone[]) =>
+  tones.map((t) => `${t.degree}:${t.accidental}`).join(' ');
+
+/**
+ * Whether a progression's `from` line alone plays the section's chords: a section's text from its first bar, and every
+ * chord the band states at its step, each stack's tones as the band writes them (`chordTones`), where the seed states
+ * one; a chord held on is one chord. The band colours a progression it takes (sevenths, secondary dominants: #624
+ * rung 6), and then writes its own `&harm` over the take.
+ */
+function playsProgression(
+  bars: readonly BandBar[],
+  id: string,
+  steps: number,
+  chords: readonly { readonly step: number; readonly tones: string }[],
+): boolean {
+  if (bars[0]!.barInSection !== 0) return false;
+  const read = seedProgression(id, bars[0]!.meter);
+  if (!read) return false;
+  const total = bars.length * steps;
+  const held = (list: readonly { step: number; tones: string }[]) =>
+    list.filter((c, i) => c.step < total && (i === 0 || c.tones !== list[i - 1]!.tones));
+  const seed = read.notes.map((n) => ({
+    step: Math.floor(n.step / SLOT_BAR) * steps + slotStepOn(bars[0]!.meter, n.step % SLOT_BAR),
+    tones: tonesKey(
+      (n.stack ?? [0, 2, 4].map((k) => ({ degree: n.degree + k, alter: 0 }))).map((t) => ({
+        degree: t.degree,
+        accidental: t.alter,
+      })),
+    ),
+  }));
+  const ours = held(chords);
+  const theirs = held(seed);
+  return (
+    ours.length === theirs.length &&
+    ours.every((c, i) => c.step === theirs[i]!.step && c.tones === theirs[i]!.tones)
+  );
+}
+
+/**
+ * What a section's bars took for each part, and how the score writes it (`TakenFragment`): a part every bar took from
+ * one seed fragment is taken by its `from` line, whole where it plays so (the harmony alone: the band thins a found
+ * drum bar and bass line to its own count and register, #656, and plays a lead line as its phrase's shape), else with
+ * the band's own lines over it.
+ */
+function takenFragments(
+  bars: readonly BandBar[],
+  steps: number,
+  chords: readonly { readonly step: number; readonly tones: string }[],
+): TakenFragment[] {
+  return (Object.keys(TAKEN_PARTS) as TakenPart[]).flatMap((part): TakenFragment[] => {
+    const ids = new Set(bars.map((bar) => fragmentOf(bar, part)));
+    const [id] = ids;
+    if (id === undefined || id === null) {
+      const found = [...ids].find((x) => x !== null);
+      return found ? [{ part, id: found, as: 'written', why: WRITTEN_WHY.parts }] : [];
+    }
+    if (ids.size > 1) return [{ part, id, as: 'written', why: WRITTEN_WHY.parts }];
+    const text = resolveSeed(id);
+    if (text === null) return [{ part, id, as: 'written', why: WRITTEN_WHY.filed }];
+    const own = TAKEN_PARTS[part].head;
+    if (own === null) return [{ part, id, as: 'over' }];
+    // (the harmony and the bass keep their heads, which other lines read; the lead's line takes its motif's)
+    const heads = signatureOf(text)?.names ?? [];
+    const head = heads[0];
+    if (heads.length !== 1 || !head || (part !== 'lead' && head !== own))
+      return [{ part, id, as: 'written', why: WRITTEN_WHY.head }];
+    const whole = part === 'harmony' && playsProgression(bars, id, steps, chords);
+    return [{ part, id, as: whole ? 'whole' : 'over', head }];
+  });
+}
+
+/** A part's fragment as the score takes it: its head alone where whole, every head (`*`) where the band's lines win. */
+const takenLine = (t: TakenFragment): string => {
+  const { head, main } = TAKEN_PARTS[t.part];
+  return fromLine({
+    names: t.as === 'whole' && head ? [head] : null,
+    id: t.id,
+    ...(main ? { main } : {}),
+  });
+};
+
+/** The lead's line, as the band's signature names it. */
+const LEAD_LINE = TAKEN_PARTS.lead.head;
+
 /** What a section offers the band, the heads of its own signature (yggi/cells decision 075): its harmony and its key. */
 const OFFERS = '&harm, &key from';
 
@@ -1096,6 +1263,13 @@ export function sectionAsCells(
   const chords = sectionChords(bars, steps);
   const chordStack = (numeral: string) =>
     chordTones(key, lowerNumeral(key, parseNumeral(numeral)!));
+  let taken = takenFragments(
+    bars,
+    steps,
+    chords.map((c) => ({ step: c.step, tones: tonesKey(chordStack(c.numeral)) })),
+  );
+  const takenOf = (part: TakenPart) => taken.find((t) => t.part === part && t.as !== 'written');
+  const harm = takenOf('harmony');
   const lines: SectionLine[] = [
     // (the section offers the band its harmony and its key, the heads of its own signature: a part that doesn't read
     // the harmony leaves it unread, not silent, yggi/cells decision 075, #609)
@@ -1103,14 +1277,26 @@ export function sectionAsCells(
     { part: 'meter', text: meterLine(host.meter, host.bpm, host.swing) },
     { part: 'key', text: keyLine(key) },
     // (the section's style over its bars: what the band's instruments read, `&style[bite]`, decision 063 §3)
-    ...styleLines(bars[0]!.style, bars.at(-1)!.style, bars[0]!.plan.section.type).map((text) => ({
+    ...styleLines(
+      bars[0]!.style,
+      bars.at(-1)!.style,
+      bars[0]!.plan.section.type,
+      new Set(taken.flatMap((t) => (t.head && t.part === 'lead' ? [t.head] : []))),
+    ).map((text) => ({
       part: 'meter' as const,
       text,
     })),
-    {
-      part: 'harmony',
-      text: `&harm over=&key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,
-    },
+    // (the progression the composer took, by its `from` line: alone where it plays the band's chords, else the band's
+    // own `&harm` over it, #731)
+    ...(harm ? [{ part: 'harmony' as const, text: takenLine(harm) }] : []),
+    ...(harm?.as === 'whole'
+      ? []
+      : [
+          {
+            part: 'harmony' as const,
+            text: `&harm over=&key ${rhythmText(chords, (i) => stackText(chordStack(chords[i]!.numeral)), total, steps)}`,
+          },
+        ]),
     // (the section's intensity, which the band's drums, bass and stabs play at: yggi/cells decision 096, #645)
     ...intensity.lines.map((text) => ({ part: 'meter' as const, text })),
   ];
@@ -1125,6 +1311,9 @@ export function sectionAsCells(
     steps,
     euclid,
   );
+  // (the drum bar the composer took, every head the band's own drum lines write theirs: #656 thins it, #731)
+  const groove = takenOf('drums');
+  if (groove) lines.push({ part: 'drums', text: takenLine(groove) });
   if (clave) {
     lines.push({ part: 'drums', text: clave.line });
     drums.terms.push(clave.term);
@@ -1152,12 +1341,17 @@ export function sectionAsCells(
     outs[name] = true;
     lines.push(...line.lines.map((text) => ({ part, text })));
   };
+  // (the bass line and the lead line the composer took, each with the band's own line over it: #656, #731)
+  const bassTake = takenOf('bass');
+  if (bassTake) lines.push({ part: 'bass', text: takenLine(bassTake) });
   state('bass', 'bass', 'bass', inForce, table);
   state('pad', 'comp', 'comp', inForce, table);
   state('stab', 'comp', 'comp', inForce, table);
   const melodic = host.melodic;
   const scaleOwn = melodic === 'plain' || lead === 'key';
   const scale = melodicTones(key, melodic);
+  const leadTake = takenOf('lead');
+  if (leadTake) lines.push({ part: 'lead', text: takenLine(leadTake) });
   if (!scaleOwn && notes.some((n) => n.line === 'lead'))
     lines.push({ part: 'lead', text: `&melo over=&key step=1m ${stackText(scale)}` });
   state('lead', 'lead', 'lead', () => scale, scaleOwn ? 'key' : 'melo');
@@ -1175,6 +1369,28 @@ export function sectionAsCells(
     }),
   );
   lines.push(...tacets);
-  lines.push({ part: 'band', text: bandLine(lines.map((l) => l.text).join('\n')) });
-  return { lines, pitched, cuts };
+  // (a motif whose head the score names already, a style's (`&march from styles`), can't be taken: the lead's written)
+  const named = new Set(lines.flatMap((l) => headsOfLine(l.text)));
+  const clash = leadTake?.head !== undefined && named.has(leadTake.head);
+  if (clash) {
+    lines.splice(
+      lines.findIndex((l) => l.text === takenLine(leadTake!)),
+      1,
+    );
+    taken = taken.map((t) =>
+      t === leadTake ? { part: t.part, id: t.id, as: 'written', why: WRITTEN_WHY.named } : t,
+    );
+  }
+  const band = bandLine(lines.map((l) => l.text).join('\n'));
+  // (the lead's own line over a motif takes the motif's head, so it wins over the take's, and the band is passed it)
+  const leadHead = (!clash && leadTake?.head) || LEAD_LINE;
+  if (leadHead !== LEAD_LINE)
+    for (const [i, l] of lines.entries())
+      if (l.text.startsWith(`${LEAD_LINE} `))
+        lines[i] = { ...l, text: `${leadHead}${l.text.slice(LEAD_LINE.length)}` };
+  lines.push({
+    part: 'band',
+    text: band.replace(`leadline=${LEAD_LINE}`, `leadline=${leadHead}`),
+  });
+  return { lines, pitched, cuts, taken };
 }

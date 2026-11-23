@@ -46,10 +46,12 @@ import {
   type CompileResult,
   type DrumRole as FeelRole,
   type Outline,
+  type OutlineNode,
   type Plan,
   type Played,
   outlineOf,
   planOf,
+  signatureOf,
   windowAt,
 } from '@yggi/cells';
 import {
@@ -248,8 +250,45 @@ export type { Outline, OutlineNode, OutlinePart } from '@yggi/cells';
  * A compiled section's outline (cells' `outlineOf`, yggi/cells#695): its parts, each a line of the score or a fragment
  * one takes, linked by what reads what, for the Cells view's Playing tree (#642). The reading's own lines appended past
  * the score are parts of it too, which a reader leaves out by their line.
+ *
+ * A part the band took from a fragment and changed is written as cells writes a take with overrides (#731): `* from
+ * funk_bass &harm`, then the band's own `&bassline`, which wins. Cells' outline gives such a take none of the heads the
+ * score writes, and leaves its `overrode` empty, as cells' `Take.overrode` is for a template's `*`; so each is read here
+ * from the template's signature (`resolve`, the seed library by default, or the fragments a session sent): the heads it
+ * would give that the score's own lines write. That is what the Playing tree derives a written part from.
  */
-export const sectionOutline = (plan: Plan): Outline => outlineOf(plan.result);
+export function sectionOutline(plan: Plan, resolve: Resolve = resolveSeed): Outline {
+  const outline = outlineOf(plan.result);
+  const own = new Set(
+    outline.parts.filter((p) => p.id === null && p.within === null).flatMap((p) => p.heads),
+  );
+  const overrode = new Map<string, readonly string[]>();
+  for (const part of outline.parts) {
+    if (part.id === null || part.within !== null) continue;
+    const take = plan.result.takes?.find((t) => t.span.line === part.line && t.id === part.id);
+    if (!take || take.names !== null) continue;
+    const text = resolve(take.id, take.hash ?? undefined);
+    const heads = (text === null ? null : signatureOf(text)?.names) ?? [];
+    const written = heads.filter((h) => own.has(h) && !part.overrode.includes(h));
+    if (written.length) overrode.set(part.key, [...part.overrode, ...written]);
+  }
+  if (overrode.size === 0) return outline;
+  const parts = new Map(
+    outline.parts.map((p) => [
+      p.key,
+      overrode.has(p.key) ? { ...p, overrode: overrode.get(p.key)! } : p,
+    ]),
+  );
+  const node = (n: OutlineNode): OutlineNode => ({
+    part: parts.get(n.part.key)!,
+    children: n.children.map(node),
+  });
+  return {
+    parts: [...parts.values()],
+    ground: outline.ground.map(node),
+    outputs: outline.outputs.map(node),
+  };
+}
 
 /**
  * The voices whose own sound a score's notes are played with (`soundOf`): each the score writes itself, and each the
