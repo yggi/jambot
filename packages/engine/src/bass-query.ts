@@ -10,7 +10,8 @@
  * the next, `&harm[>>]`), its index into that chord's stack, an accidental
  * and a shift in semitones. The composer asks it at the style's point, with
  * the section's meter as the bench, as it asks for a rhythm, and takes the
- * nearest line it admits (`composedLine`), held as the meter is, none on a
+ * line it admits drawn among those on offer (`composedLine`, `offeredFigure`,
+ * #540), held while on offer, none on a
  * miss, where the bass's own machine is the generator (`bass.ts`), as the
  * drummer invents, and the Muse files what it played (`muse-line.ts`).
  *
@@ -39,7 +40,7 @@ import {
   type FacetRepository,
   type Filing,
   type Varied,
-  nearestFigure,
+  offeredFigure,
 } from './facet.ts';
 import { type Key, keyHelix } from './key.ts';
 import type { LearnedLayer } from './layer.ts';
@@ -84,8 +85,9 @@ export type LineRepository = FacetRepository<LineRead, LineContent>;
 
 /**
  * The bass line the composer takes at a style, on a bench, given the
- * section before's: the nearest it admits (a line it can read under the
- * meter), held as the meter is, none on a miss or with no repository. Those
+ * section before's: one it admits (a line it can read under the meter)
+ * drawn among those on offer (the nearest, without a draw), held while on
+ * offer, none on a miss or with no repository. Those
  * `chosen` (its short-term memory and the section's meter) pull the lines
  * used with them; those `rejected` (lines it has tired of, `novelty.ts`) it
  * leaves out, so the next nearest is taken, or none. It asks with `pull`,
@@ -100,8 +102,9 @@ export function composedLine(
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
   pull?: number,
+  pick?: number,
 ): string | undefined {
-  return nearestFigure(
+  return offeredFigure(
     repository,
     stylePoint(style),
     bench,
@@ -111,6 +114,7 @@ export function composedLine(
     chosen,
     rejected,
     pull,
+    pick,
   );
 }
 

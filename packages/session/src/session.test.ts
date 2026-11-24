@@ -15,8 +15,8 @@ import {
   LOOKAHEAD,
   SLIDER_GLIDE,
   type Style,
+  type SongClock,
   type StyleTrack,
-  type TimedEvent,
   type TransportCarried,
   type TransportEnv,
   clockOfTransport,
@@ -35,9 +35,10 @@ import { describe, expect, it } from 'vitest';
 import { CLOCK } from './clock.ts';
 import { EAR, earListen } from './ear.ts';
 import { orderedArrival } from './faults.ts';
-import { followSource } from './follow.ts';
-import { sentBars } from './host.ts';
-import { type SentBar, heardFrom, readClientMessage } from './protocol.ts';
+import { type ScoreArrival, scoreSource } from './follow-v2.ts';
+import { type SentBar, sentBars } from './host.ts';
+import { conductOf } from './host-v2.ts';
+import { heardFrom, readClientMessage } from './protocol.ts';
 
 /** A keyed stand-in for chance, so a run is the same every time. */
 function draws(seed: number) {
@@ -50,31 +51,70 @@ function draws(seed: number) {
   };
 }
 
+/** A bar's digest, as a stand-in for the one its score foresaw. */
+const digestOf = (bar: number) => `d${bar}`;
+
+/**
+ * What a host tells a client of a bar it composed, as version 2 of the
+ * session contract has it: its conduct, and, as a stand-in for its section's
+ * score, which reaches a client a section ahead, what that score states of
+ * the bar, read. A client lays the bar on the clock its conduct gives.
+ */
+const toldOf = (sent: SentBar, b: BandBar): ScoreArrival[] => [
+  { conduct: conductOf(sent, digestOf(b.bar)) },
+  {
+    stated: {
+      bar: b.bar,
+      foreseen: digestOf(b.bar),
+      kind: 'stated',
+      frame: {
+        meter: b.meter,
+        swing: b.swing,
+        key: b.plan.key,
+        section: b.plan.section.type,
+        energy: b.barEnergy,
+        artic: b.style.artic,
+        sync: b.style.sync,
+      },
+    },
+  },
+];
+
+/** What a host tells a client of the bars composed on a tick, bar by bar, in order (`toldOf`). */
+const toldOn = (sent: readonly SentBar[], composed: readonly BandBar[]) =>
+  sent.map((s, i) => toldOf(s, composed[i]!));
+
 interface Link {
   /** One-way delay, in seconds, and how much more it varies by. */
   delay: number;
   jitter: number;
-  /** The chance a bar is lost, or where the link keeps order, a message. */
+  /** The chance a bar's conduct is lost, or where the link keeps order, a message. */
   loss: number;
   /**
    * Where given, the link keeps order, as TCP keeps a WebSocket's: a
    * message lost is sent again after this many seconds, doubled on each
    * loss after, and every message behind it waits (`orderedArrival`). The
    * host then also sends what shares its socket: an answer to a ping every
-   * 250 ms, and the bars ahead and the Muse with each bar.
+   * 250 ms, and the bars ahead and the Muse with each conduct.
    */
   recovery?: number;
 }
 
 interface Run {
-  host: TimedEvent[];
-  client: TimedEvent[];
-  /** Events the client scheduled after the moment they were due. */
+  /** The steps each laid, and the song's clock as the host laid it. */
+  host: ScheduledStep[];
+  client: ScheduledStep[];
+  clock: SongClock;
+  /**
+   * Steps the client laid after their onset had passed, but in the bar it
+   * joined in, which it joins partway: what plays on such a step (cells'
+   * events, in the app's shadow) is dropped late, never played late.
+   */
   late: number;
   lacked: number;
-  /** The bars the host sent that the link lost. */
+  /** The bars whose conduct the link lost. */
   lost: Set<number>;
-  /** How long past its leg's delay the link held each bar, in seconds, where it keeps order. */
+  /** How long past its leg's delay the link held each bar's conduct, in seconds, where it keeps order. */
   held: Map<number, number>;
   changedAt: number | null;
 }
@@ -82,12 +122,12 @@ interface Run {
 /**
  * A host and a client, each ticking every 25 ms on its own clock, the
  * client's 3.2 s behind the host's and ticking 10 ms out of phase. The host
- * sends each bar as it composes it over the link; what arrives reaches the
- * client on its first tick after. The client starts following the song
- * when the first bar reaches it, as a client starts when it hears the host
- * start. With `change`, the host's tempo glides
- * from the head once its head reaches that step, and the new track reaches
- * the client over the link too.
+ * tells each bar as it composes it over the link (`toldOf`); what arrives
+ * reaches the client on its first tick after. The client starts following
+ * the song when the first bar reaches it, as a client starts when it hears
+ * the host start. With `change`, the host's tempo glides from the head once
+ * its head reaches that step, and the new track reaches the client over the
+ * link too.
  */
 function jam(link: Link, seconds: number, change: number | null = null, bpm?: number): Run {
   const draw = draws(7);
@@ -105,30 +145,36 @@ function jam(link: Link, seconds: number, change: number | null = null, bpm?: nu
     track,
     wish: { tonic: null, mode: 'aeolian', melodic: null },
   });
-  const follower = transportOver(followSource);
+  const follower = transportOver(scoreSource);
   let hostCarried = transport.initial;
   let clientCarried = follower.initial;
-  const wire: { at: number; sent?: SentBar; track?: StyleTrack }[] = [];
+  const wire: { at: number; told?: ScoreArrival[]; track?: StyleTrack }[] = [];
   const stream = { sent: 0, arrived: 0 };
+  const lateSteps: ScheduledStep[] = [];
   const run: Run = {
     host: [],
     client: [],
+    clock: clockOfTransport(null),
     late: 0,
     lacked: 0,
     lost: new Set(),
     held: new Map(),
     changedAt: null,
   };
-  const send = (now: number, message: { sent?: SentBar; track?: StyleTrack }) => {
+  const barOf = (told: readonly ScoreArrival[]) => {
+    const [first] = told;
+    return first && 'conduct' in first ? first.conduct.bar : -1;
+  };
+  const send = (now: number, message: { told?: ScoreArrival[]; track?: StyleTrack }) => {
     if (link.recovery !== undefined) {
       const faults = { there: link.delay, jitter: link.jitter, loss: link.loss, seed: 7 };
       const at = orderedArrival(faults, link.recovery, stream.sent++, now, stream.arrived);
       stream.arrived = at;
-      if (message.sent) run.held.set(message.sent.bar.bar, at - now - link.delay);
+      if (message.told) run.held.set(barOf(message.told), at - now - link.delay);
       wire.push({ at, ...message });
       return null;
     }
-    if (message.sent && draw() < link.loss) return message.sent.bar.bar;
+    if (message.told && draw() < link.loss) return barOf(message.told);
     wire.push({ at: now + link.delay + draw() * link.jitter, ...message });
     return null;
   };
@@ -143,11 +189,12 @@ function jam(link: Link, seconds: number, change: number | null = null, bpm?: nu
         until: t + LOOKAHEAD,
       });
       hostCarried = carried;
-      run.host.push(...output.events);
-      for (const sent of sentBars(output.composed, output.steps, carried!.head, hostTrack)) {
-        const lost = send(t, { sent });
+      run.host.push(...output.steps);
+      const sent = sentBars(output.composed, output.steps, carried!.head, hostTrack);
+      for (const told of toldOn(sent, output.composed)) {
+        const lost = send(t, { told });
         if (lost !== null) run.lost.add(lost);
-        // The bars ahead and the Muse go with each bar, on the same socket.
+        // The bars ahead and the Muse go with each conduct, on the same socket.
         if (link.recovery !== undefined) {
           send(t, {});
           send(t, {});
@@ -168,7 +215,7 @@ function jam(link: Link, seconds: number, change: number | null = null, bpm?: nu
         wire.splice(wire.indexOf(m), 1);
         if (m.track) clientTrack = m.track;
       }
-      const arrived = due.flatMap((m) => (m.sent ? [m.sent] : []));
+      const arrived = due.flatMap((m) => m.told ?? []);
       if (clientCarried === null && arrived.length === 0) continue;
       const { carried, output } = follower.advance(env(clientTrack), clientCarried, {
         now: hostNow,
@@ -176,76 +223,90 @@ function jam(link: Link, seconds: number, change: number | null = null, bpm?: nu
         arrived,
       });
       clientCarried = carried;
-      run.client.push(...output.events);
-      run.late += output.events.filter((e) => e.seconds < hostNow).length;
+      run.client.push(...output.steps);
+      lateSteps.push(...output.steps.filter((s) => s.seconds < hostNow));
     }
   }
   run.lacked = clientCarried!.source.lacked;
+  run.clock = clockOfTransport(hostCarried);
+  const joinedIn = run.client[0] && run.clock.barAt(run.client[0].step);
+  run.late = lateSteps.filter((s) => run.clock.barAt(s.step) !== joinedIn).length;
   return run;
 }
 
-const byBar = (events: readonly TimedEvent[], bar: number) => events.filter((e) => e.bar === bar);
-const barsOf = (events: readonly TimedEvent[]) => [...new Set(events.map((e) => e.bar))];
+/** A step where it was laid, and for how long. */
+const placed = ({ step, seconds, length }: ScheduledStep) => ({ step, seconds, length });
+const byBar = (run: Run, steps: readonly ScheduledStep[], bar: number) =>
+  steps.filter((s) => run.clock.barAt(s.step) === bar).map(placed);
+const barsOf = (run: Run, steps: readonly ScheduledStep[]) => [
+  ...new Set(steps.map((s) => run.clock.barAt(s.step))),
+];
 
 describe('a host and a client', () => {
-  it('play the same notes at the same moments over a quick link, every bar', () => {
+  it('lay every step at the same moment over a quick link, every bar', () => {
     const run = jam({ delay: 0.004, jitter: 0.006, loss: 0 }, 40);
     expect(run.lacked).toBe(0);
     expect(run.late).toBe(0);
-    // The client joins the song as it starts, so it plays everything the host plays.
-    const played = barsOf(run.host).filter((bar) => bar < barsOf(run.host).at(-1)!);
+    // The client joins the song as it starts, so it lays every bar the host lays.
+    const hosted = barsOf(run, run.host);
+    const played = hosted.filter((bar) => bar < hosted.at(-1)!);
     expect(played.length).toBeGreaterThan(15);
-    for (const bar of played) expect(byBar(run.client, bar)).toEqual(byBar(run.host, bar));
+    for (const bar of played)
+      expect(byBar(run, run.client, bar)).toEqual(byBar(run, run.host, bar));
   });
 
-  it('pass a bar the link lost, and play the rest as the host does', () => {
+  it('pass a bar whose conduct the link lost, and lay the rest as the host does', () => {
     const run = jam({ delay: 0.004, jitter: 0.006, loss: 0.15 }, 40);
-    const reached = barsOf(run.host).slice(0, -1);
+    const reached = barsOf(run, run.host).slice(0, -1);
     const lost = reached.filter((bar) => run.lost.has(bar));
     expect(lost.length).toBeGreaterThan(1);
     // The client starts when a bar first reaches it, so bars lost before that
     // pass before it plays; every one lost after is lacked.
-    const started = barsOf(run.client)[0]!;
+    const started = barsOf(run, run.client)[0]!;
     expect(run.lacked).toBeGreaterThanOrEqual(lost.filter((bar) => bar > started).length);
     expect(run.lacked).toBeLessThanOrEqual(lost.length);
     for (const bar of reached)
-      expect(byBar(run.client, bar)).toEqual(run.lost.has(bar) ? [] : byBar(run.host, bar));
+      expect(byBar(run, run.client, bar)).toEqual(
+        run.lost.has(bar) ? [] : byBar(run, run.host, bar),
+      );
     expect(run.late).toBe(0);
   });
 
-  it('pass a bar that arrives after its first step, and never play one late', () => {
-    // A beat at 108 bpm is 0.56 s; bars that take longer than that miss.
+  it('pass a bar whose conduct arrives after its first step, and never lay one late', () => {
+    // A beat at 108 bpm is 0.56 s; conducts that take longer than that miss.
     const run = jam({ delay: 0.3, jitter: 0.6, loss: 0 }, 40);
     expect(run.lacked).toBeGreaterThan(0);
     expect(run.late).toBe(0);
     // The first bar reached the client after it started, so the client joined it late.
-    const [first, ...rest] = barsOf(run.client);
-    expect(byBar(run.host, first!)).toEqual(expect.arrayContaining(byBar(run.client, first!)));
-    for (const bar of rest) expect(byBar(run.client, bar)).toEqual(byBar(run.host, bar));
+    const [first, ...rest] = barsOf(run, run.client);
+    expect(byBar(run, run.host, first!)).toEqual(
+      expect.arrayContaining(byBar(run, run.client, first!)),
+    );
+    for (const bar of rest) expect(byBar(run, run.client, bar)).toEqual(byBar(run, run.host, bar));
   });
 
   it("follow a tempo change that reaches the client late from the bar after the next on, to the host's time", () => {
     // The track takes longer than two steps to arrive, so the client lays
-    // steps on the old tempo after the glide has begun; a bar, sent a beat
-    // ahead, still arrives in time.
+    // steps on the old tempo after the glide has begun; a conduct, sent a
+    // beat ahead, still arrives in time.
     const run = jam({ delay: 0.32, jitter: 0.04, loss: 0 }, 40, 16 * 6 + 3);
     const changed = Math.floor(run.changedAt! / 16);
     expect(run.lacked).toBe(0);
     // Bar 0 reached the client after it started, so it joined that bar late.
-    for (const bar of barsOf(run.host).slice(1, -1)) {
-      const host = byBar(run.host, bar);
-      const client = byBar(run.client, bar);
-      expect(client.map((e) => e.event)).toEqual(host.map((e) => e.event));
+    for (const bar of barsOf(run, run.host).slice(1, -1)) {
+      const host = byBar(run, run.host, bar);
+      const client = byBar(run, run.client, bar);
+      expect(client.map((s) => s.step)).toEqual(host.map((s) => s.step));
       if (bar < changed || bar >= changed + 2)
-        for (const [i, e] of client.entries()) expect(e.seconds).toBeCloseTo(host[i]!.seconds, 9);
+        for (const [i, s] of client.entries()) expect(s.seconds).toBeCloseTo(host[i]!.seconds, 9);
     }
     // The glide did move the time: the host's bars got shorter.
-    const start = (bar: number) => byBar(run.host, bar).find((e) => e.event.step === 0)!.seconds;
+    const start = (bar: number) => byBar(run, run.host, bar)[0]!.seconds;
     expect(start(changed + 6) - start(changed + 5)).toBeLessThan(start(3) - start(2) - 0.2);
   });
 });
 
-describe('the bars a host sends', () => {
+describe('the bars a host conducts, each with where it starts (`sentBars`)', () => {
   it('each start where the host then lays its first step', () => {
     let carried = transport.initial;
     const track = glideTo(holding(INITIAL_STYLE), { bpm: 140 }, 40, 64);
@@ -274,7 +335,8 @@ describe('the bars a host sends', () => {
 
 /**
  * A client's player plays three notes in bar k, as the client hears the
- * bar; its ear judges them and sends the judgement over a link with a
+ * bar, laid on the clock its host's conducts give and in the key its score
+ * states (`toldOf`); its ear judges them and sends the judgement over a link with a
  * one-way delay (`back`, if the way back is slower); the host's Muse hears
  * it, or drops it as late. Returns the
  * host's bar k + 2 and what the host dropped. The client's output is 30 ms
@@ -289,11 +351,11 @@ function motifOver(bpm: number, delay: number, back = delay, k = 3) {
     wish: { tonic: null, mode: 'aeolian', melodic: null },
   };
   const latency = 0.03;
-  const follower = transportOver(followSource);
+  const follower = transportOver(scoreSource);
   let hostCarried = transport.initial;
   let clientCarried = follower.initial;
   let ear = EAR;
-  const toClient: { at: number; sent: SentBar }[] = [];
+  const toClient: { at: number; told: ScoreArrival[] }[] = [];
   const toHost: { at: number; judged: BarJudgement }[] = [];
   const laid: ScheduledStep[] = [];
   const keys = new Map<number, Key>();
@@ -313,12 +375,13 @@ function motifOver(bpm: number, delay: number, back = delay, k = 3) {
       hostCarried = carried;
       hostBars.push(...output.composed);
       dropped.push(...output.dropped);
-      for (const sent of sentBars(output.composed, output.steps, carried!.head, track))
-        toClient.push({ at: t + delay, sent });
+      const sent = sentBars(output.composed, output.steps, carried!.head, track);
+      for (const told of toldOn(sent, output.composed)) toClient.push({ at: t + delay, told });
     }
     if (ms % 25 === 10) {
-      const arrived = toClient.filter((m) => m.at <= t).map((m) => m.sent);
-      toClient.splice(0, arrived.length);
+      const due = toClient.filter((m) => m.at <= t);
+      toClient.splice(0, due.length);
+      const arrived = due.flatMap((m) => m.told);
       if (clientCarried === null && arrived.length === 0) continue;
       const { carried, output } = follower.advance(env, clientCarried, {
         now: t,
@@ -362,7 +425,7 @@ describe("a client's motif, over the link", () => {
   });
 });
 
-describe('bars over a link that keeps order, as a WebSocket does (#27, T13)', () => {
+describe('conducts over a link that keeps order, as a WebSocket does (#27, T13)', () => {
   /** How often each side ticks. */
   const TICK = 0.025;
 
@@ -372,9 +435,9 @@ describe('bars over a link that keeps order, as a WebSocket does (#27, T13)', ()
     for (const bpm of [60, 120, 180]) {
       const run = jam({ delay: 0.004, jitter: 0.006, loss: 0.05, recovery: 1 }, 120, null, bpm);
       const beat = 60 / bpm;
-      const started = barsOf(run.client)[0]!;
-      const last = barsOf(run.host).at(-1)!;
-      const played = new Set(barsOf(run.client));
+      const started = barsOf(run, run.client)[0]!;
+      const last = barsOf(run, run.host).at(-1)!;
+      const played = new Set(barsOf(run, run.client));
       const judged = [...run.held].filter(([bar]) => bar > started && bar < last);
       const lacked = judged.filter(([bar]) => !played.has(bar));
       expect(lacked.length).toBeGreaterThan(0);
@@ -435,21 +498,22 @@ describe("a client's drums, over the link (#410)", () => {
   });
 
   /**
-   * A client's player plays Ada's pattern as the client hears its bars; its
-   * ear passes each bar on (`played`) as JSON over a link with a one-way
-   * delay (`back`, if the way back is slower), and the host hears what it
-   * reads under the name it seated her by. The host's state once 9 bars are
+   * A client's player plays Ada's pattern as the client hears its bars, laid
+   * on the clock its host's conducts give (`toldOf`); its ear passes each bar
+   * on (`played`) as JSON over a link with a one-way delay (`back`, if the
+   * way back is slower), and the host hears what it reads under the name it
+   * seated her by. The host's state once 9 bars are
    * laid, and the bytes of each message. The client's output is 30 ms behind
    * its clock, and both tick every 25 ms.
    */
   function drumsOver(bpm: number, delay: number, back = delay) {
     const env = envAt(bpm);
     const latency = 0.03;
-    const follower = transportOver(followSource);
+    const follower = transportOver(scoreSource);
     let hostCarried = transport.initial;
     let clientCarried = follower.initial;
     let ear = EAR;
-    const toClient: { at: number; sent: SentBar }[] = [];
+    const toClient: { at: number; told: ScoreArrival[] }[] = [];
     const toHost: { at: number; text: string }[] = [];
     const laid: ScheduledStep[] = [];
     const bytes: { message: number; notes: number }[] = [];
@@ -471,12 +535,13 @@ describe("a client's drums, over the link (#410)", () => {
         hostCarried = carried;
         if (carried!.head.step > clockOfTransport(carried).barStart(9))
           return { carried: carried!, bytes };
-        for (const sent of sentBars(output.composed, output.steps, carried!.head, env.track))
-          toClient.push({ at: t + delay, sent });
+        const sent = sentBars(output.composed, output.steps, carried!.head, env.track);
+        for (const told of toldOn(sent, output.composed)) toClient.push({ at: t + delay, told });
       }
       if (ms % 25 === 10) {
-        const arrived = toClient.filter((m) => m.at <= t).map((m) => m.sent);
-        toClient.splice(0, arrived.length);
+        const due = toClient.filter((m) => m.at <= t);
+        toClient.splice(0, due.length);
+        const arrived = due.flatMap((m) => m.told);
         if (clientCarried === null && arrived.length === 0) continue;
         const { carried, output } = follower.advance(env, clientCarried, {
           now: t,

@@ -1,9 +1,9 @@
-import { METERS, alteredDegree, stepsOf, wrap } from '@jambot/theory';
+import { METERS, type Meter, alteredDegree, heightOf, stepsOf, wrap } from '@jambot/theory';
 import { usesOf } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { MOTIF_FRAGMENTS } from './library.ts';
 import { type BandCarried, type BandEnv, band } from './band.ts';
-import { COMPOSER } from './facet.ts';
+import { type Bench, COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { keyHelix } from './key.ts';
@@ -16,11 +16,11 @@ import {
   leadText,
   readLead,
 } from './lead-lines.ts';
-import type { LeadNote } from './lead-query.ts';
+import { type LeadNote, composedLead } from './lead-query.ts';
 import { stylePoint } from './meter-query.ts';
 import type { HeardNote } from './muse.ts';
 import { SOLOIST, leadOf } from './muse-lead.ts';
-import { BY, VARIES } from './novelty.ts';
+import { BY, VARIES, pullOf } from './novelty.ts';
 import { LEAD_TAG } from './plan.ts';
 import { METER_REPOSITORY, keptLayer, presetSwing } from './repository.ts';
 import keptTwinkle from './kept-twinkle.fixture.json';
@@ -85,12 +85,12 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` and `bass-loop.test.ts` record them: every part, the presets held at entropy 0. */
-const MAIN_STILL = [13730, 'f13ba973'] as const;
+const MAIN_STILL = [13746, 'e11d5505'] as const;
 
 describe('the lead in the loop with no seed and nothing filed plays what main plays (#424)', () => {
   const lead = (all: readonly TimedEvent[]) => all.filter((e) => e.event.part === 'lead');
 
-  it('plays every event main plays with the lead lines and an empty layer, nobody playing: 13,730, each to 1e-9 s, over 8 presets × 2 seeds × 32 bars', () => {
+  it('plays every event main plays with the lead lines and an empty layer, nobody playing: 13,746, each to 1e-9 s, over 8 presets × 2 seeds × 32 bars', () => {
     const loop = held({ leads: FILED });
     expect([loop.length, hashOf(loop)]).toEqual(MAIN_STILL);
   });
@@ -139,6 +139,24 @@ function play(
 const leadsOf = (run: ReturnType<typeof play>) =>
   range(run.length / SECTION_BARS).map(
     (s) => run[s * SECTION_BARS]!.carried.plans.leadFragment ?? '-',
+  );
+
+/** The motifs the composer draws among at a style and bench where nothing plays (#540): each a draw of a hundred takes. */
+const offeredLeads = (style: Style, bench: Bench) =>
+  new Set(
+    range(100).map((i) =>
+      composedLead(
+        LEAD_REPOSITORY,
+        style,
+        bench,
+        undefined,
+        EMPTY_LAYER,
+        [],
+        [],
+        pullOf(0),
+        i / 100,
+      ),
+    ),
   );
 
 /** The bars of a run that start a phrase (bar 0 or 4 of a section) of the line `id`, and where the lead plays. */
@@ -474,7 +492,10 @@ describe('the composer tires of a lead line: varies it by lift or turn over, the
 });
 
 describe('cells’ motifs are the lead’s lines (#520)', () => {
-  /** Each preset's motif, the one cells wrote at its point, else the nearest. */
+  /**
+   * Each preset's own motif, the one cells wrote at its point, else the nearest: the one the composer takes asked without
+   * a draw, and the likeliest of those on offer it draws among (#540).
+   */
   const MOTIFS: Record<string, string> = {
     'Synth-pop': 'hook',
     Techno: 'octaves',
@@ -551,67 +572,97 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     );
   });
 
-  it('plays each preset’s motif in every section, held at entropy 0, its phrase’s first bar the motif’s shape and its second its form’s: in 4/4, and the Dies irae in Spooky’s 5/4', () => {
+  it('plays a motif on offer at each preset’s point in every section, held at entropy 0, its own at seed 1 or 2, its phrase’s first bar the motif’s shape and its second its form’s: in 4/4, and the Dies irae in Spooky’s 5/4', () => {
     expect(Object.keys(MOTIFS)).toEqual(PRESETS.map((p) => p.name));
+    expect(MOTIFS['Spooky']).toBe('diesIrae');
     for (const preset of PRESETS) {
-      const id = MOTIFS[preset.name]!;
       const second = SECOND[FORMS[preset.name]!]!;
-      const run = play(
-        4 * SECTION_BARS,
-        { ...preset.style, entropy: 0 },
-        { leads: LEAD_REPOSITORY },
-        1,
-        preset,
-      );
-      expect(leadsOf(run), preset.name).toEqual([id, id, id, id]);
-      if (preset.name === 'Spooky') expect(id).toBe('diesIrae');
-      const meter = run[0]!.bar.plan.meter;
-      if (preset.name === 'Spooky') expect(meter).toEqual(METERS['5/4']);
-      const line = LEAD_REPOSITORY.read(id, meter, EMPTY_LAYER)!.notes;
-      const first = line[0]!.degree;
-      // (each section's start: a form of six or eight bars starts only there)
-      const starts = phraseStarts(run, id).filter((b) => b % SECTION_BARS === 0);
-      expect(starts.length, preset.name).toBeGreaterThan(0);
-      for (const at of starts) {
-        const bar = run[at]!.bar;
-        expect(
+      const style = { ...preset.style, entropy: 0 };
+      const opened = [1, 2].map((seed) => {
+        const at = `${preset.name}, seed ${seed}`;
+        const run = play(4 * SECTION_BARS, style, { leads: LEAD_REPOSITORY }, seed, preset);
+        // (the motif drawn where the song starts, then held)
+        const id = leadsOf(run)[0]!;
+        expect(leadsOf(run), at).toEqual([id, id, id, id]);
+        const meter = run[0]!.bar.plan.meter;
+        if (preset.name === 'Spooky') expect(meter).toEqual(METERS['5/4']);
+        const bench = { meter, meterFragment: run[0]!.bar.plan.meterFragment };
+        // (asked without a draw, the preset's own; drawn, one on offer there)
+        expect(composedLead(LEAD_REPOSITORY, style, bench, undefined, EMPTY_LAYER), at).toBe(
+          MOTIFS[preset.name],
+        );
+        expect([...offeredLeads(style, bench)], at).toContain(id);
+        playsPhrases(run, id, meter, second, at);
+        return id;
+      });
+      // (the nearest, the likeliest draw, opens at one of the two seeds at least: the Dies irae at Spooky among them)
+      expect(opened, preset.name).toContain(MOTIFS[preset.name]);
+    }
+  });
+
+  /** A run's phrases of the motif `id`: each first bar the motif's shape from its own degree, its second its form's. */
+  function playsPhrases(
+    run: ReturnType<typeof play>,
+    id: string,
+    meter: Meter,
+    second: number,
+    name: string,
+  ) {
+    const line = LEAD_REPOSITORY.read(id, meter, EMPTY_LAYER)!.notes;
+    const first = line[0]!.degree;
+    // (each section's start: a form of six or eight bars starts only there)
+    const starts = phraseStarts(run, id).filter((b) => b % SECTION_BARS === 0);
+    expect(starts.length, name).toBeGreaterThan(0);
+    for (const at of starts) {
+      const bar = run[at]!.bar;
+      // (degrees from the first note, as they sound from the motif's own degree of the key: a note off the key spelled
+      // either way, the wail's sharp on the degree below or the flat on the one above `leadOf` reads)
+      const sounding = (notes: readonly LeadNote[]) =>
+        notes.map(({ step, degree, alter }) => ({
+          step,
+          height: heightOf(keyHelix(bar.plan.key), degree + first) + alter,
+        }));
+      expect(
+        sounding(
           leadOf(
             bar.written.filter((n) => n.part === 'lead'),
             bar.plan.key,
           ),
-          `${preset.name}, bar ${at}`,
-        ).toEqual(line.map((n) => ({ ...n, degree: n.degree - first })));
-        // from the motif's own degree of the key, as cells writes it (#529): the Dies irae from the third
-        const opening = bar.written
-          .filter((n) => n.part === 'lead')
-          .reduce((a, b) => (b.step < a.step || (b.step === a.step && b.note > a.note) ? b : a));
-        const played = alteredDegree(keyHelix(bar.plan.key), opening.note)!;
-        expect(
-          [wrap(played.degree, 7), played.accidental],
-          `${preset.name}, bar ${at}: its first degree`,
-        ).toEqual([wrap(first, 7), line[0]!.alter]);
-        // and the next its form's second bar (#520, rung 2; #547 rung 4), heard with the call as one line; its last note
-        // the cadence's (but a tune its own document plays in a form, Kinderlied's twinkle, the next test's)
-        if (ownFormOf(id)) continue;
-        const steps = stepsOf(meter);
-        const both = leadOf(
-          [
-            ...bar.written.filter((n) => n.part === 'lead'),
-            ...run[at + 1]!.bar.written.filter((n) => n.part === 'lead').map((n) => ({
-              ...n,
-              step: n.step + steps,
-            })),
-          ],
-          bar.plan.key,
-        );
-        expect(both.slice(line.length, -1), `${preset.name}, bar ${at + 1}`).toEqual(
+        ),
+        `${name}, bar ${at}`,
+      ).toEqual(sounding(line.map((n) => ({ ...n, degree: n.degree - first }))));
+      // from the motif's own degree of the key, as cells writes it (#529): the Dies irae from the third
+      const opening = bar.written
+        .filter((n) => n.part === 'lead')
+        .reduce((a, b) => (b.step < a.step || (b.step === a.step && b.note > a.note) ? b : a));
+      const played = alteredDegree(keyHelix(bar.plan.key), opening.note)!;
+      expect(
+        [wrap(played.degree, 7), played.accidental],
+        `${name}, bar ${at}: its first degree`,
+      ).toEqual([wrap(first, 7), line[0]!.alter]);
+      // and the next its form's second bar (#520, rung 2; #547 rung 4), heard with the call as one line; its last note
+      // the cadence's (but a tune its own document plays in a form, Kinderlied's twinkle, the next test's)
+      if (ownFormOf(id)) continue;
+      const steps = stepsOf(meter);
+      const both = leadOf(
+        [
+          ...bar.written.filter((n) => n.part === 'lead'),
+          ...run[at + 1]!.bar.written.filter((n) => n.part === 'lead').map((n) => ({
+            ...n,
+            step: n.step + steps,
+          })),
+        ],
+        bar.plan.key,
+      );
+      expect(sounding(both.slice(line.length, -1)), `${name}, bar ${at + 1}`).toEqual(
+        sounding(
           line
             .slice(0, -1)
             .map((n) => ({ ...n, step: n.step + steps, degree: n.degree - first + second })),
-        );
-      }
+        ),
+      );
     }
-  });
+  }
 
   it('plays Kinderlied’s twinkle in its own form, the ternary song with wonder its answer, at entropy 0, seeds 1 and 2, 32 bars: every section Twinkle whole, call, wonder, wonder a degree up twice, call, wonder (#547 rung 4, yggi/cells#692)', () => {
     const kinderlied = PRESETS.find((p) => p.name === 'Kinderlied')!;
@@ -775,7 +826,7 @@ describe('the Muse finds a motif a player plays again, and the band plays it bac
     for (const seed of [1, 2]) {
       // (Twinkle's opening bar in bars 12 and 13, and again in 20 and 21, the section that plays it back)
       const silent: (readonly [number, number])[] = [];
-      const { leads } = heardSong(
+      const { leads, run } = heardSong(
         seed,
         [
           TWINKLE_OPENING,
@@ -786,12 +837,14 @@ describe('the Muse finds a motif a player plays again, and the band plays it bac
         ],
         5,
       );
-      expect(leads.slice(0, 4), `seed ${seed}`).toEqual([
-        'hook',
-        'hook',
-        'kinderlied/twinkle',
-        'hook',
-      ]);
+      expect(leads.slice(0, 3), `seed ${seed}`).toEqual(['hook', 'hook', 'kinderlied/twinkle']);
+      // (the next section's line one the composer draws at Synth-pop, as any section's, #540: not the tune again)
+      const { meter, meterFragment } = run.at(-1)!.source.plans.before!;
+      expect(leads[3], `seed ${seed}`).not.toBe('kinderlied/twinkle');
+      expect(
+        [...offeredLeads({ ...SYNTH_POP.style, entropy: 0.3 }, { meter, meterFragment })],
+        `seed ${seed}`,
+      ).toContain(leads[3]);
     }
   });
 

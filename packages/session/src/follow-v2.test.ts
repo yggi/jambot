@@ -32,8 +32,7 @@ import {
 } from './follow-v2.ts';
 import { conductOf } from './host-v2.ts';
 import { sentBars } from './host.ts';
-import type { BarConduct, SectionScore } from './protocol-v2.ts';
-import { LACKED_WHYS } from './protocol.ts';
+import { type BarConduct, LACKED_WHYS, type SectionScore } from './protocol.ts';
 
 const style = { ...PRESETS[4]!.style, entropy: 0.3, bpm: 120 };
 const wished = (head: number): TransportEnv => ({

@@ -237,7 +237,7 @@ export interface BandBar extends BarEnv {
    * The fragments its section's plans took that the plan doesn't carry (#731): the progression, the bass line and the
    * lead line, by id, each null where the band wrote its own; the drums' is the plan's `rhythmFragment`. The score
    * writes each as its `from` line (`section-text.ts`), so a client reads it there; a bar a score states, a finale's,
-   * or one played again on a passed bar names none. It never travels on a bar of session version 1 (`writtenBar`).
+   * or one played again on a passed bar names none.
    */
   readonly derivedFrom?: DerivedFrom;
 }
@@ -657,8 +657,9 @@ export function finaleBar(
   const lap = step(env, carried).replayed;
   const { here: next, carried: after } = step(env, carried, false);
   const here = lap ? { ...lap.decided, bar: env.bar } : next;
-  const chords = cadence(here.plan.key);
-  const bar: BarEnv = { ...barEnvOf(env, here, [chords[1]!]), chords };
+  // (the ending read in the section's meter, as its notes are; what follows it is its landing, its last chord)
+  const chords = cadence(here.plan.key, here.plan.endingFragment, here.plan.meter);
+  const bar: BarEnv = { ...barEnvOf(env, here, [chords.at(-1)!]), chords };
   return { carried: after, bar: playBar(bar, finale(bar, carried.parts)) };
 }
 

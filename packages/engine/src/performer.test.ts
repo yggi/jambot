@@ -1,7 +1,8 @@
+import { METERS, stepsOf } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandBar, band } from './band.ts';
 import type { BarEnv } from './bar.ts';
-import { DRUM_NOTES } from './drums.ts';
+import { DRUM_NOTES, fillAccentOf } from './drums.ts';
 import { baseLengthOf, baseVelocityOf } from './dynamics.ts';
 import { type DrumRole, PARTS, type WrittenNote, writtenProblems } from './events.ts';
 import type { SectionType } from './form.ts';
@@ -125,6 +126,37 @@ describe('the performer', () => {
     const breakdown = barOf('breakdown', 1);
     expect([8, 15].map((s) => velocity(breakdown, 'fill', s))).toEqual([45, 108]);
     expect(velocity(breakdown, 'hat', 2)).toBe(55);
+  });
+
+  it('plays a found fill that starts before the drummer’s own run as a crescendo from its first hit, and one that starts later on the run’s own ramp (#643)', () => {
+    // (the drummer writes the lift as an accent on the base the feel contract states, as the rim's, #749: Techno's fill
+    // starts on step 8, before the drummer's own run on 12, and played at 1 to 16 from the base alone; one that starts
+    // later keeps the ramp its fragment's levels were written on, so a seed's drum bar reads back as itself, E31, E36)
+    const steps = stepsOf(METERS['4/4']);
+    for (const type of ['groove', 'build', 'breakdown'] as const) {
+      const env = barOf(type, 1, { sync: 0.5 });
+      const own = type === 'groove' ? 12 : 8;
+      for (const from of [0, 4, 8, 10, 12, 13, 14]) {
+        const velocities = range(steps - from).map(
+          (i) =>
+            perform(env, {
+              ...hit('fill', from + i),
+              accent: fillAccentOf(type, env.meter, from, from + i, env.barEnergy),
+            }).velocity,
+        );
+        const bare = range(steps - from).map((i) => perform(env, hit('fill', from + i)).velocity);
+        if (from >= own) expect(velocities, `${type} ${from}`).toEqual(bare);
+        else
+          // (within one: a written accent is a whole number)
+          expect(
+            Math.abs(velocities[0]! - (type === 'breakdown' ? 45 : 50)),
+            `${type} ${from}`,
+          ).toBeLessThanOrEqual(1);
+        velocities
+          .slice(1)
+          .forEach((v, i) => expect(v, `${type} ${from}`).toBeGreaterThanOrEqual(velocities[i]!));
+      }
+    }
   });
 
   it('scales the drums and the bass by the energy, and accents the beat in the bass and the lead (T4)', () => {

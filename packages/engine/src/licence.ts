@@ -18,6 +18,8 @@
 
 import { diatonicMode, fifthsIndex, mod, relative, wrap } from '@jambot/theory';
 import { type Key, MELODIC_SCALES, type MelodicScale, keyHelix } from './key.ts';
+import { offeredScales } from './melodic.ts';
+import { stylePoint } from './meter-query.ts';
 import { AXES, type Style } from './style.ts';
 import { type MeterSwing, swingWeight } from './swing.ts';
 
@@ -52,9 +54,15 @@ export const MELODIC_FROM: Readonly<Record<MelodicScale, number>> = {
   blues: 2 / 3,
 };
 
-/** The melodic scales a style's harmony reaches, in `MELODIC_SCALES`' order. */
+/**
+ * The melodic scales a style reaches, in `MELODIC_SCALES`' order: those its harmony reaches, and those cells offers at
+ * its point (#644, `offeredScales`), so a player may always wish for the scale the band plays there by default.
+ */
 function melodicReach(style: Style): MelodicScale[] {
-  return MELODIC_SCALES.filter((scale) => style.harm >= MELODIC_FROM[scale]);
+  const offered = offeredScales(stylePoint(style));
+  return MELODIC_SCALES.filter(
+    (scale) => style.harm >= MELODIC_FROM[scale] || offered.includes(scale),
+  );
 }
 
 /**

@@ -1,4 +1,11 @@
-import { PROTOTYPE_PRESETS, SECTION_BARS, STRAIGHT, licenceOf, slotStepOn } from '@jambot/engine';
+import {
+  PROTOTYPE_PRESETS,
+  SECTION_BARS,
+  STRAIGHT,
+  licenceOf,
+  melodicHelix,
+  slotStepOn,
+} from '@jambot/engine';
 import { joinChord } from '@jambot/theory';
 import { planOf, windowAt } from '@yggi/cells';
 import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
@@ -133,7 +140,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
     }
   });
 
-  it('plays every part of every bar as written, step, pitch, velocity and written length: 512 of 512 bars for the drums, the bass, the comp, the harmony (each chord’s notes) and the lead, 13,576 notes', () => {
+  it('plays every part of every bar as written, step, pitch, velocity and written length: 512 of 512 bars for the drums, the bass, the comp, the harmony (each chord’s notes) and the lead, 13,588 notes', () => {
     expect(equalBars(SECTIONS)).toEqual({
       drums: 512,
       bass: 512,
@@ -143,8 +150,8 @@ describe('the band writes a whole section as one cells text, every part, the lea
     });
     const notes = MEASURED.reduce((n, m) => n + m.notes, 0);
     // (18,200 before #655's song forms; 13,684 before the station's rotation, #547 rung 5, whose songs start from their
-    // lead; 13,700 before cells v0.30.0's solos, hotter and without the pad)
-    expect(notes).toBe(13576);
+    // lead; 13,700 before cells v0.30.0's solos, hotter and without the pad; 13,576 before the found parts, #540, #643, #644, #646)
+    expect(notes).toBe(13588);
     const byPart = (part: string) =>
       SECTIONS.reduce(
         (n, s) =>
@@ -152,12 +159,13 @@ describe('the band writes a whole section as one cells text, every part, the lea
         0,
       );
     // (9,617, 2,336, 4,288 and 1,959 before #655's song forms; the lead's 1,314 before the station's rotation, #547 rung 5;
-    // 6,822, 1,933, 3,615 and 1,330 before cells v0.30.0's solos, hotter and without the pad)
-    expect(['drums', 'bass', 'comp', 'lead'].map(byPart)).toEqual([6880, 1935, 3383, 1378]);
+    // 6,822, 1,933, 3,615 and 1,330 before cells v0.30.0's solos, hotter and without the pad; the drums 6,880 before the
+    // found parts, #540, #643, #644, #646)
+    expect(['drums', 'bass', 'comp', 'lead'].map(byPart)).toEqual([6892, 1935, 3383, 1378]);
     for (const s of SECTIONS) expect(s.text.cuts, `${s.run.preset} ${s.section}`).toEqual([]);
   });
 
-  it('places every onset within 1 ms of the transport, 7,227 of them in the 4 swung presets, each section laid where the one before ends as cells holds it', () => {
+  it('places every onset within 1 ms of the transport, 7,220 of them in the 4 swung presets, each section laid where the one before ends as cells holds it', () => {
     for (const row of TABLE) {
       expect(row.timed, row.preset).toBe(
         SECTIONS.filter((s) => s.run.preset === row.preset).reduce(
@@ -168,11 +176,12 @@ describe('the band writes a whole section as one cells text, every part, the lea
       expect(row.within1ms, row.preset).toBe(row.timed);
       expect(row.largest, row.preset).toBeLessThan(1e-11);
     }
-    // (18,200 before #655's song forms; 13,684 before the station's rotation, #547 rung 5; 13,700 before cells v0.30.0)
-    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(13576);
+    // (18,200 before #655's song forms; 13,684 before the station's rotation, #547 rung 5; 13,700 before cells v0.30.0;
+    // 13,576 before the found parts, #540, #643, #644, #646)
+    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(13588);
     const swung = SECTIONS.filter((s) => s.bars[0]!.swing.share !== STRAIGHT.share);
-    // (10,906; 7,907 in 5 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo` and whose Ambient 4/4 is straight)
-    expect(swung.reduce((n, s) => n + s.offsets.length, 0)).toBe(7227);
+    // (10,906; 7,907 in 5 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo` and whose Ambient 4/4 is straight; 7,227 before the found parts, #540, #643, #644, #646)
+    expect(swung.reduce((n, s) => n + s.offsets.length, 0)).toBe(7220);
     expect(SECTIONS.every((s) => s.unmatched === 0)).toBe(true);
   });
 
@@ -231,7 +240,7 @@ describe('the band writes a whole section as one cells text, every part, the lea
   // its part, `part=bass`, yggi/cells#708; since #531 the section is a score: no performer, voice or card, the parts
   // passed to the band, `* from band(…)`, and each level the shortest decimal cells strikes at its velocity, `scoreLevel`)
   // (2,490, 2,223 and 7,792, 71 %, before #655's song forms)
-  it('states the host’s lines and the harmony once a section: 2,090 characters a section, 1,895 without the lead, against E33’s 6,822 for the same 8 bars, 72 % fewer', () => {
+  it('states the host’s lines and the harmony once a section: 2,092 characters a section, 1,897 without the lead, against E33’s 6,824 for the same 8 bars, 72 % fewer', () => {
     const e35 = characters(SECTIONS.map((s) => s.text));
     // (159,356 in all before #655's song forms: the meter 9,136, the harmony 8,285, the drums 60,238, the bass 23,974,
     // the comp 24,556, the lead 17,097 and the band 13,866; 132,593 in all and the lead 12,469 before the station's rotation, #547 rung 5;
@@ -239,13 +248,13 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // meter 8,368, the drums 48,398, the bass 20,355, the comp 21,508, the lead 12,520 and the band 13,508 before cells
     // v0.30.0, whose jazz song form plays its solos as the kind `solo`, hotter and without the pad, whose Ambient 4/4 is
     // straight, and whose meter line is `&bar swing=16n:.6 from bar 104bpm` where it was `&bar from meter(swing=16n:.6)
-    // 104bpm`, decision 103)
+    // 104bpm`, decision 103; 133,754 in all and the drums 48,501 before the found parts, #540, #643, #644, #646)
     expect(e35).toEqual({
-      total: 133754,
+      total: 133886,
       meter: 8072,
       key: 2204,
       harmony: 8297,
-      drums: 48501,
+      drums: 48633,
       bass: 20356,
       comp: 20468,
       lead: 12468,
@@ -259,37 +268,38 @@ describe('the band writes a whole section as one cells text, every part, the lea
     // and the card 24,066; 432,144 in all and the drums 212,479 before the drummer wrote the rim's metric accent, #749;
     // 440,397 in all, the meter 19,648, the drums 220,732, the bass 82,078, the comp 64,856 and the card 23,792 before
     // cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, hotter and without the pad, and whose
-    // Ambient 4/4 is straight)
+    // Ambient 4/4 is straight; 436,576 in all and the drums 222,162 before the found parts, #540, #643, #644, #646)
     expect(e33).toEqual({
-      total: 436576,
+      total: 436718,
       meter: 18624,
       key: 11488,
       harmony: 17803,
-      drums: 222162,
+      drums: 222304,
       bass: 82102,
       comp: 60983,
       card: 23414,
     });
     expect(TABLE.reduce((n, row) => n + row.e33, 0)).toBe(e33.total);
     // (2,073, 1,877 and 6,752 before the drummer wrote the rim's metric accent, #749; 2,072 before the station's rotation,
-    // #547 rung 5; 2,112, 1,916 and 6,881 before cells v0.30.0)
-    expect(Math.round(e35.total / 64)).toBe(2090);
-    expect(Math.round((e35.total - e35.lead) / 64)).toBe(1895);
-    expect(Math.round(e33.total / 64)).toBe(6822);
+    // #547 rung 5; 2,112, 1,916 and 6,881 before cells v0.30.0; 2,090, 1,895 and 6,822 before the found parts, #540, #643, #644, #646)
+    expect(Math.round(e35.total / 64)).toBe(2092);
+    expect(Math.round((e35.total - e35.lead) / 64)).toBe(1897);
+    expect(Math.round(e33.total / 64)).toBe(6824);
     expect(Math.round((100 * (e33.total - (e35.total - e35.lead))) / e33.total)).toBe(72);
     expect(
       Object.fromEntries(TABLE.map((row) => [row.preset, [row.characters, row.withoutLead]])),
     ).toEqual({
       // (before cells v0.30.0, whose meter line names `bar` with its swing on the head, 2 or 3 characters fewer a section,
-      // and whose jazz song form plays its solos hotter and without the pad, and Ambient straight: each row's first pair)
-      'Synth-pop': [18274, 16319], // (18,290 and 16,335; 17,523 and 15,568 before #749; 20,367 and 18,220 before #655's song forms)
-      Techno: [19504, 17719], // (19,520 and 17,735; 19,248 and 17,463 before #749; 19,902 and 17,419; 19,197 before the station's rotation, #547 rung 5)
+      // and whose jazz song form plays its solos hotter and without the pad, and Ambient straight: each row's first pair
+      // named by no change; the found parts are #540, #643, #644 and #646)
+      'Synth-pop': [18264, 16309], // (18,274 and 16,319 before the found parts; 18,290 and 16,335; 17,523 and 15,568 before #749; 20,367 and 18,220 before #655's song forms)
+      Techno: [19675, 17890], // (19,504 and 17,719 before the found parts; 19,520 and 17,735; 19,248 and 17,463 before #749; 19,902 and 17,419; 19,197 before the station's rotation, #547 rung 5)
       'Deep house': [17351, 15685], // (17,375 and 15,709; 17,245 and 15,579 before #749; 22,508 and 19,981)
-      Ambient: [9677, 8823], // (9,658 and 8,804; 13,397 and 12,222)
-      'Lo-fi hip hop': [15553, 14093], // (15,577 and 14,117; 15,471 and 14,011 before #749; 20,902 and 18,570)
+      Ambient: [9742, 8888], // (9,677 and 8,823 before the found parts; 9,658 and 8,804; 13,397 and 12,222)
+      'Lo-fi hip hop': [15531, 14071], // (15,553 and 14,093 before the found parts; 15,577 and 14,117; 15,471 and 14,011 before #749; 20,902 and 18,570)
       Funk: [18804, 17423], // (18,828 and 17,447; 18,601 and 17,220 before #749; 22,320 and 20,494)
-      'Bossa nova': [18853, 17357], // (19,497 and 17,949; 18,669 and 17,121 before #749; 22,308 and 20,196)
-      'Swing jazz': [15738, 13867], // (16,413 and 14,542; 16,229 and 14,358 before #749; 17,652 and 15,157)
+      'Bossa nova': [18833, 17337], // (18,853 and 17,357 before the found parts; 19,497 and 17,949; 18,669 and 17,121 before #749; 22,308 and 20,196)
+      'Swing jazz': [15686, 13815], // (15,738 and 13,867 before the found parts; 16,413 and 14,542; 16,229 and 14,358 before #749; 17,652 and 15,157)
     });
   });
 
@@ -442,7 +452,9 @@ describe('the forms it relies on, over every case', () => {
       for (let tonic = 0; tonic < 12; tonic++) {
         const key = { tonic, mode };
         const range = Array.from({ length: 27 }, (_, i) => 60 + i);
-        const scales = (['plain', 'pentatonic', 'blues'] as const).map((s) => melodicTones(key, s));
+        const scales = (['plain', 'pentatonic', 'blues'] as const).map((s) =>
+          melodicTones(key, melodicHelix(key, s)),
+        );
         const overKey = range.map((note) => {
           const t = pinTone(key, note, 'lead');
           return degreeText(t.degree, t.accidental);
@@ -613,8 +625,8 @@ describe.runIf(process.env.E35_FULL)(
     const bars = sections.flatMap((s) => s.measured);
 
     // (73,444 notes and 2,467 bars that read back each chord's function before #655's song forms; 68,614 notes before
-    // cells v0.30.0, whose jazz solos play hotter and without the pad)
-    it('plays every part of every bar as written: 2,560 of 2,560 bars a part, 68,042 notes, each within 1 ms of the transport, with no diagnostic', () => {
+    // cells v0.30.0, whose jazz solos play hotter and without the pad; 68,042 before the found parts, #540, #643, #644, #646)
+    it('plays every part of every bar as written: 2,560 of 2,560 bars a part, 68,085 notes, each within 1 ms of the transport, with no diagnostic', () => {
       expect(sections).toHaveLength(320);
       expect(equalBars(sections)).toEqual({
         drums: 2560,
@@ -629,8 +641,8 @@ describe.runIf(process.env.E35_FULL)(
         bars.filter((m) => m.sounding.bass && m.sounding.comp && m.sounding.lead),
       ).toHaveLength(2560);
       const offsets = sections.flatMap((s) => s.offsets);
-      expect(bars.reduce((n, m) => n + m.notes, 0)).toBe(68042);
-      expect(offsets.filter((o) => Math.abs(o) < 0.001)).toHaveLength(68042);
+      expect(bars.reduce((n, m) => n + m.notes, 0)).toBe(68085);
+      expect(offsets.filter((o) => Math.abs(o) < 0.001)).toHaveLength(68085);
       for (const s of sections) {
         expect(s.played.diagnostics).toEqual([]);
         expect(s.unmatched).toBe(0);
@@ -639,8 +651,9 @@ describe.runIf(process.env.E35_FULL)(
     });
 
     // (682 of 727 lines, the lead in 216, and 2,132, 1,914 and 6,806 characters a section, before #655's song forms; 699
-    // of 748, 2,027, 1,832 and 6,682 before cells v0.30.0, whose jazz solos rest the pad and whose meter line names `bar`)
-    it('reads the chord in force in 672 of 721 bass, pad and stab lines, the lead over the key in 190; 2,041 characters a section, 1,846 without the lead, against E33’s 6,736', () => {
+    // of 748, 2,027, 1,832 and 6,682 before cells v0.30.0, whose jazz solos rest the pad and whose meter line names `bar`;
+    // 2,041, 1,846 and 6,736 before the found parts, #540, #643, #644, #646)
+    it('reads the chord in force in 672 of 721 bass, pad and stab lines, the lead over the key in 190; 2,042 characters a section, 1,847 without the lead, against E33’s 6,738', () => {
       const lines = sections.flatMap((s) => s.text.pitched);
       const by = (part: string) => {
         const own = lines.filter((p) => p.part === part);
@@ -662,12 +675,13 @@ describe.runIf(process.env.E35_FULL)(
       // (797,294 before #531, whose section is a score passed to the band, its levels each the shortest decimal; 782,673
       // before cells v0.24.0, whose drum lines write their roles, `role=kick`; 682,778 before #645, whose levels the band
       // drives by the section's intensity; 682,321 and 69,844 before #655's song forms; 648,641 and 62,532 before cells
-      // v0.30.0)
-      expect([e35.total, e35.lead]).toEqual([653052, 62440]);
+      // v0.30.0; 653,052 before the found parts, #540, #643, #644, #646)
+      expect([e35.total, e35.lead]).toEqual([653487, 62440]);
       const e33 = table(sections, RUNS).reduce((n, row) => n + row.e33, 0);
-      expect(e33).toBe(2155653); // (2,178,078 before #655's song forms; 2,138,319 before cells v0.30.0)
+      // (2,178,078 before #655's song forms; 2,138,319 before cells v0.30.0; 2,155,653 before the found parts)
+      expect(e33).toBe(2156108);
       expect([e35.total, e35.total - e35.lead, e33].map((n) => Math.round(n / 320))).toEqual([
-        2041, 1846, 6736,
+        2042, 1847, 6738,
       ]);
     });
   },

@@ -58,6 +58,9 @@ import { type Section, form } from './form.ts';
 import { type HarmonicWeights, keyWeight } from './history.ts';
 import { INITIAL_KEY, type Key, type KeyWish, type MelodicScale, nextKey } from './key.ts';
 import { harmonicReach, licenceOf, melodicDefault } from './licence.ts';
+import { foundMelodic, melodicNameOf } from './melodic.ts';
+import { sectionFill } from './fills.ts';
+import { sectionEnding } from './endings.ts';
 import { SONG_METER } from './events.ts';
 import type { Machine } from './machine.ts';
 import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
@@ -90,7 +93,7 @@ import {
   figureLearned,
   filedHeard,
 } from './facet.ts';
-import { type HeardGroove, distilledGroove } from './muse-groove.ts';
+import { type HeardGroove, VOICE_OF_NOTE, distilledGroove } from './muse-groove.ts';
 import { distilledLine } from './muse-line.ts';
 import {
   type Boredom,
@@ -246,7 +249,20 @@ export interface Plan {
   readonly rhythmFragment?: string;
   /** The fragment chosen with the rhythm, a line of its own (a clave), by id, where one layers (#397). */
   readonly claveFragment?: string;
+  /**
+   * The fill the section ends on where it fills (#643, `fills.ts`): the one its kind asks for, or one cells finds at the
+   * style; none on a miss, where the drummer plays its own.
+   */
+  readonly fillFragment?: string;
+  /** The ending the song closes on where it ends at this section (#646, `endings.ts`); none on a miss, where the band plays its own finale. */
+  readonly endingFragment?: string;
   readonly melodic: MelodicScale;
+  /**
+   * The melodic fragment the lead's scale was found as (#644, `melodic.ts`), where the scale is the style's and cells
+   * holds one there; its notes are the fragment's own (`planScale`). None where a player wished for the scale, or on a
+   * miss, where the key's table writes the scale named.
+   */
+  readonly melodicFragment?: string;
   readonly theme: Theme;
   /**
    * What a mix of a song plays at, where its version moves it (#547 step 2b): its tempo, a share of the one the style
@@ -431,20 +447,42 @@ function learnedFrom(
   return found && repository?.used ? repository.used(layer, found.id, stylePoint(style)) : layer;
 }
 
+/** The members that draw among the fragments on offer (#540), each its own key of the `offer` stream. */
+const OFFER_MEMBERS = { rhythm: 0, bass: 1, lead: 2, melodic: 3, fill: 4, ending: 5 } as const;
+
 /**
- * The rhythm a section takes where it starts, after its meter: the one the
+ * A member's draw among the fragments on offer where a section starts (#540, `offeredFigure`): keyed by the seed and
+ * the section, so a forecast draws as the band will; none where the plan is asked without them (the nearest, as a test
+ * asks).
+ */
+const offerPick = (
+  { seed, index }: Partial<Pick<PlanEnv, 'seed' | 'index'>>,
+  member: keyof typeof OFFER_MEMBERS,
+): number | undefined =>
+  seed === undefined || index === undefined
+    ? undefined
+    : draw(seed, 'offer', OFFER_MEMBERS[member], index);
+
+/**
+ * The rhythm a section takes where it starts, after its meter: one the
  * composer finds in the repository at the style, fitting the section's meter
- * (`composedRhythm`), the section before's held, none of those `rejected`;
+ * (`composedRhythm`), drawn among those on offer (#540), the section before's held, none of those `rejected`;
  * none with no repository or on a miss, where the drummer invents. It asks
  * with the pull of use together its entropy sets (#389, `pullOf`).
  */
 export function sectionRhythm(
-  { rhythms, style, layer }: Pick<PlanEnv, 'rhythms' | 'style' | 'layer'>,
+  {
+    rhythms,
+    style,
+    layer,
+    ...at
+  }: Pick<PlanEnv, 'rhythms' | 'style' | 'layer'> & Partial<Pick<PlanEnv, 'seed' | 'index'>>,
   meter: SectionMeter,
   before: SectionRhythm | null,
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
   taking?: string,
+  owners?: ClaveOwners,
 ): SectionRhythm {
   return rhythms
     ? composedRhythm(
@@ -457,6 +495,8 @@ export function sectionRhythm(
         rejected,
         pullOf(style.entropy),
         taking,
+        offerPick(at, 'rhythm'),
+        owners,
       )
     : {};
 }
@@ -660,7 +700,12 @@ export function museFiledLeads(
  * its entropy sets (#389, `pullOf`).
  */
 export function sectionLead(
-  { leads, style, layer }: Pick<PlanEnv, 'leads' | 'style' | 'layer'>,
+  {
+    leads,
+    style,
+    layer,
+    ...at
+  }: Pick<PlanEnv, 'leads' | 'style' | 'layer'> & Partial<Pick<PlanEnv, 'seed' | 'index'>>,
   meter: SectionMeter,
   before: string | undefined,
   chosen: readonly string[] = [],
@@ -679,6 +724,7 @@ export function sectionLead(
         chosen,
         rejected,
         pullOf(style.entropy),
+        offerPick(at, 'lead'),
       )
     : undefined;
 }
@@ -786,7 +832,12 @@ export function sectionTheme(
 }
 
 export function sectionLine(
-  { bassLines, style, layer }: Pick<PlanEnv, 'bassLines' | 'style' | 'layer'>,
+  {
+    bassLines,
+    style,
+    layer,
+    ...at
+  }: Pick<PlanEnv, 'bassLines' | 'style' | 'layer'> & Partial<Pick<PlanEnv, 'seed' | 'index'>>,
   meter: SectionMeter,
   before: string | undefined,
   chosen: readonly string[] = [],
@@ -802,6 +853,7 @@ export function sectionLine(
         chosen,
         rejected,
         pullOf(style.entropy),
+        offerPick(at, 'bass'),
       )
     : undefined;
 }
@@ -937,9 +989,34 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
             (id): id is string => id !== undefined && id !== null,
           )
         : [];
-    const melodic =
-      wish.melodic !== null && licenceOf(style).melodic.includes(wish.melodic)
-        ? wish.melodic
+    // The lead's scale: a player's wish within the licence; else the one cells finds at the style, the one playing held
+    // while it is on offer (#644); else the style's default.
+    const wishedScale = wish.melodic !== null && licenceOf(style).melodic.includes(wish.melodic);
+    const melodicFragment = wishedScale
+      ? undefined
+      : foundMelodic(
+          stylePoint(style),
+          key.mode,
+          offerPick(env, 'melodic') ?? 0,
+          before?.melodicFragment,
+        );
+    const fillFragment = sectionFill(
+      stylePoint(style),
+      section.type,
+      composed.meter.meter,
+      offerPick(env, 'fill') ?? 0,
+      (note) => VOICE_OF_NOTE.has(note),
+    );
+    const endingFragment = sectionEnding(
+      stylePoint(style),
+      key.mode,
+      composed.meter.meter,
+      offerPick(env, 'ending') ?? 0,
+    );
+    const melodic = wishedScale
+      ? wish.melodic!
+      : melodicFragment !== undefined
+        ? melodicNameOf(melodicFragment)!
         : melodicDefault(style);
     const { meterFragment } = composed.meter;
     const bench = { meter: composed.meter.meter, meterFragment };
@@ -1009,6 +1086,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       [...chosen, ...(meterFragment === undefined ? [] : [meterFragment])],
       [...rejectedOf(boredom, claveOwners), ...leftOut],
       startDrums ?? heldDrums ?? undefined,
+      claveOwners,
     );
     // Bored with a groove, the composer varies it, and the variation plays in its place.
     const ladder = layer
@@ -1096,7 +1174,10 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
       key,
       ...composed.meter,
       ...rhythm,
+      ...(fillFragment === undefined ? {} : { fillFragment }),
+      ...(endingFragment === undefined ? {} : { endingFragment }),
       melodic,
+      ...(melodicFragment === undefined ? {} : { melodicFragment }),
       theme,
       ...(mixed ? { mix: { tempo, shift } } : {}),
     };

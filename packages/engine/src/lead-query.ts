@@ -16,8 +16,9 @@
  * as heard (`lead.ts`).
  *
  * The composer asks it at the style's point, with the section's meter as
- * the bench, as it asks for a bass line, and takes the nearest line it can
- * read under that meter (`composedLead`), held as the meter is; none on a
+ * the bench, as it asks for a bass line, and draws among the lines on offer it
+ * can read under that meter (`composedLead`, `offeredFigure`, #540), held while
+ * on offer; none on a
  * miss, where the lead's own machine is the generator (`lead.ts`), and the
  * Muse files what it played (`muse-lead.ts`).
  *
@@ -31,7 +32,7 @@ import {
   type FacetRepository,
   type Filing,
   type Varied,
-  nearestFigure,
+  offeredFigure,
 } from './facet.ts';
 import type { StylePoint } from '@yggi/cells/repository';
 import type { LearnedLayer } from './layer.ts';
@@ -94,8 +95,9 @@ export type LeadRepository = FacetRepository<LeadRead, LeadContent> & {
 
 /**
  * The lead line the composer takes at a style, on a bench, given the
- * section before's: the nearest it can read under the bench's meter, a bar
- * long, held as the meter is; none on a miss. Those `chosen` (its
+ * section before's: one drawn among those on offer it can read under the
+ * bench's meter, a bar long (the nearest, without a draw), held while on
+ * offer; none on a miss. Those `chosen` (its
  * short-term memory and the section's meter) pull the lines used with them;
  * those `rejected` (lines it has tired of, `novelty.ts`) it leaves out. It
  * asks with `pull`, how strongly use together pulls (#389, `pullOf`).
@@ -109,8 +111,9 @@ export function composedLead(
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
   pull?: number,
+  pick?: number,
 ): string | undefined {
-  return nearestFigure(
+  return offeredFigure(
     repository,
     stylePoint(style),
     bench,
@@ -125,6 +128,7 @@ export function composedLead(
     chosen,
     rejected,
     pull,
+    pick,
   );
 }
 

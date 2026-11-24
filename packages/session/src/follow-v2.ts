@@ -1,11 +1,10 @@
 /**
- * A client's band at version 2 of the session contract (#553, rung 3): it
+ * A client's band, as version 2 of the session contract has it (#553): it
  * plays the scores a host tells, on the clock the conducts give, and none of
  * the band's own notes.
  *
- * The follower is a source of bars for the transport (`BarSource`), as
- * version 1's (`follow.ts`) is, and gives each bar as the transport lays its
- * first step. What arrives is each bar's conduct, and what the latest score
+ * The follower is a source of bars for the transport (`BarSource`), and
+ * gives each bar as the transport lays its first step. What arrives is each bar's conduct, and what the latest score
  * that states a bar states of it (`StatedBar`), once the client has read it:
  * a score is compiled off the page's thread, so a bar's statement arrives
  * as `reading` when the score is told and as what it states once read.
@@ -14,9 +13,9 @@
  * score foresaw for it; otherwise it is lacked, and said so (`said`). A bar no
  * score states (none told, or one that says why it can't) plays silent, and
  * is said and counted (`silent`). Each is said as the contract's `lacked`
- * names why (`LACKED_AS`), which a client tells its host. A lacked or silent bar is passed, as
- * version 1 passes a bar that hasn't arrived: nothing is laid in it, and the
- * conduct of the bar after sets the clock again.
+ * names why (`LACKED_AS`), which a client tells its host. A lacked or silent
+ * bar is passed: nothing is laid in it, and the conduct of the bar after sets
+ * the clock again.
  *
  * The bar it gives is the score's, framed by the conduct (the contract's
  * feel frame): its seed, entropy and offer the conduct's, its meter, swing
@@ -39,8 +38,7 @@ import {
   themeKind,
 } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
-import type { BarConduct, SectionScore } from './protocol-v2.ts';
-import type { LackedWhy } from './protocol.ts';
+import type { BarConduct, LackedWhy, SectionScore } from './protocol.ts';
 
 /** How many bars back a client keeps the scores and conducts it was told (#553, #626): a looper's or a section lock's window. */
 export const KEPT_BARS = 8;

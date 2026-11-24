@@ -26,7 +26,7 @@ if (process.env.E37_REPORT) {
 }
 
 describe('the composer asks the repository for its rhythm while the radio walks (E37)', () => {
-  it('changes the rhythm 315 times in 8,704 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
+  it('changes the rhythm 267 times in 8,704 sections, only where a section starts, and back at the next section only at a miss’s edge (E37)', () => {
     expect(RUNS).toHaveLength(40);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     // (but 6 times: a drum bar at the edge of its reach, taken where the drummer invented and let go at the next section,
@@ -59,7 +59,9 @@ describe('the composer asks the repository for its rhythm while the radio walks 
     // (358 with the station's key and groove mixes alone, #547 step 2a: a mix of four kinds changes the groove less often)
     // (295 before a worn song rested, #547 step 3)
     // (312 before cells v0.30.0, whose Ambient 4/4 is the plain bar's and whose jazz and salsa song forms take new kinds)
-    expect([changes.length, sections]).toEqual([315, 8704]);
+    // (315 before the found parts, #540, #643, #644, #646, whose offer draws a song's drum bar among those on offer and
+    // holds the one playing while it is on offer)
+    expect([changes.length, sections]).toEqual([267, 8704]);
   });
 
   // (112 before cells v0.24.0, 136 before v0.25.0, 137 before 2/4 and 2/2 were among the band's meters on top of it, #652,
@@ -67,14 +69,15 @@ describe('the composer asks the repository for its rhythm while the radio walks 
   // (134 before cells v0.26.0, whose twelve-eight drums weigh more, yggi/cells#706; 132 before cells v0.29.0; 141 before
   // the station's mixes, #547 step 2: a song's play holds its version's drum bar whatever the margin, so the margin
   // decides only in the chain's sections and where a play starts)
-  it('goes back 33 times with no margin for the rhythm playing (E37)', () => {
+  it('goes back 36 times with no margin for the rhythm playing (E37)', () => {
     const back = rhythmRuns(undefined, undefined, {
       miss: RHYTHM_MISS,
       hold: 0,
       layer: LAYER_DISTANCE,
     }).flatMap(wentBack).length;
-    // (33 before a worn song rested, #547 step 3; 34 before cells v0.30.0)
-    expect([back, RHYTHM_HOLD]).toEqual([33, 0.02]);
+    // (33 before a worn song rested, #547 step 3; 34 before cells v0.30.0; 33 before the found parts, #540, #643, #644,
+    // #646)
+    expect([back, RHYTHM_HOLD]).toEqual([36, 0.02]);
   });
 
   it('plays no clave alone in any section, where 992 did before #428: a line of its own only layers on a drum bar', () => {
@@ -86,13 +89,14 @@ describe('the composer asks the repository for its rhythm while the radio walks 
   // (349 before cells v0.24.0, whose seven new drum bars the drummer holds fill some of the space; 260 before v0.25.0,
   // whose aksak and twelve-eight drums fill more; 190 before v0.26.0, whose twelve-eight drums weigh 1, not 0.25,
   // yggi/cells#706, and fill more still; 152 before the station's mixes, #547 step 2, where a play holds its drum bar)
-  it('misses in 135 sections, each past the distance of every rhythm that fits the meter, and none where none fits: Spooky drums fits every meter the walk reaches but 7/8 (cells v0.12.0), Ghost drums 7/8 (v0.15.0), and the Happy hardcore, Acid and Elektro drums every one (v0.23.0), and the drummer invents past them (E37)', () => {
+  it('misses in 125 sections, each past the distance of every rhythm that fits the meter, and none where none fits: Spooky drums fits every meter the walk reaches but 7/8 (cells v0.12.0), Ghost drums 7/8 (v0.15.0), and the Happy hardcore, Acid and Elektro drums every one (v0.23.0), and the drummer invents past them (E37)', () => {
     const missed = RUNS.reduce(
       (m, r) => ({ fit: m.fit + r.missed.fit, distance: m.distance + r.missed.distance }),
       { fit: 0, distance: 0 },
     );
     // (121 with the key and groove mixes alone, #547 step 2a)
-    // (122 before a worn song rested, #547 step 3; 140 before cells v0.30.0)
-    expect(missed).toEqual({ fit: 0, distance: 135 });
+    // (122 before a worn song rested, #547 step 3; 140 before cells v0.30.0; 135 before the found parts, #540, #643,
+    // #644, #646)
+    expect(missed).toEqual({ fit: 0, distance: 125 });
   });
 });

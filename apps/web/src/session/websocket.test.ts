@@ -5,7 +5,7 @@ import { type Lobby as Server, startLobby } from '@jambot/lobby';
 import {
   CODE_WRONG,
   type ClientMessage,
-  type HostSaid,
+  type HostMessage,
   type HostSnapshot,
   PROTOCOL,
 } from '@jambot/session';
@@ -83,7 +83,7 @@ describe('the WebSocket lobby', () => {
       ),
     ).rejects.toThrow(/No session named “nobody”/);
 
-    const toAda: HostSaid[] = [];
+    const toAda: HostMessage[] = [];
     const ada = await lobby.join('FRIDAY JAM', (m) => toAda.push(m));
     // The host, and a client that has joined.
     expect(await lobby.sessions()).toEqual([{ name: 'Friday Jam', players: 2 }]);
@@ -100,7 +100,7 @@ describe('the WebSocket lobby', () => {
     await until(() => toHost.length === 2);
     expect(toHost[1]).toEqual([{ kind: 'lost' }, id]);
 
-    const toBob: HostSaid[] = [];
+    const toBob: HostMessage[] = [];
     await lobby.join('friday jam', (m) => toBob.push(m));
     host.close();
     await until(() => toBob.length === 1);

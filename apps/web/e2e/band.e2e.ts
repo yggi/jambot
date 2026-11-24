@@ -76,29 +76,26 @@ test('counts in, plays, follows on screen, and stops on a cadence, without an er
   expect(errors).toEqual([]);
 });
 
-test('counts a bar in with the click, whether it is on or not, and the band comes in on the beat after it', async ({
+test('counts a bar in on the drums, whether the click is on or not, and the band comes in on the beat after it', async ({
   page,
 }) => {
   await listen(page);
   await solo(page);
   await start(page);
-  // Synth-pop, 108 bpm: a beat is 60 / 108 s, and a bar of them comes first.
+  // Synth-pop, 108 bpm: a beat is 60 / 108 s, and a bar of them comes first, the drummer's count on the rim (#646).
   await expect(transport(page).getByText(/^Count-in/)).toBeVisible();
-  // What sounded before the band's first note is the count-in, read once the band is in, on the audio clock, so a
-  // loaded machine that reads late (#449) reads the same.
+  // What sounded first is the count-in, read once the band is in, on the audio clock, so a loaded machine that reads
+  // late (#449) reads the same: four onsets a beat apart, then the band's first a beat after the last.
   await expect
-    .poll(async () => (await starts(page)).some((s) => !isClick(s)), { timeout: 10_000 })
-    .toBe(true);
-  const all = await starts(page);
-  const band = all.filter((s) => !isClick(s));
-  const counted = all.filter((s) => s.when < band[0]!.when);
-  expect(counted.length).toBe(4);
-  expect(counted.every(isClick)).toBe(true);
-  expect(counted.map((s) => s.kind)).toEqual(['square', 'triangle', 'triangle', 'triangle']);
+    .poll(async () => (await onsets(page)).length, { timeout: 10_000 })
+    .toBeGreaterThan(4);
+  const times = await onsets(page);
+  const counted = times.slice(0, 4);
   const beat = 60 / 108;
-  counted.slice(1).forEach((s, i) => expect(s.when - counted[i]!.when).toBeCloseTo(beat, 3));
-  // The band's first note falls one beat after the last click.
-  expect(band[0]!.when - counted[3]!.when).toBeCloseTo(beat, 3);
+  counted.slice(1).forEach((t, i) => expect(t - counted[i]!).toBeCloseTo(beat, 3));
+  expect(times[4]! - counted[3]!).toBeCloseTo(beat, 3);
+  // The metronome's click sounds none of it: the count is the drummer's.
+  expect((await starts(page)).some(isClick)).toBe(false);
   await expect(transport(page).getByText(/^Count-in/)).toBeHidden();
 });
 
@@ -108,7 +105,10 @@ test('stops at once when stopped again, or in the count-in', async ({ page }) =>
   await start(page);
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(transport(page).getByText('Ready')).toBeVisible({ timeout: 1000 });
-  expect((await starts(page)).filter((s) => !isClick(s))).toEqual([]);
+  // What started is the count-in's alone, the drummer's (#646): at most its four beats, a beat apart, and no note of the song.
+  const counted = await onsets(page);
+  expect(counted.length).toBeLessThanOrEqual(4);
+  counted.slice(1).forEach((t, i) => expect(t - counted[i]!).toBeCloseTo(60 / 108, 3));
   await start(page);
   await expect(transport(page).getByText('Intro 1/8')).toBeVisible({ timeout: 5000 });
   await page.getByRole('button', { name: 'Stop' }).click();
@@ -274,7 +274,7 @@ test('clicks the pulses and not the “and”, until the eighths are asked for',
   expect(clicks.filter((s) => s.kind === 'square')).toHaveLength(Math.ceil(clicks.length / 4));
 });
 
-/** The downbeats the 7/8 check waits for: the count-in's and seven of the song's, about the 14 s it once waited. */
+/** The downbeats the 7/8 check waits for: eight of the song's, about the 14 s it once waited (the count-in is the drummer's, #646). */
 const BARS_OF_7_8 = 8;
 
 test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses, the band on the same steps (#262)', async ({
@@ -292,7 +292,7 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
   expect(Math.abs((await height()) - before)).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: 'Click' }).click();
   await start(page);
-  // Bars laid, not a span of time (#470): the count-in's and seven of the song's, waiting up to 30 s for them.
+  // Bars laid, not a span of time (#470): eight of the song's, waiting up to 30 s for them.
   const isDownbeat = (s: Start) => isClick(s) && s.kind === 'square';
   await expect
     .poll(async () => (await starts(page)).filter(isDownbeat).length, { timeout: 30_000 })
@@ -307,7 +307,7 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
     .filter((s) => s.kind === 'square')
     .map((s) => s.when)
     .sort((x, y) => x - y);
-  // The count-in is a bar of 7/8 as well, so its downbeat is the first.
+  // The song's first downbeat is the first: the count-in, a bar of 7/8 as well, is the drummer's, on the same grid.
   expect(downbeats.length).toBeGreaterThanOrEqual(BARS_OF_7_8);
   downbeats.slice(1).forEach((t, i) => expect(t - downbeats[i]!).toBeCloseTo(14 * step, 3));
   const pulses = clicks
@@ -322,7 +322,7 @@ test('plays a section of 7/8 on bars of 14 steps: the click on its three pulses,
     expect(t - bar).toBeCloseTo((i % 2 === 0 ? 6 : 10) * step, 3);
   });
   // The band is on the same grid: every note of it falls on a step of a bar of 14, none past the bar, and every bar
-  // of the song laid whole, from the first after the count-in to the last before the latest downbeat, has notes.
+  // of the song laid whole, from the first after the first downbeat to the last before the latest, has notes.
   // (a clap sounds as three bursts of noise, 11 ms apart, `CLAP` in `src/audio/drums.ts`: its later two are no onset.
   // Since cells v0.23.0 Synth-pop in 7/8 plays Happy hardcore drums, whose clap is struck)
   const noise = all.filter((s) => s.kind === 'noise').map((s) => s.when);
@@ -363,7 +363,7 @@ test('plays a section of 6/8 at the bpm it states, counted in its dotted quarter
   const bpm = Number((await stated.textContent())!.replace(' BPM', ''));
   await page.getByRole('button', { name: 'Click' }).click();
   await start(page);
-  // The click sounds each beat: the downbeat and the dotted quarter after it, the count-in's two first.
+  // The click sounds each beat of the song: the downbeat and the dotted quarter after it.
   const clicks = async () => (await starts(page)).filter(isClick).map((s) => s.when);
   await expect.poll(async () => (await clicks()).length, { timeout: 15_000 }).toBeGreaterThan(8);
   const beats = (await clicks()).sort((x, y) => x - y);

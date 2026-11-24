@@ -5,6 +5,10 @@ import { STYLES } from '@yggi/cells/library';
 import { describe, expect, it } from 'vitest';
 import { type BandCarried, band } from './band.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
+import { composedLine } from './bass-query.ts';
+import type { Bench } from './facet.ts';
+import { EMPTY_LAYER } from './layer.ts';
+import { pullOf } from './novelty.ts';
 import { stylePoint } from './meter-query.ts';
 import { MODE_REPOSITORY, presetMode } from './mode-repository.ts';
 import { METER_REPOSITORY, presetMeter, presetSwing } from './repository.ts';
@@ -13,7 +17,10 @@ import { PRESETS, PROTOTYPE_PRESETS } from './style.ts';
 
 const NEW = PRESETS.slice(PROTOTYPE_PRESETS.length);
 
-/** What each new preset finds at its point: the meter and its swing, the mode, the drum bar and the bass line. */
+/**
+ * What each new preset finds at its point: the meter and its swing, the mode, the drum bar and the bass line, the nearest
+ * (a bass line drawn among those on offer may be another, #540).
+ */
 const FOUND: Readonly<
   Record<string, { meter: string; swing: string; mode: string; rhythm: string; bass: string }>
 > = {
@@ -173,10 +180,12 @@ describe('the presets (#517)', () => {
   );
 
   it.each(NEW.map((p) => [p.name, p] as const))(
-    '%s held at entropy 0, seeds 1 and 2, 32 bars: every section plays its meter, its drum bar and its bass line, in its mode',
+    '%s held at entropy 0, seeds 1 and 2, 32 bars: every section plays its meter, its drum bar and a bass line on offer there, held, in its mode',
     (name, preset) => {
+      const style = { ...preset.style, entropy: 0 };
       for (const seed of [1, 2]) {
         let carried: BandCarried = band.initial;
+        let bench: Bench | null = null;
         const sections = new Set<string>();
         for (let bar = 0; bar < 32; bar++) {
           const next = band.advance(
@@ -196,6 +205,7 @@ describe('the presets (#517)', () => {
           );
           carried = next.carried;
           const { plan } = next.output;
+          bench = { meter: plan.meter, meterFragment: plan.meterFragment };
           sections.add(
             [
               plan.meterFragment,
@@ -206,7 +216,26 @@ describe('the presets (#517)', () => {
           );
         }
         const { meter, rhythm, bass, mode } = FOUND[name]!;
-        expect([...sections], `seed ${seed}`).toEqual([[meter, rhythm, bass, mode].join(' | ')]);
+        // (the bass line the song opens on, drawn among those on offer, #540, then held)
+        expect(sections.size, `seed ${seed}`).toBe(1);
+        const [played] = [...sections].map((s) => s.split(' | '));
+        const line = played![2]!;
+        expect([...sections], `seed ${seed}`).toEqual([[meter, rhythm, line, mode].join(' | ')]);
+        // (asked without a draw, the nearest, the one cells placed; the one played among a hundred draws)
+        const ask = (pick?: number) =>
+          composedLine(
+            BASS_REPOSITORY,
+            style,
+            bench!,
+            undefined,
+            EMPTY_LAYER,
+            [],
+            [],
+            pullOf(0),
+            pick,
+          );
+        expect(ask()).toBe(bass);
+        expect([...new Set([...Array(100).keys()].map((i) => ask(i / 100)))]).toContain(line);
       }
     },
   );

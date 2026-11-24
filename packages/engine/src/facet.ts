@@ -7,12 +7,12 @@
  * drum bar's hits, a bass line's notes over the chord in force), and these
  * steps, each in this module once:
  *
- * - **the query** (`nearestFigure`): at the style's point, on the section's
- *   bench (its meter, and the meter fragment it came from), the nearest
- *   fragment the member admits, within the repository's miss distance, the
- *   one playing held unless another is nearer by more than the hold; none on
- *   a miss, where the member's machine is the generator, as the drummer
- *   invents;
+ * - **the query** (`offeredFigure`): at the style's point, on the section's
+ *   bench (its meter, and the meter fragment it came from), the fragments the
+ *   member admits within the repository's miss distance, one drawn among
+ *   those as near as the nearest (`OFFER`, #540), the one playing held
+ *   unless another is nearer by more than the hold; none on a miss, where the
+ *   member's machine is the generator, as the drummer invents;
  * - **the ladder** (`climbedFigure`, `novelty.ts`): the composer tires of
  *   what it plays, varies it once by one of cells' operators on its text,
  *   files the variation and plays it, and past that rejects its family;
@@ -84,6 +84,82 @@ export interface Margins {
   readonly hold: number;
 }
 
+/**
+ * How much farther than the nearest a fit may lie and still be on offer: a
+ * quarter (#540, first the harmony's alone). Past cells' `USE_CAP` (1.2), so
+ * use alone, which shortens a fragment's distances by a sixth at most, never
+ * takes a seed's equal off the offer: the composer's draw among equals is the
+ * same as long as the style holds. One constant serves every member.
+ */
+export const OFFER = 1.25;
+
+/**
+ * And how far past that, at least (#540): a tenth, the step cells places a
+ * style's alternates beside it at (a second motif 0.1 higher in bite, Pop's
+ * four chords 0.1 lower in mood). Without it a style's own point, where the
+ * nearest lies at 0, offers only exact ties, and every seed opens on the same
+ * fragment; with it, those placed beside the style are on offer there too.
+ */
+export const OFFER_FLOOR = 0.1;
+
+/** How a found fragment ranks: what cells ranks it by, its distance less the pull of its use, or its distance. */
+const rankOf = (f: Found): number => f.score ?? f.distance;
+
+/** The edge of the offer for fragments found, ranked: as near as the nearest within `OFFER`, or `OFFER_FLOOR` past it. */
+const edgeOf = (found: readonly Found[]): number =>
+  (found[0] === undefined ? 0 : rankOf(found[0])) * OFFER + OFFER_FLOOR;
+
+/** Those of fragments found, ranked, that are on offer: within the offer's edge. */
+export const onOffer = <F extends Found>(found: readonly F[]): F[] => {
+  const edge = edgeOf(found);
+  return found.filter((f) => rankOf(f) <= edge);
+};
+
+/**
+ * One of the fragments on offer, taken by a draw in [0, 1), each as likely as it lies inside the offer's edge (the
+ * edge less its rank): the nearest most often, a neighbour beside the style sometimes, one at the edge hardly ever
+ * (#540). So what was placed for the style, or filed where it is, keeps its place, and the others vary it. Where some
+ * on offer are `preferred` (what a player gave the band, `givenBy`), the draw is among those alone.
+ */
+export function drawnOnOffer<F extends Found>(
+  found: readonly F[],
+  pick: number,
+  preferred: (id: string) => boolean = () => false,
+): F | undefined {
+  const edge = edgeOf(found);
+  const onIt = onOffer(found);
+  const given = onIt.filter((f) => preferred(f.id));
+  const offer = given.length ? given : onIt;
+  const weights = offer.map((f) => edge - rankOf(f));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (!(total > 0)) return offer[Math.floor(pick * offer.length)];
+  let left = pick * total;
+  for (const [i, w] of weights.entries()) if ((left -= w) < 0) return offer[i];
+  return offer.at(-1);
+}
+
+/**
+ * Who files that is the band itself, not a player: the composer's variations, and each member's own on a miss (the
+ * drummer's, the bassist's, the soloist's). Named here, not imported, as the members' modules read this one; a test
+ * holds it to their constants.
+ */
+export const BAND_SOURCES: ReadonlySet<string> = new Set([
+  'composer',
+  'drummer',
+  'bassist',
+  'soloist',
+]);
+
+/**
+ * Whether a fragment is one a player gave the band: filed in the layer by the Muse under a player's name (#401, #424).
+ * Within the offer it is taken first, as the band takes its players' motifs.
+ */
+export const givenBy = (layer: LearnedLayer | undefined, id: string): boolean =>
+  layer?.filed.some((f) => {
+    const source = f.meta['source'];
+    return f.fragment.id === id && typeof source === 'string' && !BAND_SOURCES.has(source);
+  }) ?? false;
+
 /** The margins where a repository names none: the meter's, so a point misses for every member by one rule (E36). */
 export const FIGURE_MARGINS: Margins = { miss: MISS_DISTANCE, hold: METER_HOLD };
 
@@ -93,7 +169,7 @@ export const FIGURE_MARGINS: Margins = { miss: MISS_DISTANCE, hold: METER_HOLD }
  * - `reach`: the farthest a fragment may lie from the point, a miss past it;
  * - `exclude`: those the composer has tired of (`novelty.ts`), the next nearest found in their place;
  * - `accept`: what only the member can judge, tried in rank order (its read under the section's meter);
- * - `within`: how near the best a fragment must score to be on offer, a number ≥ 1 (the harmony's `OFFER`);
+ * - `within`: how near the best a fragment must score to be on offer, a number ≥ 1 (a ratio alone; `onOffer` adds `OFFER_FLOOR`);
  * - `playing`: the fragment playing, returned first where it lies within `hold` of the nearest, and up to `slack` past `reach`;
  * - `k`: how many to return, every one that passes where none.
  */
@@ -185,14 +261,16 @@ export const marginsOf = (repository: { readonly margins?: Margins | undefined }
 
 /**
  * The fragment a member plays a section from: of those that fit the bench
- * within the miss distance and that the composer hasn't `rejected`, the
- * nearest the member `admits` (given its read under the section's meter),
- * the one `playing` held as the meter is; none on a miss. It asks with
- * those `chosen` (its short-term memory and the section's meter), which
- * pull the fragments used with them, as strongly as `pull` (#389). Cells'
- * query applies the margins (`Ask`).
+ * within the miss distance and that the composer hasn't `rejected`, those
+ * the member `admits` (given its read under the section's meter) on offer
+ * (`onOffer`), one drawn by the `pick`, a draw in [0, 1), the nearer the likelier, and one a player gave first (`drawnOnOffer`)
+ * (#540: every member draws as the harmony does); the one `playing` held as
+ * the meter is, where cells returns it first; none on a miss. Without a
+ * `pick`, the nearest. It asks with those `chosen` (its short-term memory and
+ * the section's meter), which pull the fragments used with them, as strongly
+ * as `pull` (#389). Cells' query applies the margins (`Ask`).
  */
-export function nearestFigure<R extends { readonly bars: number }, C>(
+export function offeredFigure<R extends { readonly bars: number }, C>(
   repository: FacetRepository<R, C>,
   point: StylePoint,
   bench: Bench,
@@ -202,6 +280,7 @@ export function nearestFigure<R extends { readonly bars: number }, C>(
   chosen: readonly string[] = [],
   rejected: readonly string[] = [],
   pull?: number,
+  pick?: number,
 ): string | undefined {
   const { miss, hold } = marginsOf(repository);
   const ask: Ask = {
@@ -209,9 +288,14 @@ export function nearestFigure<R extends { readonly bars: number }, C>(
     exclude: rejected,
     accept: (id) => admits(repository.read(id, bench.meter, layer), id),
     playing: playing === undefined ? undefined : { id: playing, hold },
-    k: 1,
+    ...(pick === undefined ? { k: 1 } : {}),
   };
-  return repository.query(point, bench, layer, chosen, ask, pull)[0]?.id;
+  const found = repository.query(point, bench, layer, chosen, ask, pull);
+  // (the one playing is held while it is on offer, as near as the nearest: a neighbour drawn plays on until the ladder
+  // tires of it or the style leaves it behind; otherwise a draw among those on offer)
+  if (pick === undefined) return found[0]?.id;
+  if (playing !== undefined && onOffer(found).some((f) => f.id === playing)) return playing;
+  return drawnOnOffer(found, pick, (id) => givenBy(layer, id))?.id;
 }
 
 /** Where, when and by whom a section's filings are made: its seed and index, the point it is asked at, and the tags. */

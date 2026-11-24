@@ -39,8 +39,7 @@
  * calls (#711, `docs/briefs/conductor-and-player.md`): the conductor's
  * transport composes, listens and runs the Muse, its events laid by no one,
  * and hands each score its band takes and each bar's conduct to the page's own
- * player, which sounds them as a client of session version 2 does
- * (`scoreSource`), at a skew of 0: a bar no score states plays silent and is
+ * player, which sounds them as a client does (`scoreSource`), at a skew of 0: a bar no score states plays silent and is
  * counted (`silent`), and one whose score is still being read is lacked
  * (`lacked`). The Muse hears the page's own players through the conductor's
  * transport, as before.
@@ -65,9 +64,8 @@
  * as it does alone and tells its session what it does (`hosting`): the
  * song it starts, each bar as it composes it, the bars ahead, the style
  * and the Muse; and its Muse hears the bars its clients judged. A client
- * plays the host's scores and conducts (`scoreSource`), or a host of session
- * version 1's bars (`followSource`), with its own output, on the
- * host's clock: its transport runs in the host's time, and `skew` maps it
+ * plays the host's scores and conducts (`scoreSource`), with its own output,
+ * on the host's clock: its transport runs in the host's time, and `skew` maps it
  * onto this device's clock, so a note sounds here when it sounds at the
  * host. Its style, bars ahead and Muse are the host's; its players' notes
  * go to its ear (`earListen`), and what it judges goes to the host.
@@ -140,9 +138,11 @@ import {
   NO_HISTORY,
   clockOfTransport,
   clockThrough,
+  countAt,
   countIn,
+  countInNotes,
   countInSeconds,
-  foldBar,
+  stylePoint,
   foldHeard,
   forecast,
   foresight,
@@ -167,7 +167,6 @@ import {
   type BarConduct,
   EAR,
   type EarCarried,
-  type FollowCarried,
   type Said,
   type ScoreArrival,
   type ScoreFollowCarried,
@@ -179,14 +178,12 @@ import {
   type MuseState,
   type PlayedBar,
   type HostScore,
-  type SectionText,
   type SentBar,
   type Song,
   type SessionEvent,
   type Station,
   TRANSPORT_TIMING,
   type TransportTiming,
-  followSource,
   timedTick,
   earListen,
   sentBars,
@@ -289,7 +286,7 @@ export interface Hosting {
   stopped(): void;
   /**
    * Bars composed, each with where it starts on this clock, and as the band composed them (`composed`, in the same
-   * order), what a host of session version 2 digests each bar's conduct from (#553).
+   * order), what a host digests each bar's conduct from (#553).
    */
   composed(bars: readonly SentBar[], composed: readonly BandBar[]): void;
   /** The bars ahead, whenever they are decided again. */
@@ -306,8 +303,8 @@ export interface Hosting {
   muse(muse: MuseState): void;
   /** The song ends on this bar, its last, composed. */
   finale(bar: number): void;
-  /** A section's cells text, as the band through cells states it (#446), and the same as a score (session version 2, #553). */
-  section(text: SectionText, score: HostScore): void;
+  /** A section's score, as the band through cells states it (#446, #553). */
+  section(score: HostScore): void;
   /** A line of the session's log the band says itself: the conductor's, at a section line (step 3). */
   said(line: SessionEvent): void;
 }
@@ -322,22 +319,16 @@ export interface Following {
   forget(): void;
   /** The host's heard moment less this output's now, once the clocks are trusted: read every tick. */
   skew(): number | null;
-  /** Bars it didn't play, following a host of session version 2, each once as it passes, and why (#553). */
+  /** Bars it didn't play, each once as it passes, and why (#553). */
   lacked?(said: readonly Said[]): void;
 }
 
 /**
- * A client's state: its transport, the host's bars and section texts arrived (#446), and its ear; or, following a host
- * of session version 2 (#553), its transport over the scores and conducts, what reached it of them, and what it keeps.
+ * A client's state (#553): its transport over the host's scores and conducts, what reached it of them, what it keeps,
+ * and its ear.
  */
 interface Follow {
-  /** The version of the session contract the host's song is of. */
-  version: 1 | 2;
-  carried: TransportCarried<FollowCarried> | null;
-  arrived: SentBar[];
-  /** Texts the host gave, not yet handed to the shadow: as it took them, or with its welcome (`joined`). */
-  texts: { readonly text: SectionText; readonly joined: boolean }[];
-  /** Version 2's transport, over what its scores state and its conducts (`scoreSource`). */
+  /** Its transport, over what the scores state and the conducts (`scoreSource`). */
   scored: TransportCarried<ScoreFollowCarried> | null;
   /** The conducts, and what the scores state of their bars as they are read, since the tick before. */
   arrivals: ScoreArrival[];
@@ -367,13 +358,10 @@ interface Scored {
 /** The page's own player before a song: nothing handed to it yet. */
 const UNPLAYED = (): Scored => ({ scored: null, arrivals: [] });
 
-/** The transport a client runs: the host's bars, on the host's clock. */
-const follower = transportOver(followSource);
-
-/** The transport a client of session version 2 runs (#553): the host's scores, on the clock its conducts give. */
+/** The transport a client runs (#553): the host's scores, on the clock its conducts give; and the page's own player (#711). */
 const scoreFollower = transportOver(scoreSource);
 
-/** What a client has kept of what a host of session version 2 told it: nothing yet. */
+/** What a client has kept of what its host told it: nothing yet. */
 const NOTHING_KEPT: Follow['kept'] = { scores: [], conducts: [] };
 
 /** The meter the latest score told that states `bar` states it in, as far as a client has read it (#553); none where none does. */
@@ -607,20 +595,19 @@ export class Player {
   mix: Mix = $state.raw(EVEN_MIX);
   /**
    * The band's harmonic history, which its key follows (#169): the engine's
-   * own while the band plays here, and for a client the same fold over the
-   * host's bars as they arrive.
+   * own while the band plays here, and for a client a fold over the chords
+   * cells plays of its host's scores, bar by bar as they are laid (`foldHeard`).
    */
   harmonicHistory: HarmonicWeights = $state.raw(NO_HISTORY);
   mode: Mode = $state('solo');
   /**
-   * How many of the host's bars, as a client, had not arrived when they were due; following a host of session version 2
-   * (#553), or alone and hosting, the page's own player (#711), the bars lacked: no conduct, a score still read or not
-   * playable here, or a digest not its score's.
+   * How many bars were lacked, as a client (#553), or alone and hosting, by the page's own player (#711): no conduct, a
+   * score still read or not playable here, or a digest not its score's.
    */
   lacked = $state(0);
-  /** How many bars played silent, as a client of a host of session version 2 or the page's own player: no score stated them (#553, #711). */
+  /** How many bars played silent, as a client or the page's own player: no score stated them (#553, #711). */
   silent = $state(0);
-  /** The latest bars lacked or silent, as a client of a host of session version 2 or the page's own player, and why (#553, #711). */
+  /** The latest bars lacked or silent, as a client or the page's own player, and why (#553, #711). */
   said: readonly Said[] = $state.raw([]);
   /** Told what a host does, while it hosts. */
   hosting: Hosting | null = null;
@@ -757,10 +744,10 @@ export class Player {
     surroundings.warm?.(HARMONY_REPOSITORY.warm?.(LINE_BENCHES) ?? []);
     this.#metronome = metronome;
     this.shadow = new Shadow(() => surroundings.page() * 1000, surroundings.texts?.());
-    // A host's band through cells tells its session each section's text as it takes it (#446).
-    this.shadow.told = (text, score) => this.hosting?.section(text, score);
-    // What each score states, as it is read, reaches the player that lays it on its next tick: a client's of a host of
-    // session version 2 (#553), or alone and hosting, the page's own (#711).
+    // A host's band through cells tells its session each section's score as it takes it (#446, #553).
+    this.shadow.told = (score) => this.hosting?.section(score);
+    // What each score states, as it is read, reaches the player that lays it on its next tick: a client's (#553), or
+    // alone and hosting, the page's own (#711).
     this.shadow.stated = (stated) =>
       void (this.#follow ?? this.#own).arrivals.push(...stated.map((s) => ({ stated: s })));
     const ear = surroundings.ear?.();
@@ -1267,8 +1254,8 @@ export class Player {
     this.loop = null;
     this.loopMenu = loopView(null, 0);
     // Its texts asked for from the band's own bars, alone or hosting, and played by its own player (#711); given by the
-    // host to a client (#446), as scores by a host of session version 2 (#553).
-    this.shadow.reset(this.#follow ? (this.#follow.version === 2 ? 'scored' : 'given') : 'asked');
+    // host to a client as scores (#446, #553).
+    this.shadow.reset(this.#follow ? 'scored' : 'asked');
     this.#own = UNPLAYED();
     this.lacked = 0;
     this.silent = 0;
@@ -1297,17 +1284,29 @@ export class Player {
   }
 
   /**
-   * The count-in before the song: its clicks, on this output's clock, of
-   * those the clock hasn't passed, so a client that joins during it clicks
-   * the rest and one that joins after it none.
+   * The count-in before the song, on this output's clock, of what the clock
+   * hasn't passed, so a client that joins during it hears the rest and one
+   * that joins after it none: the drummer's, the first bar of the count the
+   * style counts on (`countAt`, #646), played on the drums as any of their
+   * notes is, through the mix; and its beats, which the metronome shows.
    */
   #countIn(output: Output) {
     const now = output.currentTime;
-    const clicks = countIn(this.track, this.#start, this.#opening())
+    const meter = this.#opening();
+    const clicks = countIn(this.track, this.#start, meter)
       .map((click) => ({ ...click, seconds: click.seconds - this.skew }))
       .filter((click) => click.seconds >= now);
     this.counting = this.#start - this.skew > now;
-    this.#metronome?.countIn(output, clicks);
+    this.#metronome?.countIn(clicks);
+    const style = styleAt(this.track, 0);
+    const count = countAt(stylePoint(writtenStyle(style)), meter);
+    const timbre = timbreOf('drums', style, this.#swingHeard(), 0.6);
+    for (const note of countInNotes(this.track, this.#start, meter, count)) {
+      const seconds = note.seconds - this.skew;
+      const velocity = velocityFor(this.mix, 'drums', Math.round(note.velocity * 127));
+      if (seconds >= now && sounds(this.mix, 'drums') && velocity > 0)
+        output.play('drums', note.note, velocity, seconds, ALONG_DURATION.drums, timbre);
+    }
   }
 
   /**
@@ -1319,9 +1318,7 @@ export class Player {
    */
   #opening(): Meter {
     const follow = this.#follow;
-    if (follow?.version === 2) return scoredMeter(follow, 0) ?? follow.opening;
-    const first = follow?.arrived.find((sent) => sent.bar.bar === 0);
-    if (follow) return first?.bar.plan.meter ?? follow.opening;
+    if (follow) return scoredMeter(follow, 0) ?? follow.opening;
     return sectionMeter(
       {
         meter: this.meter ?? undefined,
@@ -1336,6 +1333,11 @@ export class Player {
   /** The meter the song opens in, which its count-in is a bar of (`#opening`). */
   get opening(): Meter {
     return this.#opening();
+  }
+
+  /** When the song's first step sounds, on this player's output clock: the count-in is the bar before it (#646). */
+  get songStart(): number {
+    return this.#start - this.skew;
   }
 
   /** The meter the band is heading for: the last bar decided's, or stopped, the one the song opens in. */
@@ -1400,15 +1402,13 @@ export class Player {
   }
 
   /**
-   * Where the song and the bars composed stand, for a client joining mid-song,
-   * and the section texts that state the bars not yet played (#446); and for
-   * a client of session version 2 (#553), the bars composed as the band
-   * composed them (`composed`, in the order of `bars`) and the scores in force.
+   * Where the song and the bars composed stand, for a client joining mid-song (#446, #553): each bar composed with where
+   * it starts, as the band composed it (`composed`, in the order of `bars`), and the scores in force for the bars not
+   * yet played.
    */
   get hosted(): {
     song: Song;
     bars: SentBar[];
-    texts: readonly SectionText[];
     composed: readonly BandBar[];
     scores: readonly HostScore[];
   } | null {
@@ -1430,7 +1430,6 @@ export class Player {
         clockOfTransport(carried),
         this.tempoMeter,
       ),
-      texts: this.shadow.toldFrom(clockOfTransport(carried).barAt(carried.head.step)),
       composed: carried.bars,
       scores: this.shadow.scoredFrom(clockOfTransport(carried).barAt(carried.head.step)),
     };
@@ -1446,10 +1445,6 @@ export class Player {
     this.silent = 0;
     this.said = [];
     this.#follow = {
-      version: 1,
-      carried: null,
-      arrived: [],
-      texts: [],
       scored: null,
       arrivals: [],
       scores: [],
@@ -1465,50 +1460,23 @@ export class Player {
   }
 
   /**
-   * Play the host's song from now, with the bars it has composed and not
-   * played, and the texts its welcome gave that state them (#446).
-   */
-  async followSong(song: Song, bars: readonly SentBar[], texts: readonly SectionText[] = []) {
-    await this.#followFrom(song, {
-      version: 1,
-      arrived: [...bars],
-      texts: texts.map((text) => ({ text, joined: true })),
-    });
-  }
-
-  /**
-   * Play the song of a host of session version 2 from now (#553): with the conducts it sent of bars not played, and
-   * the scores its welcome gave that state them, each with the fragments it locks that the session sent.
+   * Play the host's song from now (#553): with the conducts it sent of bars not played, and the scores its welcome gave
+   * that state them, each with the fragments it locks that the session sent.
    */
   async followScores(song: Song, conducts: readonly BarConduct[], scores: readonly GivenScore[]) {
-    await this.#followFrom(song, {
-      version: 2,
-      arrivals: conducts.map((conduct) => ({ conduct })),
-      scores: scores.map((given) => ({ given, joined: true })),
-      kept: { scores: scores.map((g) => g.score), conducts: [...conducts] },
-    });
-  }
-
-  /** Play the host's song from now, from what its welcome or its start gave. */
-  async #followFrom(song: Song, given: Partial<Follow>) {
     const follow = this.#follow;
     if (!follow) return;
     this.halt();
     Object.assign(follow, {
-      version: 1,
-      carried: null,
-      arrived: [],
-      texts: [],
       scored: null,
-      arrivals: [],
-      scores: [],
-      kept: NOTHING_KEPT,
+      arrivals: conducts.map((conduct) => ({ conduct })),
+      scores: scores.map((given) => ({ given, joined: true })),
+      kept: { scores: scores.map((g) => g.score), conducts: [...conducts] },
       ear: EAR,
       keys: [],
       ends: undefined,
       opening: song.tempoMeter,
-      ...given,
-    });
+    } satisfies Omit<Follow, 'told'>);
     this.lacked = 0;
     this.silent = 0;
     this.said = [];
@@ -1525,17 +1493,7 @@ export class Player {
     this.#tick();
   }
 
-  /** A bar the host composed. */
-  followBar(sent: SentBar) {
-    this.#follow?.arrived.push(sent);
-  }
-
-  /** A section's text the host's band through cells states, as it took it (#446). */
-  followSection(text: SectionText) {
-    this.#follow?.texts.push({ text, joined: false });
-  }
-
-  /** A bar's conduct, from a host of session version 2 (#553). */
+  /** A bar's conduct, from the host (#553). */
   followConduct(conduct: BarConduct) {
     const follow = this.#follow;
     if (!follow) return;
@@ -1543,7 +1501,7 @@ export class Player {
     follow.kept = { ...follow.kept, conducts: [...follow.kept.conducts, conduct] };
   }
 
-  /** A score from a host of session version 2, as it took it, with the fragments it locks that the session sent (#553). */
+  /** A score from the host, as it took it, with the fragments it locks that the session sent (#553). */
   followScore(given: GivenScore) {
     const follow = this.#follow;
     if (!follow) return;
@@ -1552,11 +1510,11 @@ export class Player {
   }
 
   /**
-   * What this client keeps of what a host of session version 2 told it, whatever plays (#553, #626): the conducts from
-   * `KEPT_BARS` before the bar playing on, and the scores in force for them; none alone or hosting.
+   * What this client keeps of what its host told it, whatever plays (#553, #626): the conducts from `KEPT_BARS` before
+   * the bar playing on, and the scores in force for them; none alone or hosting.
    */
   get kept(): Follow['kept'] | null {
-    return this.#follow?.version === 2 ? this.#follow.kept : null;
+    return this.#follow?.kept ?? null;
   }
 
   /** The host says which bar is the song's last. */
@@ -1577,7 +1535,7 @@ export class Player {
   followForecast(bars: readonly ForecastBar[]) {
     if (!this.#follow) return;
     this.#bars = bars;
-    this.#thenClock(this.#follow.carried);
+    this.#thenClock(this.#follow.scored);
   }
 
   followMuse({ offer, log, dropped, players, memory, asOf, lastPlayed }: MuseState) {
@@ -1852,7 +1810,7 @@ export class Player {
       const foreseen = digests[i];
       if (foreseen != null) this.#own.arrivals.push({ conduct: conductOf(bar, foreseen) });
     }
-    // The page's own player sounds them, as a client of session version 2 does, by direct calls at a skew of 0 (#711).
+    // The page's own player sounds them, as a client does, by direct calls at a skew of 0 (#711).
     const ends = carried!.finale.bar ?? undefined;
     const { carried: playing, laid } = this.#scoredOver(this.#env, now, this.#own, ends);
     const played = this.shadow.follow({ env: this.#env, carried: playing, output: laid, now });
@@ -1897,9 +1855,8 @@ export class Player {
   }
 
   /**
-   * A client's tick: the host's bars on the host's clock, the new ones that
-   * arrived, and its ear judging the bars its players played; following a host
-   * of session version 2 (#553), its scores on the clock its conducts give.
+   * A client's tick (#553): the host's scores on the clock its conducts give,
+   * what arrived of them, and its ear judging the bars its players played.
    */
   #tickFollowing(output: Output, follow: Follow) {
     // A jump of either output moves the skew; each tick plays by the latest.
@@ -1907,8 +1864,7 @@ export class Player {
     if (skew !== null) this.skew = skew;
     const now = output.currentTime + this.skew;
     const env = this.#env;
-    const { carried, laid } =
-      follow.version === 2 ? this.#scored(env, now, follow) : this.#sent(env, now, follow);
+    const { carried, laid } = this.#scored(env, now, follow);
     // The bar the song ends on, as the host's (#663): the count down to it.
     if (carried.finale.bar !== this.lastBar) this.lastBar = carried.finale.bar;
     // The host's texts play through cells, the performer's feel on them, as at the host (#446).
@@ -1916,13 +1872,11 @@ export class Player {
     if (scheduled.composed.length > 0)
       this.harmonicHistory = scheduled.composed.reduce(
         (history, bar) =>
-          follow.version === 2
-            ? foldHeard(
-                history,
-                this.shadow.chordsAt(bar.bar).map((c) => ({ step: c.step, notes: c.pitchClasses })),
-                stepsOf(bar.meter),
-              )
-            : foldBar(history, bar.chords),
+          foldHeard(
+            history,
+            this.shadow.chordsAt(bar.bar).map((c) => ({ step: c.step, notes: c.pitchClasses })),
+            stepsOf(bar.meter),
+          ),
         this.harmonicHistory,
       );
     const played = scheduled.composed.map(({ bar, plan }) => ({ bar, key: plan.key }));
@@ -1952,25 +1906,8 @@ export class Player {
     if (this.#finished(carried, now)) this.halt();
   }
 
-  /** A client's transport on a tick, over the bars a host of session version 1 sent and the texts it gave (#446). */
-  #sent(env: TransportEnv, now: number, follow: Follow) {
-    const arrived = follow.arrived;
-    follow.arrived = [];
-    const texts = follow.texts;
-    follow.texts = [];
-    for (const { text, joined } of texts) this.shadow.given(text, joined);
-    const { carried, output: laid } = follower.advance(env, follow.carried, {
-      now,
-      until: now + LOOKAHEAD,
-      arrived,
-      ends: follow.ends,
-    });
-    follow.carried = carried;
-    return { carried: carried!, laid };
-  }
-
   /**
-   * A client's transport on a tick, over the scores a host of session version 2 gave and the conducts it sent (#553):
+   * A client's transport on a tick, over the scores its host gave and the conducts it sent (#553):
    * each score given to the shadow to read, what it states of its bars then reaching the follower with the conducts,
    * and what is kept pruned to the bar playing.
    */

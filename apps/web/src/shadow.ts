@@ -11,7 +11,7 @@
  * and lays nothing. The laying half (`follow`) is the player's: it lays the
  * bars a player's transport gives it, a client's or, alone and hosting, the
  * page's own player's, which plays the scores the asking half takes as a
- * client of session version 2 plays the scores its host tells (below).
+ * client plays the scores its host tells (below).
  *
  * A section's bars are not all composed when it starts (the band composes
  * each a beat before it plays), so its text is written from the bars as the
@@ -45,43 +45,34 @@
  * as it carries its own; an event's end is laid as the transport lays the
  * band's (`laidClock`).
  *
- * On a client of session version 1 the band's own events are the fallback
- * for a gap, a bar cells states none of, each counted with its reason
+ * A bar laid that cells states none of is a gap, counted with its reason
  * (`gaps`): a bar whose text is still on its way as its bar is laid (late,
- * `arrival`), a bar whose beats swing at a share that moves within it, a note
- * cut at the finale's ring, and a bar no text was stated for. A note's level is
- * composed within MIDI's 1 to 127 (`composedLevel`, #433), so a text states
- * every level the band plays on. That cells plays a bar it states as the band
- * would have is held by the tests (`shadow.test.ts`), not counted as it plays.
+ * `arrival`), a bar whose beats swing at a share that moves within it, a bar
+ * cells said something of, and a bar no text was stated for. A gap plays what
+ * the transport gave for the bar, which over scores (`scoreSource`) is
+ * nothing. A note's level is composed within MIDI's 1 to 127 (`composedLevel`,
+ * #433), so a text states every level the band plays on. That cells plays a
+ * bar it states as the band would have is held by the tests (`shadow.test.ts`),
+ * not counted as it plays.
  *
- * In a session (#446) a host's texts are asked as a band alone asks them,
- * and each answer it takes is told (`told`), which the host sends its
- * clients (`SectionText`). A client of version 1 asks for none: it is given
- * them (`given`), has each compiled and played where its own are
- * (`SectionTexts.play`), and lays them on its own transport (`follow`), its
- * performer's feel on cells' events. Each bar it is sent is checked against
- * what the latest text that states it was built from (`foreseen`, a digest),
- * as a host checks the bar it composes: a bar sent otherwise than foreseen
- * waits for the host's text again, and plays the band's own if it hasn't
- * come, counted late.
+ * Each text taken is told as a score (`told`, `HostScore`, #446, #553), with
+ * its section's type, each bar's energy and what it locks, which a host sends
+ * its clients; and what it states of its bars goes to the page's own player
+ * as it is taken (`stated`, #711): built and played as a client plays a score
+ * (`stateSection`), so nothing is compiled twice, and its bars are `reading`
+ * from when it is asked until then. A band alone or hosting asks for a
+ * section's bars in runs that each hold one meter, swing, key and melodic
+ * scale (`split`), so no bar a looper mixes from two keys, nor a swing that
+ * glides, goes unstated, which would play silent on its own player and its
+ * clients.
  *
- * A client of session version 2 (#553) is given scores in place of texts
- * (`givenScore`, `from` `scored`): each is read, compiled and played where its
- * own are (`SectionTexts.score`), and what it states of each of its bars, as it
- * is read and once it has been, goes to the client's follower (`stated`),
- * which lays a bar only where its conduct carries the digest its score foresaw
- * (`scoreSource` in `@jambot/session`). So a bar laid there is the score's,
- * and plays cells' events alone: the band's own are none on that path.
- *
- * Each text told goes as a score too (`HostScore`, session version 2, #553),
- * with its section's type, each bar's energy and what it locks, and what it
- * states of its bars goes to the page's own player as it is taken (`stated`,
- * #711): built and played as a client plays a score (`stateSection`), so
- * nothing is compiled twice, and its bars are `reading` from when it is asked
- * until then. A band alone or hosting asks for a section's bars in runs that
- * each hold one meter, swing, key and melodic scale (`split`), so no bar a
- * looper mixes from two keys, nor a swing that glides, goes unstated, which
- * would play silent on its own player and its clients.
+ * A client asks for no text: it is given its host's scores (`givenScore`,
+ * `from` `scored`), each read, compiled and played where its own would be
+ * (`SectionTexts.score`), and what each states of its bars, as it is read and
+ * once it has been, goes to the client's follower (`stated`), which lays a bar
+ * only where its conduct carries the digest its score foresaw (`scoreSource`
+ * in `@jambot/session`). So a bar laid there is the score's, and plays cells'
+ * events alone, its performer's feel on them.
  */
 
 import {
@@ -117,9 +108,9 @@ import {
 } from '@jambot/score';
 import {
   type HostScore,
-  type SectionText,
   type StatedBar as ScoreStatement,
   hostScoreOf,
+  scoreFor,
   scoresInForce,
   statedBars,
 } from '@jambot/session';
@@ -131,11 +122,8 @@ import {
   inlineTexts,
 } from './section-texts.ts';
 
-/**
- * Where a song's texts come from: asked for from the band's own bars (alone or hosting), or given by a host (a client,
- * #446), as texts, or as scores by a host of session version 2 (`scored`, #553).
- */
-export type TextsFrom = 'asked' | 'given' | 'scored';
+/** Where a song's texts come from: asked for from the band's own bars (alone or hosting), or given by a host as scores (a client, `scored`, #553). */
+export type TextsFrom = 'asked' | 'scored';
 
 /** How many cost samples the readout keeps, the latest. */
 const SAMPLES_KEPT = 5000;
@@ -157,8 +145,8 @@ export interface ShadowReadout {
   readonly from: TextsFrom;
   /**
    * The section texts built and played: ahead, at a bar with none, or again at a bar composed otherwise than foreseen;
-   * on a client, those a host gave as it took them (`given`) and with its welcome (`joined`, #446).
-   * And those told, which a host whose band plays through cells sends its clients.
+   * on a client, the scores a host gave as it took them (`given`) and with its welcome (`joined`, #446, #553).
+   * And those told, which a host sends its clients as scores.
    */
   readonly texts: {
     readonly ahead: number;
@@ -168,13 +156,13 @@ export interface ShadowReadout {
     readonly joined: number;
     readonly told: number;
   };
-  /** The size of each text told, as its message goes on the wire: bytes of JSON (#446). */
+  /** The size of each score told, as its message goes on the wire with every fragment it files: bytes of JSON (#446, #553). */
   readonly wire: Spread;
-  /** What cells cannot say yet, by reason: the bars that played the band's own events for it, and those events. */
+  /** What cells cannot say yet, by reason: the bars laid without cells, and the transport's events played for them. */
   readonly gaps: Readonly<Record<string, { readonly bars: number; readonly events: number }>>;
-  /** Anything the band through cells threw: the tick then plays the band's own. */
+  /** Anything the band through cells threw: the tick then plays what the transport gave. */
   readonly errors: readonly string[];
-  /** The events played from cells, and from the band in a gap. */
+  /** The events played from cells, and from the transport in a gap, which over scores gives none. */
   readonly played: { readonly cells: number; readonly band: number };
   /**
    * In ms: writing a text, compiling it, the two together, and playing it, where the job runs (a worker, `section-texts.ts`);
@@ -205,7 +193,7 @@ export interface ShadowReadout {
   readonly text: string;
 }
 
-/** What one tick of a client's transport gives the shadow: the host's bars, as sent (#446). */
+/** What one tick of a player's transport gives the shadow: a client's, or the page's own player's (#711), the bars as their scores frame them. */
 export interface FollowTick {
   /** The transport's environment on this tick, which it laid the steps with. */
   readonly env: TransportEnv;
@@ -236,10 +224,10 @@ interface StatedBar {
   /** The ask whose answer it is, and how it came. */
   readonly ask: number;
   readonly asked: Asked;
-  /** What the bar was foreseen as when the text was written, a digest: what a bar composed or sent is checked against. */
+  /** What the bar was foreseen as when the text was written, a digest: what a bar composed is checked against. */
   readonly foreseen: string;
   readonly played: PlayedBar | null;
-  /** The chords cells plays of the harmony in the bar, as it sounds them: what a client of session version 2 folds (#553). */
+  /** The chords cells plays of the harmony in the bar, as it sounds them: what a client folds (#553). */
   readonly chords: readonly HeardChord[];
   /** Why cells states nothing for the bar. */
   readonly gap: string | null;
@@ -306,7 +294,7 @@ const noCost = (): Cost => ({
 
 /**
  * How a text came: asked for ahead, at a bar with none, or again at a bar composed otherwise than foreseen;
- * or given by a host as it took it, or with its welcome (#446).
+ * or given by a host as a score, as it took it, or with its welcome (#446, #553).
  */
 type Asked = 'ahead' | 'fresh' | 'again' | 'given' | 'joined';
 
@@ -320,24 +308,21 @@ interface Pending {
   readonly forecast: readonly BandBar[];
   readonly textStart: number;
   main: number | null;
-  /** The score it reads, a score a host of session version 2 gave (#553). */
+  /** The score it reads, a score a host gave (#553). */
   readonly score?: GivenScore['score'];
 }
 
 /** The reason a step is laid without cells: its bar's text is still on its way. */
 const ON_ITS_WAY = 'the text was on its way when its bar was laid (late)';
 
-/** The reason a client's step is laid without cells where it joined: the text that states its bar came with the welcome (#446). */
+/** The reason a client's step is laid without cells where it joined: the score that states its bar came with the welcome (#446). */
 const JOINING = 'the text came with the welcome and was on its way when its bar was laid (joined)';
 
-/** How many texts told a host keeps for a client's welcome: those of the section playing and the next, and more. */
-const TOLD_KEPT = 8;
-
 /**
- * How many scores told a host of session version 2 keeps for a client's welcome: twice the texts, as a section stated
- * in runs is told as more than one (`split`).
+ * How many scores told a host keeps for a client's welcome: those of the section playing and the next, and more, twice
+ * eight, as a section stated in runs is told as more than one (`split`).
  */
-const SCORES_KEPT_TOLD = 2 * TOLD_KEPT;
+const SCORES_KEPT_TOLD = 16;
 
 /** How many scores taken are kept for the Cells view: the section heard and those built ahead of it. */
 const SCORES_KEPT = 4;
@@ -365,20 +350,15 @@ export class Shadow {
   #from: TextsFrom = 'asked';
   /** What each bar composed lately was built from, as a digest (`foreseenOf`): what the text that states it must have foreseen. */
   #digests = new Map<number, string>();
-  /** The texts told lately, latest last: a client's welcome gives those of bars not yet played. */
-  #told: SectionText[] = [];
-  /** The same as scores, as a host of session version 2 sends them (#553), latest last. */
+  /** The scores told lately, latest last: a client's welcome gives those in force for the bars not yet played (#553). */
   #scored: HostScore[] = [];
   #wire: number[] = [];
+  /** Hears each text the band's own bars state as it is taken, as a score, which a host sends its clients (#446, #553). */
+  told: ((score: HostScore) => void) | null = null;
   /**
-   * Hears each text the band's own bars state as it is taken, and the same as a score: a host sends one or the other
-   * to its clients, by the version of the session it speaks (#446, #553).
-   */
-  told: ((text: SectionText, score: HostScore) => void) | null = null;
-  /**
-   * Hears what each score states of its bars, for each bar it is still the latest for: one a host of session version 2
-   * gave (#553), or one this page's band took (#711), that it is being read as it is given or asked, and what it states
-   * once read. What a client's follower, or the page's own player, lays by.
+   * Hears what each score states of its bars, for each bar it is still the latest for: one a host gave (#553), or one
+   * this page's band took (#711), that it is being read as it is given or asked, and what it states once read. What a
+   * client's follower, or the page's own player, lays by.
    */
   stated: ((bars: readonly ScoreStatement[]) => void) | null = null;
   /**
@@ -438,7 +418,6 @@ export class Shadow {
     this.#gapped.clear();
     this.#asked.clear();
     this.#pending.clear();
-    this.#told = [];
     this.#scored = [];
     this.#scores = [];
     this.#lastTick = null;
@@ -491,14 +470,14 @@ export class Shadow {
   }
 
   /**
-   * One tick of a player's transport: the bars it was given (#446), checked against the texts given, or as its scores
-   * state them (#553, #711), then the steps laid. Its output as the outputs play it: cells' events where a text or
-   * score states the bar, on a client of session version 1 the band's own in a gap, and those dropped late of each (#462).
+   * One tick of a player's transport: the bars it gave, as their scores frame them (#553, #711), then the steps laid.
+   * Its output as the outputs play it: cells' events where a score states the bar, what the transport gave in a gap,
+   * and those dropped late of each (#462).
    */
   follow(tick: FollowTick): TransportOutput {
     this.#lastTick = { page: this.#clock(), tick };
     try {
-      for (const bar of tick.output.composed) this.#sent(bar);
+      for (const bar of tick.output.composed) this.#framed(bar);
       const { played, late } = this.#laid(tick);
       return { ...tick.output, events: played, lateEvents: late };
     } catch (error) {
@@ -508,24 +487,9 @@ export class Shadow {
   }
 
   /**
-   * A section's text a host gave (#446), as it took it or with its welcome
-   * (`joined`): compiled and played where this page's texts are, each bar it
-   * states then holding what cells plays in it, as on the host.
-   */
-  given(text: SectionText, joined = false) {
-    if (this.#from !== 'given') return;
-    const asked = joined ? 'joined' : 'given';
-    this.#counted[asked]++;
-    const bars = text.foreseen.map((_, i) => text.bar + i);
-    this.#ask({ asked, bars, forecast: [], textStart: text.step, main: null }, (answer) =>
-      this.#texts.play(text, answer),
-    );
-  }
-
-  /**
-   * A score a host of session version 2 gave (#553), as it took it or with its welcome (`joined`), with the fragments
-   * the session sent that it locks: read, compiled and played where this page's texts are, each bar it states then
-   * holding what cells plays in it, and what it states of each said (`stated`).
+   * A score a host gave (#553), as it took it or with its welcome (`joined`), with the fragments the session sent that
+   * it locks: read, compiled and played where this page's texts are, each bar it states then holding what cells plays
+   * in it, and what it states of each said (`stated`).
    */
   givenScore(given: GivenScore, joined = false) {
     if (this.#from !== 'scored') return;
@@ -561,12 +525,7 @@ export class Shadow {
     );
   }
 
-  /** The texts told that state a bar from `bar` on, in the order told: what a client's welcome gives (#446). */
-  toldFrom(bar: number): readonly SectionText[] {
-    return this.#told.filter((t) => t.bar + t.foreseen.length > bar);
-  }
-
-  /** The scores told in force from `bar` on, in the order told: what a welcome of session version 2 gives (#553). */
+  /** The scores told in force from `bar` on, in the order told: what a client's welcome gives (#446, #553). */
   scoredFrom(bar: number): readonly HostScore[] {
     return scoresInForce(this.#scored, bar);
   }
@@ -621,7 +580,7 @@ export class Shadow {
     return digest;
   }
 
-  /** A bar composed or sent, kept for the steps laid from it, and what it was built from, as a digest. */
+  /** A bar composed, kept for the steps laid from it, and what it was built from, as a digest. */
   #keep(bar: BandBar): string {
     const digest = foreseenOf(bar);
     this.#composedBars.set(bar.bar, bar);
@@ -632,15 +591,13 @@ export class Shadow {
   }
 
   /**
-   * A bar a host sent (#446): played through cells once a text given states it as it was sent. A bar a score states
+   * A bar a player's transport gave, as its score frames it, kept for the steps laid from it: a bar a score states
    * (#553), a client's or the page's own player's (#711), is laid only where its conduct carries the score's digest, so
    * it is the score's as it is.
    */
-  #sent(bar: BandBar) {
-    if (this.#from !== 'given') {
-      this.#composedBars.set(bar.bar, bar);
-      this.#composedBars.delete(bar.bar - 2 * SECTION_BARS);
-    } else this.#keep(bar);
+  #framed(bar: BandBar) {
+    this.#composedBars.set(bar.bar, bar);
+    this.#composedBars.delete(bar.bar - 2 * SECTION_BARS);
   }
 
   #forecast(
@@ -668,9 +625,8 @@ export class Shadow {
 
   /**
    * Whether a bar holds the answer to the latest text asked for it, or given,
-   * built from the bar as it was composed or sent: a host's always is, as it
-   * asks again for a bar composed otherwise than foreseen; a client's is once
-   * the host's text again has come.
+   * built from the bar as it was composed: a band's always is, as it asks
+   * again for a bar composed otherwise than foreseen.
    */
   #current(bar: number): boolean {
     const ask = this.#asked.get(bar);
@@ -683,7 +639,7 @@ export class Shadow {
     );
   }
 
-  /** How a bar's latest text came, while it is on its way: still being built, or, on a client, its bar sent otherwise than foreseen and the host's text again not yet come. */
+  /** How a bar's latest text came, while it is on its way: still being built, or its bar composed otherwise than its answer foresaw. */
   #onItsWay(bar: number): Asked | null {
     const ask = this.#asked.get(bar);
     if (ask === undefined) return null;
@@ -784,10 +740,7 @@ export class Shadow {
           ? 'no text'
           : played.diagnostics.length > 0
             ? `cells said: ${played.diagnostics[0]}`
-            : // (a score's bar plays its notes cut, as a client of version 2 does: there is no band's own to fall back on, #711)
-              stated.cut.includes(i) && this.#from === 'given'
-              ? "a note runs past its line's next onset or the text's end (the finale's ring): cut there"
-              : null);
+            : null);
       this.#bars.set(b, {
         bar: b,
         ask,
@@ -815,26 +768,24 @@ export class Shadow {
   }
 
   /**
-   * A text the band's own `bars` state, taken: told, as a host sends it (#446),
-   * and as a score (#553), each kept for a client's welcome, and the text's size
-   * on the wire counted.
+   * A text the band's own `bars` state, taken: told as a score, as a host sends it (#446, #553), kept for a client's
+   * welcome, and its size on the wire counted, with every fragment it files, as a client that lacks them all is sent it.
    */
   #tell(bar: number, step: number, stated: SectionStated, bars: readonly BandBar[]): HostScore {
-    const { source: text, unstated, frame, foreseen, cut, lock, filed } = stated;
-    const told: SectionText = { bar, step, text, unstated, frame, foreseen, cut };
+    const { source: text, unstated, foreseen, cut, lock, filed } = stated;
     const score = hostScoreOf(bar, step, { text, unstated, lock, filed, foreseen, cut }, bars);
     this.#counted.told++;
-    this.#told = [...this.#told, told].slice(-TOLD_KEPT);
     this.#scored = [...this.#scored, score].slice(-SCORES_KEPT_TOLD);
-    this.#wire.push(new TextEncoder().encode(JSON.stringify({ kind: 'section', ...told })).length);
+    const message = { kind: 'score', ...scoreFor(score, score.filed) };
+    this.#wire.push(new TextEncoder().encode(JSON.stringify(message)).length);
     if (this.#wire.length > SAMPLES_KEPT) this.#wire.shift();
-    this.told?.(told, score);
+    this.told?.(score);
     return score;
   }
 
   /**
    * How long before its first bar plays a text arrived, on the transport's clock: now, or between the latest tick
-   * and the next; on a client, a text a host gave as it took it (`given`), and not one with its welcome.
+   * and the next; on a client, a score a host gave as it took it (`given`), and not one with its welcome.
    */
   #arrived({ asked, textStart: start }: Pending) {
     const latest = this.#lastTick;
@@ -850,7 +801,7 @@ export class Shadow {
 
   /**
    * The steps laid on a tick, and the events to play, and to drop late:
-   * cells' where cells plays the bar, the band's own in a gap, of the steps
+   * cells' where cells plays the bar, the transport's in a gap, of the steps
    * laid and of those the clock passed whole (#462).
    */
   #laid({ env, carried, output, now }: FollowTick): {
@@ -901,7 +852,7 @@ export class Shadow {
     return { played, late };
   }
 
-  /** Why a bar plays the band's own events, not cells': null where cells states it. */
+  /** Why a bar plays the transport's events, not cells': null where cells states it. */
   #bandsWhy(bar: number, onItsWay: Asked | null, clock: SongClock, env: TransportEnv) {
     const stated = this.#current(bar) ? this.#bars.get(bar) : undefined;
     const composed = this.#composedBars.get(bar);

@@ -1,21 +1,19 @@
 /**
- * A host and a client that speak version 2 of the session contract (#553, rungs 3 and 4): the client plays the host's
- * scores on the clock its conducts give, read from the scores alone (yggi/music-commons `contracts/session`, minor 3),
- * held against what the host plays and against a client of version 1 playing the same song, and tells the host each
- * bar it didn't play (`lacked`), which the host counts by client.
+ * A host and a client, as version 2 of the session contract has them (#553): the client plays the host's scores on the
+ * clock its conducts give, read from the scores alone (yggi/music-commons `contracts/session`, minor 3), held against
+ * what the host plays, and tells the host each bar it didn't play (`lacked`), which the host counts by client.
  */
 
 import { PRESETS } from '@jambot/engine';
 import {
   type ClientResume,
   type FragmentText,
-  type HostMessageV2,
-  type HostSaid,
+  type HostMessage,
   KEPT_BARS,
   NO_LACKED,
   SAYS,
   lackedIn,
-  readHostMessageV2,
+  readHostMessage,
 } from '@jambot/session';
 import { METERS } from '@jambot/theory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,7 +45,7 @@ const funkSeconds = (bars: number) =>
   ((bars + 2) * 4 * 60) / PRESETS.find((p) => p.name === 'Funk')!.style.bpm;
 
 /** A lobby whose messages to a client `alter` may change, or drop where it gives null. */
-function altering(lobby: Lobby, alter: (m: HostSaid) => HostSaid | null): Lobby {
+function altering(lobby: Lobby, alter: (m: HostMessage) => HostMessage | null): Lobby {
   return {
     ...lobby,
     join: (session, hear, lost) =>
@@ -62,30 +60,24 @@ function altering(lobby: Lobby, alter: (m: HostSaid) => HostSaid | null): Lobby 
   };
 }
 
-/** A host of version `speaks` at Funk, seed 1 (or in the meter asked), and a client of `follows` joined before it starts. */
+/** A host at Funk, seed 1 (or in the meter asked), and a client joined before it starts. */
 async function session({
-  speaks = 2,
-  follows = speaks,
   alter,
   texts,
   meter,
 }: {
-  speaks?: 1 | 2;
-  follows?: 1 | 2;
-  alter?: (m: HostSaid) => HostSaid | null;
+  alter?: (m: HostMessage) => HostMessage | null;
   texts?: () => SectionTexts;
   meter?: keyof typeof METERS;
 } = {}) {
   const lobby = memoryLobby();
   const host = device(105, texts, undefined, 1);
   const client = device(100, undefined, undefined, 1);
-  const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-    speaks,
-  });
+  const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
   await hosting.open(lobby, 'Jam');
   host.player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Funk')! });
   if (meter) host.player.setMeter(METERS[meter]);
-  const following = new ClientSession(client.player, client.clocks, { speaks: follows });
+  const following = new ClientSession(client.player, client.clocks);
   await following.join(alter ? altering(lobby, alter) : lobby, 'Jam', 'Ada');
   await host.player.start();
   return { lobby, host, client, hosting, following };
@@ -132,50 +124,38 @@ const filing = (): SectionTexts => {
   };
 };
 
-/** The riff's texts in what a client was sent, read as version 2. */
-const riffsIn = (heard: readonly HostSaid[]) =>
+/** The riff's texts in what a client was sent, read as a host's messages. */
+const riffsIn = (heard: readonly HostMessage[]) =>
   heard
-    .map(readHostMessageV2)
+    .map(readHostMessage)
     .flatMap((m) => (m?.kind === 'welcome' || m?.kind === 'score' ? m.fragments : []))
     .filter((f) => f.hash === RIFF.hash);
 
-describe('a client of session version 2 playing its host’s scores (#553 rungs 3 and 4)', () => {
+describe('a client playing its host’s scores (#553)', () => {
   beforeEach(() => void vi.useFakeTimers());
   afterEach(() => void vi.useRealTimers());
 
-  it('plays 32 bars of Funk at seed 1 from the scores alone, lacking none and silent in none, event for event as its host and a client of version 1', async () => {
-    const v2 = await session();
-    const v1 = await session({ speaks: 1 });
-    await run([v2.host, v2.client, v1.host, v1.client], funkSeconds(FUNK_BARS));
-    const { client, host } = v2;
+  it('plays 32 bars of Funk at seed 1 from the scores alone, lacking none and silent in none, event for event as its host', async () => {
+    const { client, host, hosting, following } = await session();
+    await run([host, client], funkSeconds(FUNK_BARS));
     expect(client.player.shadow.readout.from).toBe('scored');
-    expect(v1.client.player.shadow.readout.from).toBe('given');
     expect(barsPlayed(client).slice(0, FUNK_BARS)).toEqual(
       Array.from({ length: FUNK_BARS }, (_, b) => b),
     );
     expect([client.player.lacked, client.player.silent, client.player.said]).toEqual([0, 0, []]);
     // The host's count of the bars its client lacked, which the soak's bound reads: none.
-    expect(lackedIn(v2.hosting.lacked)).toEqual({ ...NO_LACKED, bars: 0 });
+    expect(lackedIn(hosting.lacked)).toEqual({ ...NO_LACKED, bars: 0 });
     // None of the band's own notes: every event the client played is cells'.
     expect(client.player.shadow.readout.played.band).toBe(0);
     expect(client.player.shadow.readout.errors).toEqual([]);
     // (the comparison: each event's bar, step, part and pitch, its onset and its end on the host's clock, its velocity
     // and length, `compareSession`; the feel's frame from the score and the conduct gives the host's own)
-    for (const [who, other] of [
-      ['host', host],
-      ['client of version 1', v1.client],
-    ] as const) {
-      const compared = versus(other, client);
-      expect(compared.events, who).toBeGreaterThan(1000);
-      expect(compared.bars.to, who).toBeGreaterThanOrEqual(FUNK_BARS);
-      expect(compared, who).toMatchObject(AGREED);
-    }
-    // The harmonic history it folds from what cells plays of each score's harmony is the one folded from the band's chords.
-    expect(client.player.harmonicHistory).toEqual(v1.client.player.harmonicHistory);
-    v2.following.leave();
-    v1.following.leave();
-    v2.hosting.close();
-    v1.hosting.close();
+    const compared = versus(host, client);
+    expect(compared.events).toBeGreaterThan(1000);
+    expect(compared.bars.to).toBeGreaterThanOrEqual(FUNK_BARS);
+    expect(compared).toMatchObject(AGREED);
+    following.leave();
+    hosting.close();
   }, 240_000);
 
   it('plays as its host does while the radio glides the style through the bars, the host sounding its own scores and conducts through its own player (#711)', async () => {
@@ -199,7 +179,7 @@ describe('a client of session version 2 playing its host’s scores (#553 rungs 
     const { lobby, host, client, hosting, following } = await session();
     await run([host, client], 20);
     const late = device(95, undefined, undefined, 1);
-    const joining = new ClientSession(late.player, late.clocks, { speaks: 2 });
+    const joining = new ClientSession(late.player, late.clocks);
     await joining.join(lobby, 'Jam', 'Bo');
     await run([host, client, late], 30);
     expect(late.player.shadow.readout.texts.joined).toBeGreaterThan(0);
@@ -250,7 +230,7 @@ describe('a client of session version 2 playing its host’s scores (#553 rungs 
 
   it('plays silent the bars no score states, counted and said, and lacks none', async () => {
     const from = 2 * 8;
-    type Score = Extract<HostMessageV2, { kind: 'score' }>;
+    type Score = Extract<HostMessage, { kind: 'score' }>;
     const unstate = (m: Score): Score =>
       m.bar === from ? { ...m, text: '', unstated: 'a test states none', lock: [] } : m;
     const { host, client, hosting, following } = await session({
@@ -277,16 +257,14 @@ describe('a client of session version 2 playing its host’s scores (#553 rungs 
   it('keeps the fragments a host sent through a reload, so the host sends them 0 times again and it plays on, lacking none', async () => {
     const lobby = memoryLobby();
     const host = device(105, filing, undefined, 1);
-    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-      speaks: 2,
-    });
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'Jam');
     host.player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Funk')! });
     /** A page: its device, its client and what it kept, its link cut as a page that closes cuts it. */
     const page = async (resume?: ClientResume) => {
       const d = device(100, undefined, undefined, 1);
       const saved: ClientResume[] = [];
-      const heard: HostSaid[] = [];
+      const heard: HostMessage[] = [];
       let closed = false;
       const link: Lobby = {
         ...lobby,
@@ -296,7 +274,6 @@ describe('a client of session version 2 playing its host’s scores (#553 rungs 
             : lobby.join(session, (m) => void (closed || (heard.push(m), hear(m))), lost),
       };
       const following = new ClientSession(d.player, d.clocks, {
-        speaks: 2,
         keep: { save: (r) => void saved.push(r), clear: () => {} },
       });
       await following.join(link, 'Jam', 'Ada', {
@@ -342,36 +319,19 @@ describe('a client of session version 2 playing its host’s scores (#553 rungs 
     hosting.close();
   }, 240_000);
 
-  it('leaves a host of version 1, a page cached from before the switch, saying so, as the contract’s rollout has it', async () => {
-    const { host, client, hosting, following } = await session({ speaks: 1, follows: 2 });
-    await run([host, client], funkSeconds(2));
-    expect(following.status).toBe('idle');
-    expect(following.ended).toMatch(/version 24 .* reload the host/);
-    expect(client.player.played.since().events).toEqual([]);
-    // (shown firing: a client of version 1 stays with it)
-    const v1 = await session({ speaks: 1, follows: 1 });
-    await run([v1.host, v1.client], funkSeconds(2));
-    expect(v1.following.status).toBe('joined');
-    v1.following.leave();
-    v1.hosting.close();
-    hosting.close();
-  }, 240_000);
-
   it('this issue’s bound: a client with no fragment of its own plays 32 bars of Funk, seed 1, with 0 errors, sent each fragment text once (the reload’s test holds the other: one it holds, 0 times)', async () => {
     const lobby = memoryLobby();
     const host = device(105, filing, undefined, 1);
-    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-      speaks: 2,
-    });
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'Jam');
     host.player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === 'Funk')! });
-    const heard = (into: HostSaid[]): Lobby => ({
+    const heard = (into: HostMessage[]): Lobby => ({
       ...lobby,
       join: (session, hear, lost) => lobby.join(session, (m) => (into.push(m), hear(m)), lost),
     });
-    const empty: HostSaid[] = [];
+    const empty: HostMessage[] = [];
     const fresh = device(100, undefined, undefined, 1);
-    const following = new ClientSession(fresh.player, fresh.clocks, { speaks: 2 });
+    const following = new ClientSession(fresh.player, fresh.clocks);
     await following.join(heard(empty), 'Jam', 'Ada');
     await host.player.start();
     await run([host, fresh], funkSeconds(FUNK_BARS));
@@ -400,14 +360,20 @@ describe('a client of session version 2 playing its host’s scores (#553 rungs 
     async (meter) => {
       const { host, client, hosting, following } = await session({ meter });
       await run([host, client], 1);
-      // The count-in is a bar of the meter the song opens in: the host's clicks, on the host's clock.
-      expect(host.world.clicks.length).toBe(meter === '6/8' ? 2 : 3);
-      const mine = client.world.clicks;
+      // The count-in is a bar of the meter the song opens in: the drummer's, a click of the count on each of its beats,
+      // on the host's clock (#646).
+      const counted = (d: typeof host) =>
+        d.world.plays.filter((p) => p.part === 'drums' && p.seconds < d.player.songStart - 1e-9);
+      expect(host.world.clicks).toEqual([]);
+      expect(counted(host).length).toBe(meter === '6/8' ? 2 : 3);
+      const mine = counted(client);
       expect(mine.length).toBeGreaterThan(0);
-      const theirs = host.world.clicks.slice(-mine.length);
-      expect(mine.map((c) => c.weight)).toEqual(theirs.map((c) => c.weight));
-      mine.forEach((c, i) =>
-        expect(Math.abs(c.seconds + 5 - theirs[i]!.seconds)).toBeLessThan(0.001),
+      const theirs = counted(host).slice(-mine.length);
+      expect(mine.map((p) => [p.note, p.velocity])).toEqual(
+        theirs.map((p) => [p.note, p.velocity]),
+      );
+      mine.forEach((p, i) =>
+        expect(Math.abs(p.seconds + 5 - theirs[i]!.seconds)).toBeLessThan(0.001),
       );
       await run([host, client], 10);
       host.player.stop();

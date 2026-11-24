@@ -10,11 +10,11 @@
  * (`docs/briefs/host-mode.md`).
  */
 
-import type { ClientMessage, HostSaid, OpenSession } from '@jambot/session';
+import type { ClientMessage, HostMessage, OpenSession } from '@jambot/session';
 
-/** A host's end: to one client by its id, or to every client, in the version of the session the host speaks. */
+/** A host's end: to one client by its id, or to every client. */
 export interface HostLink {
-  send(message: HostSaid, to?: string): void;
+  send(message: HostMessage, to?: string): void;
   close(): void;
   /**
    * What takes the session back from the lobby if this link drops and
@@ -54,10 +54,9 @@ export interface Lobby {
    * refused at once, where the lobby knows no such session. A host whose
    * link closes is heard closing; one whose link dropped and may come back
    * is heard `away`, and `back` when it has. What it hears is a host's
-   * message of either version (`readHostSaid`), which the client reads again
-   * by the version its host's welcome says.
+   * message (`readHostMessage`), which the client reads again.
    */
-  join(session: string, hear: (message: HostSaid) => void, lost?: Lost): Promise<ClientLink>;
+  join(session: string, hear: (message: HostMessage) => void, lost?: Lost): Promise<ClientLink>;
 }
 
 export { sessionKey } from '@jambot/session';

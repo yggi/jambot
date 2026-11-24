@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { offeredScales } from './melodic.ts';
+import { stylePoint } from './meter-query.ts';
 import { form } from './form.ts';
 import { NO_HISTORY, centre } from './history.ts';
 import {
@@ -330,7 +332,9 @@ describe('the melodic scale a section plays', () => {
   });
 
   it('follows a wish from the next section it plans, and not before (#209)', () => {
-    const style = { ...INITIAL_STYLE, harm: 1 };
+    // (at Techno's other axes, where cells offers the plain scale alone, #644)
+    const style = { ...INITIAL_STYLE, ...PRESETS.find((p) => p.name === 'Techno')!.style, harm: 1 };
+    expect(offeredScales(stylePoint(style))).toEqual(['plain']);
     for (const seed of range(5)) {
       const script = steady(seed, style, aeolian, 12).map(({ env, input }) => ({
         env: { ...env, wish: wishing(env.index >= 5 ? 'pentatonic' : null) },
@@ -374,8 +378,10 @@ describe('the melodic scale a section plays', () => {
           env: { ...env, wish: { ...env.wish, melodic } },
           input,
         }));
+        // (the scale and the fragment it was found as, where it was, are the wish's; nothing else, #644)
+        const rest = (plan: Plan) => ({ ...plan, melodic: 'plain', melodicFragment: null });
         run(wished).forEach((plan, i) => {
-          expect({ ...plan, melodic: 'plain' }).toEqual(plain[i]);
+          expect(rest(plan)).toEqual(rest(plain[i]!));
         });
       }
   });

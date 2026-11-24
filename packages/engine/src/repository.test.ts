@@ -115,7 +115,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
     }
   });
 
-  it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 13,271 events, each to 1e-9 s', () => {
+  it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 13,285 events, each to 1e-9 s', () => {
     let count = 0;
     for (const preset of PROTOTYPE_PRESETS)
       for (const seed of [0, 1]) {
@@ -147,7 +147,8 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
         }
         count += asked.length;
       }
-    expect(count).toBe(13271);
+    // (as `layer.test.ts` counts main's: 13,271 before the drummer filled with cells' fills, #643)
+    expect(count).toBe(13285);
   });
 });
 

@@ -14,16 +14,16 @@
 
 import {
   type ClientMessage,
-  type HostSaid,
+  type HostMessage,
   readClientMessage,
-  readHostSaid,
+  readHostMessage,
 } from '@jambot/session';
 import { type ClientLink, type HostLink, type Lobby, sessionKey } from './lobby.ts';
 
 type Post =
   | { readonly kind: 'claim'; readonly id: string }
   | { readonly kind: 'held' }
-  | { readonly kind: 'host'; readonly to?: string; readonly message: HostSaid }
+  | { readonly kind: 'host'; readonly to?: string; readonly message: HostMessage }
   | { readonly kind: 'client'; readonly from: string; readonly message: ClientMessage };
 
 /** How long, in milliseconds, a host waits to hear whether a name is held, and a list for answers. */
@@ -116,7 +116,7 @@ export function broadcastLobby(): Lobby {
       const id = newId();
       channel.onmessage = ({ data }: MessageEvent<Post>) => {
         if (data?.kind !== 'host' || (data.to !== undefined && data.to !== id)) return;
-        const message = readHostSaid(data.message);
+        const message = readHostMessage(data.message);
         if (message) hear(message);
       };
       return {

@@ -65,12 +65,14 @@ function run(world: ReturnType<typeof surroundings>['world'], seconds: number) {
 beforeEach(() => localStorage.clear());
 
 describe('the metronome', () => {
-  it('clicks nothing but the count-in while it is off', async () => {
+  it('clicks nothing while it is off: the count-in is the drummer’s, a bar of the count on the drums before the song (#646)', async () => {
     const { world } = await playing(new Metronome());
     run(world, 6);
-    expect(world.plays.length).toBeGreaterThan(0);
-    expect(world.clicks).toHaveLength(4);
-    for (const c of world.clicks) expect(c.seconds).toBeLessThan(START);
+    expect(world.clicks).toEqual([]);
+    // (a bar of 4/4: a click of the count on each of its four beats, all before the song's first step)
+    const count = world.plays.filter((p) => p.part === 'drums' && p.seconds < START - 1e-9);
+    expect(count).toHaveLength(4);
+    expect(world.plays.some((p) => p.seconds >= START - 1e-9)).toBe(true);
   });
 
   it('clicks nothing while the band is stopped, though it is on: it has no clock of its own', () => {
@@ -89,7 +91,9 @@ describe('the metronome', () => {
     metronome.volume = 0.4;
     const { world } = await playing(metronome);
     run(world, 4);
-    expect(world.clicks.length).toBeGreaterThan(4);
+    // (the band's steps alone: the count-in is the drummer's, #646)
+    expect(world.clicks.length).toBeGreaterThan(1);
+    for (const c of world.clicks) expect(c.seconds).toBeGreaterThan(START - 0.01);
     expect(world.clicks[0]!.weight).toBe('downbeat');
     for (const c of world.clicks) expect(c.gain).toBe(0.4);
     const pulses = world.clicks.filter((c) => c.weight !== 'subdivision');
@@ -102,7 +106,8 @@ describe('the metronome', () => {
     metronome.on = true;
     const { world } = await playing(metronome);
     run(world, 4);
-    const firstNote = world.plays.find((p) => p.part === 'drums')!;
+    // (the band's first drum note, not the count's before it)
+    const firstNote = world.plays.find((p) => p.part === 'drums' && p.seconds > START - 0.01)!;
     const band = world.clicks.filter((c) => c.seconds > START - 0.01);
     expect(band[0]!.seconds).toBeLessThanOrEqual(firstNote.seconds + 1e-9);
     expect(band[0]!.seconds).toBeCloseTo(START, 6);
@@ -198,7 +203,7 @@ describe('the metronome', () => {
     expect([b.volume, b.subdivision]).toEqual([0.5, 'pulses']);
   });
 
-  it('clicks the pulses of a bar of another meter, on the transport’s clock, the count-in too (finite: the meters the band can be asked for)', async () => {
+  it('clicks the pulses of a bar of another meter, on the transport’s clock, and the drummer counts it in on its beats (finite: the meters the band can be asked for)', async () => {
     for (const name of ['3/4', '6/8', '5/8', '7/8', '12/8'] as const) {
       const meter = METERS[name];
       const metronome = new Metronome();
@@ -209,8 +214,10 @@ describe('the metronome', () => {
       expect(countInSeconds(player.track, meter)).toBeCloseTo(start - 0.1, 9);
       expect(player.clock.barSteps(0)).toBe(stepsOf(meter));
       run(world, 8);
-      const count = world.clicks.filter((c) => c.seconds < start - 0.01);
+      // (the count-in is the drummer's: a bar of the count on the drums, a click on each of the meter's beats, #646)
+      const count = world.plays.filter((p) => p.part === 'drums' && p.seconds < start - 0.01);
       const band = world.clicks.filter((c) => c.seconds >= start - 0.01);
+      expect(world.clicks.filter((c) => c.seconds < start - 0.01)).toEqual([]);
       expect([name, count.length]).toEqual([name, meter.heights.length]);
       expect([name, band[0]!.weight, band[0]!.seconds]).toEqual([
         name,

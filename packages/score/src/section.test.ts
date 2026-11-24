@@ -797,18 +797,21 @@ describe('a part the composer took, written as its `from` line with the band’s
           }
       return out;
     };
-    // (seed 1: 92 sections; the harmony from the tables in the other 17, so none kept; 29 over and 18 from the tables
+    // (seed 1: 92 sections; the harmony from the tables in the other 14, so none kept; 29 over and 18 from the tables
     // before cells v0.30.0, where Salsa's song form was `vamp`: its `son_montuno`'s coro keeps the montuno where the
-    // vamp's bridge played the tables, and 63 over at seeds 1 and 2)
+    // vamp's bridge played the tables, and 63 over at seeds 1 and 2; and 45 whole, 30 over and 17 from the tables at
+    // seed 1, 85 whole at seeds 1 and 2, before every member drew among the fragments on offer, #540: a B that played
+    // the tables where nothing but A's lay as near, Spooky's, Dark ambient's and Trip-hop's, draws another on offer, and
+    // Trip-hop's A, the ninth loop at seed 1, is taken whole where its sixth's vamp was taken over)
     expect(count([1])).toEqual({
-      'harmony whole': 45,
-      'harmony over': 30,
+      'harmony whole': 49,
+      'harmony over': 29,
       'bass over': 92,
       'lead over': 92,
       'drums over': 92,
     });
     expect(count([1, 2])).toEqual({
-      'harmony whole': 85,
+      'harmony whole': 91,
       'harmony over': 65,
       'bass over': 184,
       'lead over': 184,

@@ -2,7 +2,7 @@ import { METERS, stepsOf, wrap } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { type BandCarried, type BandEnv, band } from './band.ts';
 import { BASS_REPOSITORY, lineText, readLine } from './bass-lines.ts';
-import { lineTone } from './bass-query.ts';
+import { composedLine, lineTone } from './bass-query.ts';
 import { chordsOn } from './chords.ts';
 import { COMPOSER } from './facet.ts';
 import { SECTION_BARS } from './form.ts';
@@ -10,7 +10,7 @@ import { EMPTY_LAYER, type LearnedLayer } from './layer.ts';
 import { stylePoint } from './meter-query.ts';
 import type { HeardNote } from './muse.ts';
 import { BASSIST, lineOf } from './muse-line.ts';
-import { BY, VARIES } from './novelty.ts';
+import { BY, VARIES, pullOf } from './novelty.ts';
 import { LINE_TAG, sectionLine } from './plan.ts';
 import { METER_REPOSITORY, presetSwing } from './repository.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
@@ -70,7 +70,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` records them (its `MAIN_RHYTHMS.still`): every part, the presets held at entropy 0. */
-const MAIN_STILL = [13730, 'f13ba973'] as const;
+const MAIN_STILL = [13746, 'e11d5505'] as const;
 
 describe('the drums, the comp and the lead, unchanged by the bass in the loop (#423)', () => {
   const main = held();
@@ -78,7 +78,7 @@ describe('the drums, the comp and the lead, unchanged by the bass in the loop (#
   const part = (all: readonly TimedEvent[], p: string, not = false) =>
     all.filter((e) => (e.event.part === p) !== not);
 
-  it('plays main without the bass lines: 13,730 events', () => {
+  it('plays main without the bass lines: 13,746 events', () => {
     expect([main.length, hashOf(main)]).toEqual(MAIN_STILL);
   });
 
@@ -344,17 +344,33 @@ describe('the composer tires of a line: varies it by cells’ pitched operators,
   const lines = linesOf(run);
   const layer = run.at(-1)!.carried.plans.layer!;
 
-  it('plays the preset’s line 3 sections at entropy 1, a variation of it the next 3, then rejects both and takes the next nearest', () => {
-    expect(lines.slice(0, 6)).toEqual([
-      'root_bass',
-      'root_bass',
-      'root_bass',
-      'composer song 1, bar 24 2',
-      'composer song 1, bar 24 2',
-      'composer song 1, bar 24 2',
-    ]);
-    // (the next nearest Synth-pop's point: Elektro's octave bass since cells v0.23.0, yggi/cells#572; funk bass before)
-    expect(lines.slice(6, 9)).toEqual(['octave_bass', 'octave_bass', 'octave_bass']);
+  it('plays the line it opens on 3 sections at entropy 1, a variation of it the next 3, then rejects both and takes another on offer', () => {
+    // (the line drawn where the song opens, #540: at seed 1 the preset's own)
+    const [first] = lines;
+    expect(first).toBe('root_bass');
+    const variation = lines[3]!;
+    expect(lines.slice(0, 6)).toEqual([first, first, first, variation, variation, variation]);
+    expect(layer.filed.find((f) => f.fragment.id === variation)!.meta[VARIES]).toBe(first);
+    // (the next, held 3 sections: one of cells' lines the composer draws at Synth-pop's point with the preset's own
+    // rejected; asked without a draw, the next nearest, Elektro's octave bass since cells v0.23.0, yggi/cells#572)
+    const next = lines[6]!;
+    expect([first, variation]).not.toContain(next);
+    expect(lines.slice(6, 9)).toEqual([next, next, next]);
+    const { meter, meterFragment } = run[6 * SECTION_BARS]!.bar.plan;
+    const ask = (pick?: number) =>
+      composedLine(
+        BASS_REPOSITORY,
+        writtenStyle({ ...byName('Synth-pop').style, entropy: 1 }),
+        { meter, meterFragment },
+        undefined,
+        EMPTY_LAYER,
+        [],
+        [first!],
+        pullOf(1),
+        pick,
+      );
+    expect(ask()).toBe('octave_bass');
+    expect([...new Set(range(100).map((i) => ask(i / 100)))]).toContain(next);
   });
 
   it('files the variation by the composer, naming the line it varies and the operator, and never moves the root on the downbeat', () => {

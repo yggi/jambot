@@ -65,9 +65,9 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
   );
 
   /**
-   * What each preset takes where cells placed a harmony at its point (yggi/cells#409, #547, #572, #675, #679, and #540 at
-   * v0.25.0, whose harmonies of 4 bars and of two chords to the bar are read again to a section's 8): every section's
-   * A, over both seeds. Blues shuffle, with three equally near, draws a different one at each seed.
+   * What cells placed at each preset's point, the nearest (yggi/cells#409, #547, #572, #675, #679, and #540 at v0.25.0,
+   * whose harmonies of 4 bars and of two chords to the bar are read again to a section's 8): on offer there, with those
+   * near it within the offer's edge (#540), which a song may draw as its A. Blues shuffle's three are equally near.
    */
   const PLACED: Readonly<Record<string, readonly string[]>> = {
     'Synth-pop': ['axis_progression'],
@@ -93,14 +93,38 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     'Trip-hop': ['vamp_to_the_sixth'],
   };
 
-  it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, where cells placed no harmony; elsewhere the one it placed, Spooky the dark cadence", () => {
-    // (Spooky's dark cadence, i VI iv V, read twice: its haunted progression, nearer before v0.25.0 read the cadence's
-    // four bars, lies past it)
-    for (const r of runs.filter((r) => r.preset.name === 'Spooky'))
-      for (const { bar } of r.loop.filter(({ bar }) => bar.plan.theme.kind === 'A'))
-        expect(
-          bar.plan.theme.bars.map((b) => b.map((slot) => ('degree' in slot ? slot.degree : -1))),
-        ).toEqual([0, 5, 3, 4, 0, 5, 3, 4].map((d) => [d]));
+  /** The progressions on offer for a run's A, at its style and bench, asked with nothing chosen: those a hundred draws take. */
+  const offered = (r: (typeof runs)[number]) => {
+    const { plan } = r.loop[0]!.bar;
+    const bench = { meter: plan.meter, meterFragment: plan.meterFragment };
+    const style = { ...r.preset.style, entropy: 0 };
+    const at = { kind: 'A', index: 0, mode: plan.key.mode, harm: style.harm } as const;
+    return new Set(
+      range(100).map((i) =>
+        composedHarmony(HARMONY_REPOSITORY, style, bench, {
+          at,
+          draw: i / 100,
+          layer: EMPTY_LAYER,
+        }),
+      ),
+    );
+  };
+
+  it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, where cells placed no harmony; elsewhere one on offer, what it placed among them, Spooky's dark cadence as it is", () => {
+    // (Spooky's dark cadence, i VI iv V, read twice, where a song draws it: its haunted progression, nearer before v0.25.0
+    // read the cadence's four bars, lies past it, on offer beside it, #540)
+    const spooky = runs
+      .filter((r) => r.preset.name === 'Spooky')
+      .flatMap((r) => r.loop)
+      .filter(
+        ({ bar, plans }) =>
+          bar.plan.theme.kind === 'A' && plans.themeFragments.A === 'dark_cadence',
+      );
+    expect(spooky.length).toBeGreaterThan(0);
+    for (const { bar } of spooky)
+      expect(
+        bar.plan.theme.bars.map((b) => b.map((slot) => ('degree' in slot ? slot.degree : -1))),
+      ).toEqual([0, 5, 3, 4, 0, 5, 3, 4].map((d) => [d]));
     // (one A a song: a new song writes its own themes, and where cells placed several equally near, it may take
     // another, #655)
     for (const r of runs.filter((r) => r.preset.name in PLACED)) {
@@ -111,9 +135,12 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
         const song = latest ? latest.index - (latest.song?.at ?? 0) : -1;
         songs.set(song, (songs.get(song) ?? new Set()).add(plans.themeFragments.A));
       }
+      const offer = [...offered(r)];
+      for (const placed of PLACED[r.preset.name]!)
+        expect(offer, `${r.preset.name}, seed ${r.seed}`).toContain(placed);
       for (const taken of songs.values()) {
         expect(taken.size, `${r.preset.name}, seed ${r.seed}`).toBe(1);
-        expect(PLACED[r.preset.name], `${r.preset.name}, seed ${r.seed}`).toContain([...taken][0]);
+        expect(offer, `${r.preset.name}, seed ${r.seed}`).toContain([...taken][0]);
       }
     }
     expect(PRESETS.filter((p) => !(p.name in PLACED)).map((p) => p.name)).toEqual([
@@ -140,27 +167,41 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
             return kind === 'build' || plans.themeFragments[kind] !== null;
           }),
         );
-    // (A and B both from the seeds: the three that vamp, and Blues shuffle, whose B draws another of its three equals;
-    // and the three whose song form is strophic, verse after verse, which play A alone: #655; and Salsa, whose song form
-    // since cells v0.30.0, `son_montuno`, holds no section that plays B: its verses, coros and mambo play A)
+    // (A and B both from the seeds: the three that vamp, and Blues shuffle, Spooky, Dark ambient and Trip-hop, whose B
+    // draws another on offer beside A's, #540; and the three whose song form is strophic, verse after verse, which play
+    // A alone: #655; and Salsa, whose song form since cells v0.30.0, `son_montuno`, holds no section that plays B: its
+    // verses, coros and mambo play A)
     expect(PRESETS.filter((p) => fromSeed(p.name)).map((p) => p.name)).toEqual([
       'Techno',
       'Ambient',
       'Funk',
+      'Spooky',
       'Kinderlied',
+      'Dark ambient',
       'Blues shuffle',
       'Sea shanty',
       'Salsa',
       'Waltz',
+      'Trip-hop',
     ]);
-    // (above the vamps, A is what cells placed and B the tables', for contrast, where nothing else is equally near)
-    for (const r of runs.filter(
-      (r) => r.preset.style.harm >= 0.33 && r.preset.name !== 'Blues shuffle',
-    ))
+    // (above the vamps, A is one on offer, and B the tables', for contrast, where nothing else is on offer; else another
+    // on offer)
+    const above = runs.filter((r) => r.preset.style.harm >= 0.33);
+    const contrasts = new Set<string>();
+    for (const r of above) {
+      const offer = offered(r);
       for (const { plans } of r.loop) {
-        expect(PLACED[r.preset.name], r.preset.name).toContain(plans.themeFragments.A);
-        expect(plans.themeFragments.B, r.preset.name).toBeNull();
+        const { A, B } = plans.themeFragments;
+        expect([...offer], r.preset.name).toContain(A);
+        if (offer.size === 1) expect(B, r.preset.name).toBeNull();
+        else if (B !== null) {
+          expect([...offer], r.preset.name).toContain(B);
+          expect(B, r.preset.name).not.toBe(A);
+        }
+        contrasts.add(B === null ? 'tables' : 'offer');
       }
+    }
+    expect([...contrasts].sort()).toEqual(['offer', 'tables']);
   });
 });
 
@@ -409,7 +450,7 @@ describe('the band with harmonies carries what JSON keeps (#425)', () => {
 });
 
 describe('the progression each section plays, kept by id, a build’s as a returning theme’s (#735)', () => {
-  /** What the composer asked the harmonies with for a theme: `composedHarmony`'s ask, the only one on offer `within`. */
+  /** What the composer asked the harmonies with for a theme: `composedHarmony`'s ask, the only query the harmonies answer. */
   interface Asked {
     readonly layer: LearnedLayer | undefined;
     readonly chosen: readonly string[];
@@ -427,8 +468,7 @@ describe('the progression each section plays, kept by id, a build’s as a retur
       const harmonies: HarmonyRepository = {
         ...HARMONY_REPOSITORY,
         query: (point, bench, layer, chosen = [], ask, pull) => {
-          if (ask?.within !== undefined)
-            asked.push({ layer, chosen, rejected: ask.exclude ?? [], pull });
+          asked.push({ layer, chosen, rejected: ask?.exclude ?? [], pull });
           return HARMONY_REPOSITORY.query(point, bench, layer, chosen, ask, pull);
         },
       };

@@ -3,12 +3,10 @@
  * thread (#406): the band through cells (`shadow.ts`) asks for each section's text with
  * the bars it forecast, and the answer comes back as plain data, what cells
  * plays in each bar, so the clock never waits on cells' compiler (the spirit:
- * time is absolute). A client of a host is given each section's text instead (`SectionText`, #446), and has it
- * compiled and played the same way (`playText`), from the text and its frame
- * alone, as the host's own is.
+ * time is absolute).
  *
  * `stateSection` is the whole job, and the same wherever it runs: the text
- * built, then played as a client plays it. `WorkerTexts` is the page's side
+ * built, then played as a client plays it as a score. `WorkerTexts` is the page's side
  * of a worker that runs it (`off-clock.ts`): the worker is made as a song
  * starts (`begin`) and warmed with a text of its own while the band counts
  * in, so the first section's text compiles warm, and it ends with the song
@@ -20,18 +18,18 @@
  * which costs a millisecond or two over a section, and what the text locks
  * (`scoreLock`, cells' `textLockfile`), so both are worked out where the text is.
  *
- * A client of session version 2 (#553) is given each section's score in place
- * of its text, which states its meter, tempo and key itself, and the
- * fragments it locks that the session sent: it has it compiled and played the
- * same way (`playScore`), its frame read from the score alone (`scoreFrame`),
- * and its bars lacked where it locks a fragment neither the session nor this
- * pin holds (`lockLacks`).
+ * A client of a host (#553) is given each section's score, which states its
+ * meter, tempo and key itself, and the fragments it locks that the session
+ * sent: it has it compiled and played the same way (`playScore`), its frame
+ * read from the score alone (`scoreFrame`), and its bars lacked where it locks
+ * a fragment neither the session nor this pin holds (`lockLacks`).
  */
 
-import { type BandBar, INITIAL_KEY, STRAIGHT } from '@jambot/engine';
-import type { FragmentText, ScoreRead, SectionScore, SectionText } from '@jambot/session';
+import type { BandBar } from '@jambot/engine';
+import type { FragmentText, ScoreRead, SectionScore } from '@jambot/session';
 import {
   type PlayedSection,
+  type ScoreFrame,
   type SectionFrame,
   barMeterName,
   compileSection,
@@ -50,7 +48,7 @@ import {
   swingText,
   writtenNotes,
 } from '@jambot/score';
-import { METERS, stepsOf } from '@jambot/theory';
+import { stepsOf } from '@jambot/theory';
 import { type JobWorker, WorkerJobs } from './off-clock.ts';
 
 /**
@@ -75,8 +73,9 @@ export function digest(text: string): string {
 /**
  * What of a bar the text is checked by, as a digest: its written notes,
  * chords, key, scale, meter and swing; its tempo is the transport's. A host
- * sends it with each text (`SectionText.foreseen`), and a client checks the
- * bar it is sent by it, as the host checks the bar it composes.
+ * sends it with each score (`SectionScore.foreseen`), and each bar's conduct
+ * carries the bar's (`BarConduct.foreseen`): a client plays a bar from its
+ * score only where the two are one, as the host checks the bar it composes.
  */
 export const foreseenOf = (bar: BandBar): string =>
   digest(
@@ -90,17 +89,9 @@ export const foreseenOf = (bar: BandBar): string =>
     ]),
   );
 
-/** What of a section's bars cells' reading needs beside its text, from its first bar: what a host sends with it. */
-export const frameOf = (bar: BandBar): SectionText['frame'] => ({
-  meter: bar.meter,
-  swing: bar.swing,
-  bpm: bar.style.bpm,
-  key: bar.plan.key,
-});
-
-/** A text's frame for each of its bars, as cells' reading takes it (`playSection`). */
+/** A score's frame, as read off it (`scoreFrame`), for each of its bars, as cells' reading takes it (`playSection`). */
 const framesOf = (
-  { meter, swing, bpm, key }: SectionText['frame'],
+  { meter, swing, bpm, key }: Pick<ScoreFrame, 'meter' | 'swing' | 'bpm' | 'key'>,
   count: number,
 ): SectionFrame[] =>
   Array.from({ length: count }, () => ({ meter, swing, style: { bpm }, plan: { key } }));
@@ -109,8 +100,6 @@ const framesOf = (
 export interface SectionStated {
   /** The text as built, or empty where none could be. */
   readonly source: string;
-  /** What cells' reading needs beside the text, from its first bar. */
-  readonly frame: SectionText['frame'];
   /** What of each bar the text was built from (`foreseenOf`), in order. */
   readonly foreseen: readonly string[];
   /** Where no text states the bars, why (a section's key or meter moving between its bars). */
@@ -123,7 +112,7 @@ export interface SectionStated {
   readonly cut: readonly number[];
   /**
    * Every fragment the text takes `from` but the band, and of them those not in the seed library, with their texts
-   * (`scoreLock`): what a host of session version 2 sends with the score (#553); none for a text a host gave.
+   * (`scoreLock`): what a host sends with the score (#553); none for a score a host gave.
    */
   readonly lock: ScoreLock['lock'];
   readonly filed: ScoreLock['filed'];
@@ -131,20 +120,16 @@ export interface SectionStated {
   readonly error: string | null;
   /** Where it ran, in ms: building the text, compiling it, and playing it. */
   readonly cost: { readonly build: number; readonly compile: number; readonly play: number };
-  /**
-   * For a score a host of session version 2 gave (#553): what it states, read from the score alone, or why its bars
-   * can't play here; none for a text.
-   */
+  /** What the score states, read from the score alone, or why its bars can't play here; none where it states nothing. */
   readonly read?: ScoreRead;
 }
 
 /**
  * The job: the bars written as one text (`sectionAsCells`), then compiled and
- * played through cells as a client of session version 2 plays it as a score
- * (`playScore`, with the fragments it locks), and what it states read off it
- * (`read`), timed on `clock` (ms); `edit` changes the text before cells plays
- * it, for a test to show that cells' events, not the band's, are what plays.
- * Its `frame` is the first bar's, which a client of version 1 reads beside the text (`playText`).
+ * played through cells as a client plays it as a score (`playScore`, with the
+ * fragments it locks), and what it states read off it (`read`), timed on
+ * `clock` (ms); `edit` changes the text before cells plays it, for a test to
+ * show that cells' events, not the band's, are what plays.
  */
 export function stateSection(
   bars: readonly BandBar[],
@@ -153,7 +138,6 @@ export function stateSection(
 ): SectionStated {
   const t0 = clock();
   const foreseen = bars.map(foreseenOf);
-  const frame = frameOf(bars[0]!);
   let source: string;
   let cut: number[];
   try {
@@ -168,7 +152,6 @@ export function stateSection(
     );
     const none = {
       source: '',
-      frame,
       foreseen,
       played: null,
       outline: null,
@@ -181,68 +164,19 @@ export function stateSection(
   }
   const { lock, filed } = scoreLock(source);
   const built = clock() - t0;
-  // (played as a client of session version 2 plays the score, with the fragments it locks: what the page's own player sounds, #711)
+  // (played as a client plays the score, with the fragments it locks: what the page's own player sounds, #711)
   const read = readScore({ text: source, unstated: null, lock, foreseen, cut }, filed, clock);
-  return { ...read, frame, filed, cost: { ...read.cost, build: built } };
+  return { ...read, filed, cost: { ...read.cost, build: built } };
 }
 
-/**
- * A section's text as a host sends it, compiled and played through cells from
- * the text and its frame alone (#446): what a client does with each it is
- * given, and the host with each it builds (`stateSection`), so the two play
- * alike. Where no text states the bars, nothing is played and the reason is kept.
- */
-export function playText(
-  given: SectionText,
-  clock: () => number = () => performance.now(),
-): SectionStated {
-  const { text: source, frame, foreseen, cut, unstated } = given;
-  const none = {
-    source,
-    frame,
-    foreseen,
-    unstated,
-    played: null,
-    outline: null,
-    cut,
-    lock: [],
-    filed: [],
-    error: null,
-  };
-  if (unstated !== null) return { ...none, cost: { build: 0, compile: 0, play: 0 } };
-  const t1 = clock();
-  try {
-    const plan = compileSection(source);
-    const t2 = clock();
-    const played = playSection(source, framesOf(frame, foreseen.length), plan);
-    const outline = sectionOutline(plan);
-    const t3 = clock();
-    return { ...none, played, outline, cost: { build: 0, compile: t2 - t1, play: t3 - t2 } };
-  } catch (error) {
-    return {
-      ...none,
-      error: String(error),
-      cost: { build: 0, compile: clock() - t1, play: 0 },
-    };
-  }
-}
-
-/** The frame of a score that plays nothing (unstated, or not read): its own fields, which nothing reads. */
-const UNREAD: SectionText['frame'] = {
-  meter: METERS['4/4'],
-  swing: STRAIGHT,
-  bpm: 0,
-  key: INITIAL_KEY,
-};
-
-/** A score a host of session version 2 gave (#553), and the fragments the session sent that it locks. */
+/** A score a host gave (#553), and the fragments the session sent that it locks. */
 export interface GivenScore {
   readonly score: SectionScore;
   readonly fragments: readonly FragmentText[];
 }
 
 /**
- * A score as a host of session version 2 sends it (#553), compiled and played through cells from the score alone and
+ * A score as a host sends it (#553), compiled and played through cells from the score alone and
  * the fragments the session sent: its meter, swing, tempo and key read off it (`scoreFrame`), its `from` lines reading
  * the fragments sent by their hash, else the seed library (`scoreResolver`), its band this page's own at the score's
  * style (`resolveBand`). A score that locks a fragment neither holds, or whose frame cells can't read, is read as
@@ -262,7 +196,6 @@ function readScore(
   const { text: source, foreseen, cut, unstated } = score;
   const none = {
     source,
-    frame: UNREAD,
     foreseen,
     unstated,
     played: null,
@@ -294,13 +227,11 @@ function readScore(
         read: { lacks: 'cells reads no meter, tempo or key in its score' },
         cost: { build: 0, compile: t2 - t1, play: 0 },
       };
-    const frame = { meter: read.meter, swing: read.swing, bpm: read.bpm, key: read.key };
-    const played = playSection(source, framesOf(frame, foreseen.length), plan);
+    const played = playSection(source, framesOf(read, foreseen.length), plan);
     const outline = sectionOutline(plan, resolve);
     const t3 = clock();
     return {
       ...none,
-      frame,
       played,
       outline,
       read: { frame: read },
@@ -344,9 +275,7 @@ export interface SectionTexts {
   begin(): void;
   /** Build, compile and play the bars as one text, and `answer` with what cells plays, once. */
   ask(bars: readonly BandBar[], answer: (stated: SectionStated) => void): void;
-  /** Compile and play a text a host gave (#446), and `answer` with what cells plays, once. */
-  play(given: SectionText, answer: (stated: SectionStated) => void): void;
-  /** Read, compile and play a score a host of session version 2 gave (#553), and `answer` with what cells plays, once. */
+  /** Read, compile and play a score a host gave (#553), and `answer` with what cells plays, once. */
   score(given: GivenScore, answer: (stated: SectionStated) => void): void;
   /** The song ended: nothing asked is answered any more. */
   end(): void;
@@ -357,16 +286,14 @@ export function inlineTexts(edit?: (text: string) => string): SectionTexts {
   return {
     begin() {},
     ask: (bars, answer) => answer(stateSection(bars, edit)),
-    play: (given, answer) => answer(playText(given)),
     score: (given, answer) => answer(playScore(given)),
     end() {},
   };
 }
 
-/** What the page asks the worker: a section's bars to state, a text or a score a host gave to play, or to warm up. */
+/** What the page asks the worker: a section's bars to state, a score a host gave to play, or to warm up. */
 export type Ask =
   | { readonly id: number; readonly bars: readonly BandBar[] }
-  | { readonly id: number; readonly given: SectionText }
   | { readonly id: number; readonly score: GivenScore }
   | { readonly id: number; readonly warm: true };
 
@@ -383,7 +310,7 @@ export function answerAsk(ask: Ask): Answer {
     return { id: ask.id, stated: null };
   }
   if ('score' in ask) return { id: ask.id, stated: playScore(ask.score) };
-  return { id: ask.id, stated: 'given' in ask ? playText(ask.given) : stateSection(ask.bars) };
+  return { id: ask.id, stated: stateSection(ask.bars) };
 }
 
 /** The part of a `Worker` this needs, so a test can stand in for one. */
@@ -410,14 +337,6 @@ export class WorkerTexts implements SectionTexts {
     this.#jobs.post(
       (id) => ({ id, bars }),
       () => stateSection(bars),
-      answer,
-    );
-  }
-
-  play(given: SectionText, answer: (stated: SectionStated) => void): void {
-    this.#jobs.post(
-      (id) => ({ id, given }),
-      () => playText(given),
       answer,
     );
   }

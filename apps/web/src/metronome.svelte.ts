@@ -123,14 +123,12 @@ export class Metronome {
   }
 
   /**
-   * Click the count-in before a song, at each of its clicks' seconds on the
-   * output's clock: on whether the click is or not, since a count-in that
-   * isn't heard is no count-in. It is the same click, at the same volume.
+   * Show the count-in before a song, its beats at their seconds on the
+   * output's clock. It sounds none: the count-in is the drummer's, the first
+   * bar of the count the style counts on (#646), played on the drums.
    */
-  countIn(output: Output, clicks: readonly { seconds: number; weight: Weight; beat: number }[]) {
-    if (!output.click) return;
+  countIn(clicks: readonly { seconds: number; weight: Weight; beat: number }[]) {
     for (const { seconds, weight, beat } of clicks) {
-      output.click(weight, seconds, this.#volume);
       this.#heard.push(seconds, {
         pulse: beat,
         pulses: clicks.length,

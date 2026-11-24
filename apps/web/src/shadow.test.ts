@@ -27,17 +27,15 @@ import {
   presetSwing,
 } from '@jambot/engine';
 import {
-  type FollowCarried,
+  type HostScore,
   LACKED_AS,
   SAYS,
   type ScoreArrival,
   type ScoreFollowCarried,
   conductOf,
+  scoreFor,
   scoreSource,
-  type SectionText,
-  type SentBar,
   type Station,
-  followSource,
   onward,
   sentBars,
   tuneIn,
@@ -47,10 +45,11 @@ import { METERS, type MeterName } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
 import { conductRadio, radioStyle } from './conductor.ts';
 import {
+  type GivenScore,
   type SectionTexts,
+  foreseenOf,
   inlineTexts,
   playScore,
-  playText,
   stateSection,
 } from './section-texts.ts';
 import { Shadow, type ShadowReadout } from './shadow.ts';
@@ -63,7 +62,7 @@ const TICK = 0.025;
 
 /** What a run did: the shadow's readout, the band's events and the events played. */
 interface Run {
-  /** How many bars the page's own player lacked and played silent, and why (#711); none on a client of version 1. */
+  /** How many bars the player lacked and played silent, and why: the page's own (#711), or a client's (#553). */
   lacked?: Pick<ScoreFollowCarried, 'lacked' | 'silent' | 'said'>;
   /** The bars the band composed, and as the page's own player laid them from their scores (#711). */
   bars?: BandBar[];
@@ -76,8 +75,9 @@ interface Run {
 }
 
 /**
- * A client following the host of a run (#446): how long the link takes each way, how long its own texts take to
- * compile and play (the host's where none is said), and from which bar it joins, with the welcome's texts.
+ * A client following the host of a run (#446, #553): how long the link takes each way, how long its own scores take to
+ * read, compile and play (the host's texts' where none is said), and from which bar it joins, with the welcome's
+ * scores and conducts.
  */
 interface Following {
   readonly link: number;
@@ -182,13 +182,6 @@ function run({
               deliver: () => offPage(() => structuredClone(state(copy)), answer),
             });
           },
-          play(given, answer) {
-            const copy = structuredClone(given);
-            due.push({
-              at: clock + delay,
-              deliver: () => offPage(() => structuredClone(playText(copy)), answer),
-            });
-          },
           score(given, answer) {
             const copy = structuredClone(given);
             due.push({
@@ -204,18 +197,23 @@ function run({
   let own: TransportCarried<ScoreFollowCarried> | null = null;
   let arrivals: ScoreArrival[] = [];
   shadow.stated = (stated) => void arrivals.push(...stated.map((s) => ({ stated: s })));
-  // The client: the host's bars and texts over the link, on a transport of its own in the host's time.
-  const follower = transportOver(followSource);
+  // The client: the host's conducts and scores over the link, on a transport of its own in the host's time (#553).
   const theirs = follow && new Shadow(page, texts(follow.delay ?? delay));
-  theirs?.reset('given');
+  theirs?.reset('scored');
   const client = { band: [] as TimedEvent[], played: [] as TimedEvent[], late: [] as LateEvent[] };
-  let followed: TransportCarried<FollowCarried> | null = null;
-  let inbox: SentBar[] = [];
+  let followed: TransportCarried<ScoreFollowCarried> | null = null;
+  let inbox: ScoreArrival[] = [];
+  if (theirs) theirs.stated = (stated) => void inbox.push(...stated.map((s) => ({ stated: s })));
   let ends: number | undefined;
   let joined = false;
   const send = (deliver: () => void) =>
     follow && due.push({ at: clock + follow.link, deliver: () => joined && deliver() });
-  shadow.told = (text: SectionText) => send(() => theirs!.given(structuredClone(text)));
+  // A score as a client is given it: with every fragment it files, as one that lacks them all is sent them.
+  const given = (score: HostScore): GivenScore => ({
+    score: scoreFor(score, score.filed),
+    fragments: score.filed,
+  });
+  shadow.told = (score) => send(() => theirs!.givenScore(structuredClone(given(score))));
   let env: TransportEnv = {
     seed,
     start: START,
@@ -261,31 +259,17 @@ function run({
     carried = next.carried!;
     for (const step of next.output.steps) laid.add(step.step);
     if (follow && !joined && carried.nextBar > (follow.joins ?? 0)) {
-      // A client joins: its welcome, the bars not yet played and the texts that state them, over the link.
+      // A client joins: its welcome, the conducts of the bars not yet played and the scores in force for them.
       const c = carried;
+      const sent = sentBars(c.bars, [], c.head, env.track, clockOfTransport(c), env.tempoMeter);
       const welcome = structuredClone({
-        bars: sentBars(c.bars, [], c.head, env.track, clockOfTransport(c), env.tempoMeter),
-        texts: shadow.toldFrom(clockOfTransport(c).barAt(c.head.step)),
+        conducts: sent.map((bar, i) => conductOf(bar, foreseenOf(c.bars[i]!))),
+        scores: shadow.scoredFrom(clockOfTransport(c).barAt(c.head.step)).map(given),
       });
       joined = true;
       send(() => {
-        inbox.push(...welcome.bars);
-        for (const text of welcome.texts) theirs!.given(text, true);
-      });
-    }
-    if (follow && joined) {
-      const bars = sentBars(
-        next.output.composed,
-        next.output.steps,
-        carried.head,
-        env.track,
-        clockOfTransport(carried),
-        env.tempoMeter,
-      );
-      const finale = carried.finale.bar;
-      send(() => {
-        inbox.push(...structuredClone(bars));
-        if (finale !== null) ends = finale;
+        inbox.push(...welcome.conducts.map((conduct) => ({ conduct })));
+        for (const score of welcome.scores) theirs!.givenScore(score, true);
       });
     }
     for (const { bar } of next.output.composed)
@@ -317,8 +301,15 @@ function run({
       clockOfTransport(carried),
       laidWith.tempoMeter,
     );
-    for (const [i, bar] of conducted.entries())
-      arrivals.push({ conduct: conductOf(bar, digests[i]!) });
+    const conducts = conducted.map((bar, i) => conductOf(bar, digests[i]!));
+    arrivals.push(...conducts.map((conduct) => ({ conduct })));
+    if (follow && joined) {
+      const finale = carried.finale.bar;
+      send(() => {
+        inbox.push(...structuredClone(conducts).map((conduct) => ({ conduct })));
+        if (finale !== null) ends = finale;
+      });
+    }
     const mine = scoreFollower.advance(env, own, {
       now,
       until: now + LOOKAHEAD,
@@ -334,7 +325,7 @@ function run({
     late.push(...playing.lateEvents);
     const stalled = follow?.stall && now >= follow.stall[0] && now < follow.stall[1];
     if (theirs && joined && !stalled) {
-      const f = follower.advance(laidWith, followed, {
+      const f = scoreFollower.advance(laidWith, followed, {
         now,
         until: now + LOOKAHEAD,
         arrived: inbox,
@@ -358,7 +349,9 @@ function run({
     band,
     played,
     late,
-    ...(theirs && { client: { readout: theirs.readout, ...client } }),
+    ...(theirs && {
+      client: { ...(followed && { lacked: followed.source }), readout: theirs.readout, ...client },
+    }),
   };
 }
 
@@ -874,9 +867,9 @@ function playsAsTheHost(host: readonly TimedEvent[], client: readonly TimedEvent
   );
 }
 
-describe('a session through cells: the section’s text on the wire, host to client (#446)', () => {
+describe('a session through cells: the section’s score on the wire, host to client (#446, #553)', () => {
   it.each(PRESETS.map((p) => [p.name, p] as const))(
-    'a client given each of %s’s texts over a link plays the host’s events through cells, every one, each field the host’s: none late, none from the band',
+    'a client given each of %s’s scores over a link plays the host’s events through cells, every one, each field the host’s: none late, none lacked',
     (_, preset) => {
       const { readout, played, client } = run({
         preset,
@@ -886,11 +879,12 @@ describe('a session through cells: the section’s text on the wire, host to cli
       });
       const theirs = client!.readout;
       expect(readout.played.band).toBe(0);
-      expect(theirs.from).toBe('given');
+      expect(theirs.from).toBe('scored');
       expect(theirs.errors).toEqual([]);
       expect(theirs.gaps).toEqual({});
       expect(theirs.played.band).toBe(0);
       expect(theirs.played.cells).toBe(client!.played.length);
+      expect(client!.lacked).toMatchObject({ lacked: 0, silent: 0 });
       // Every text the host took was told and given, as it took it.
       expect(readout.texts.told).toBe(4);
       expect(theirs.texts).toMatchObject({ given: 4, joined: 0, told: 0 });
@@ -898,7 +892,6 @@ describe('a session through cells: the section’s text on the wire, host to cli
       // The first there a count-in before it plays, less the way: the host's worker, the link and the client's worker.
       expect(theirs.arrival.least.given).toBeGreaterThan(COUNT_IN - 2 * WORKER - LINK - TICK);
       playsAsTheHost(played, client!.played);
-      playsAsTheBand(client!.band, client!.played);
     },
   );
 
@@ -935,7 +928,7 @@ describe('a session through cells: the section’s text on the wire, host to cli
     expect(dropped).toBeGreaterThan(10);
   });
 
-  it('a client given the host’s text again, at a bar composed otherwise than foreseen, plays it as the host does: there before it plays, less the way', () => {
+  it('a client given the host’s score again, at a bar composed otherwise than foreseen, plays it as the host does: there before it plays, less the way', () => {
     let moved = false;
     const { readout, played, client } = run({
       delay: WORKER,
@@ -957,12 +950,13 @@ describe('a session through cells: the section’s text on the wire, host to cli
     expect(theirs.gaps).toEqual({});
     expect(theirs.arrival.late).toBe(0);
     expect(theirs.arrival.least.given).toBeGreaterThan(0);
+    expect(client!.lacked).toMatchObject({ lacked: 0, silent: 0 });
     playsAsTheHost(played, client!.played);
   });
 
-  it('a client whose texts take longer than a beat plays the band’s own where the host’s text again hasn’t come, counted late', () => {
+  it('a client whose scores take longer than a beat to read lacks the bars the host’s score again isn’t read for in time, says why, and plays the rest as the host does, where the host lacks none', () => {
     let moved = false;
-    const { readout, played, client } = run({
+    const { readout, played, lacked, client } = run({
       delay: WORKER,
       countIn: COUNT_IN,
       follow: { link: LINK, delay: 0.6 },
@@ -975,18 +969,26 @@ describe('a session through cells: the section’s text on the wire, host to cli
         };
       },
     });
-    const theirs = client!.readout;
+    const theirs = client!;
     expect(readout.arrival.late).toBe(0);
-    expect(theirs.arrival.late).toBeGreaterThan(0);
-    expect(Object.keys(theirs.gaps)).toEqual([expect.stringMatching(/on its way/)]);
-    expect(theirs.played.band).toBeGreaterThan(0);
-    playsAsTheHost(played, client!.played);
+    expect(lacked!.lacked).toBe(0);
+    expect(theirs.lacked!.lacked).toBeGreaterThan(0);
+    expect(theirs.lacked!.silent).toBe(0);
+    expect(theirs.lacked!.said.map((s) => s.text)).toContain(SAYS.reading);
+    expect(theirs.readout.played.band).toBe(0);
+    expect(theirs.readout.gaps).toEqual({});
+    const bars = new Set(theirs.played.map((e) => e.bar));
+    expect(theirs.lacked!.said.every((s) => !bars.has(s.bar))).toBe(true);
+    playsAsTheHost(
+      played.filter((e) => bars.has(e.bar)),
+      theirs.played,
+    );
   });
 
-  it('a client sent a bar otherwise than its latest text foresaw never plays that text in it: it waits for the host’s text again, as the host does, and plays the band’s own meanwhile, where the host’s own player lacks the bar (#711)', () => {
+  it('a client never plays a score in a bar its conduct says was composed otherwise than the score foresaw: it lacks the bar, as the host’s own player does, until the host’s score again has come (#711)', () => {
     let moved = false;
-    // The host's worker slower than a beat: its text again comes after the bar it was asked at, on both pages.
-    const { readout, band, lacked, client } = run({
+    // The host's worker slower than a beat: its score again comes after the bar it was asked at, on both pages.
+    const { readout, played, lacked, client } = run({
       delay: 0.6,
       countIn: COUNT_IN,
       follow: { link: LINK, delay: WORKER },
@@ -999,14 +1001,20 @@ describe('a session through cells: the section’s text on the wire, host to cli
         };
       },
     });
-    const theirs = client!.readout;
-    // (the host's own player lacks the bars its text again came too late for, #711; its client of version 1 plays the band's own there)
+    const theirs = client!;
     expect(lacked!.lacked).toBeGreaterThan(0);
     expect(readout.played.band).toBe(0);
-    expect(theirs.arrival.late).toBeGreaterThan(0);
-    expect(theirs.played.band).toBeGreaterThan(0);
-    expect(theirs.errors).toEqual([]);
-    playsAsTheHost(band, client!.played);
+    expect(theirs.lacked!.lacked).toBeGreaterThan(0);
+    expect(theirs.lacked!.said.map((s) => s.why)).toContain(LACKED_AS.digest);
+    expect(theirs.readout.played.band).toBe(0);
+    expect(theirs.readout.errors).toEqual([]);
+    // Every bar the host's own player lacked, its client lacked too; what the client plays, it plays as the host does.
+    const bars = new Set(theirs.played.map((e) => e.bar));
+    expect(lacked!.said.every((s) => !bars.has(s.bar))).toBe(true);
+    playsAsTheHost(
+      played.filter((e) => bars.has(e.bar)),
+      theirs.played,
+    );
   });
 
   it('a client ends a note that runs into the next section, whose swing’s level turned, as the host does, though it holds the next bar only as it starts (#501)', () => {
@@ -1042,8 +1050,8 @@ describe('a session through cells: the section’s text on the wire, host to cli
     playsAsTheHost(played, client!.played);
   });
 
-  it('a client of version 1 follows the radio’s walk through cells, a section at a time, as the band composed it, where the host’s own player feels each bar as its score frames it (#711)', () => {
-    const { band, client } = run({
+  it('a client follows the radio’s walk through cells, a section at a time, each bar felt as its score frames it, as the host’s own player plays it (#711)', () => {
+    const { played, client } = run({
       station: tuneIn(7),
       bars: 40,
       follow: { link: LINK },
@@ -1052,10 +1060,10 @@ describe('a session through cells: the section’s text on the wire, host to cli
     expect(theirs.gaps).toEqual({});
     expect(theirs.texts.given).toBeGreaterThan(4);
     expect(theirs.played.band).toBe(0);
-    playsAsTheHost(band, client!.played);
+    playsAsTheHost(played, client!.played);
   });
 
-  it('a client that joins mid-section is given the texts that state the bars not yet played with its welcome, plays them as the host does, and counts none late', () => {
+  it('a client that joins mid-section is given the scores in force for the bars not yet played with its welcome, plays them as the host does, and counts none late', () => {
     const { played, client } = run({
       delay: WORKER,
       countIn: COUNT_IN,
@@ -1065,9 +1073,9 @@ describe('a session through cells: the section’s text on the wire, host to cli
     expect(theirs.texts.joined).toBeGreaterThan(0);
     expect(theirs.texts.given).toBeGreaterThan(0);
     expect(theirs.arrival.late).toBe(0);
-    // Only the first steps, laid while the welcome's texts were on their way, play the band's own, a gap of their own.
-    expect(Object.keys(theirs.gaps).every((gap) => /joined/.test(gap))).toBe(true);
-    expect(theirs.played.cells).toBeGreaterThan(theirs.played.band);
+    expect(theirs.gaps).toEqual({});
+    expect(theirs.played.band).toBe(0);
+    expect(theirs.played.cells).toBeGreaterThan(0);
     playsAsTheHost(played, client!.played);
   });
 });

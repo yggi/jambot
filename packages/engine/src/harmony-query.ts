@@ -22,7 +22,7 @@
  * use together), and a build asks with nothing chosen. A vamp fits only
  * under `VAMP_HARM`, where `buildTheme` lays vamps; a progression fits at
  * any harmony. Of the fits within the miss distance, those about as near as
- * the nearest (`OFFER`) are on offer, and the composer draws one as
+ * the nearest (`onOffer`, every member's rule, #540) are on offer, and the composer draws one as
  * `buildTheme` draws a vamp: in the order the mode's vamps are drawn
  * (`VAMPS`), those it doesn't name after, by the theme's first draw, and a
  * theme other than A moves to the next on offer where it drew A's, and
@@ -36,7 +36,7 @@
  */
 
 import type { ComposerMode } from './key.ts';
-import { type Bench, type FacetRepository, type Filing, marginsOf } from './facet.ts';
+import { type Bench, type FacetRepository, type Filing, marginsOf, onOffer } from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
 import {
@@ -81,15 +81,6 @@ export type HarmonyFiling = Filing<HarmonyContent>;
 
 /** A repository of progressions the composer asks (#425): the loop's repository for the facet `harmony` (`facet.ts`). */
 export type HarmonyRepository = FacetRepository<HarmonyRead, HarmonyContent>;
-
-/**
- * How much farther than the nearest a fit may lie and still be on offer: a
- * quarter. Past cells' `USE_CAP` (1.2), so use alone, which shortens a
- * fragment's distances by a sixth at most, never takes a seed's equal off
- * the offer: the composer's draw among equals is the same as long as the
- * style holds.
- */
-export const OFFER = 1.25;
 
 /** A progression's slots as a theme's eight bars of slots. */
 export function barsOf(notes: readonly HarmonySlot[], bars: number): Slot[][] {
@@ -172,8 +163,8 @@ export interface HarmonyAsk {
 
 /**
  * The progression the composer takes for a theme at a style, on a bench:
- * of the fits within the miss distance, those on offer (within `OFFER` of
- * the nearest's distance past its score), in the mode's order of vamps then
+ * of the fits within the miss distance, those on offer (`onOffer`, as every
+ * member's, #540), in the mode's order of vamps then
  * as ranked, drawn by the theme's first draw, the next where a theme other
  * than A drew A's; none on a miss, nor for a theme other than A where A's
  * is all there is on offer.
@@ -186,7 +177,7 @@ export function composedHarmony(
 ): string | undefined {
   const { miss } = marginsOf(repository);
   const read = (id: string) => repository.read(id, bench.meter, layer);
-  const fits = repository.query(
+  const found = repository.query(
     stylePoint(style),
     bench,
     layer,
@@ -195,10 +186,10 @@ export function composedHarmony(
       reach: miss,
       exclude: rejected,
       accept: (id) => fitsHarmony(read(id), at.harm),
-      within: OFFER,
     },
     pull,
   );
+  const fits = onOffer(found);
   if (!fits.length) return undefined;
   const placeOf = (id: string) => {
     const vamp = vampOf(read(id)!);

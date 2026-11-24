@@ -16,7 +16,9 @@ import {
   tempoNudgeWithin,
 } from './licence.ts';
 import { presetSwing } from './repository.ts';
-import { AXES, INITIAL_STYLE, PROTOTYPE_PRESETS, type Style } from './style.ts';
+import { offeredScales } from './melodic.ts';
+import { stylePoint } from './meter-query.ts';
+import { AXES, INITIAL_STYLE, PRESETS, PROTOTYPE_PRESETS, type Style } from './style.ts';
 import { type MeterSwing, STRAIGHT, shareOfLean } from './swing.ts';
 import { positions } from '@jambot/theory';
 
@@ -204,38 +206,40 @@ describe('the melodic licence', () => {
   /** Every harm on a grid of 60ths, which holds both thresholds exactly, and its ends. */
   const HARMS = [...Array(61).keys()].map((i) => i / 60);
 
-  it('opens the pentatonic from harm 1/3 and the blues from 2/3, the plain scale always (#209)', () => {
+  it('opens the pentatonic from harm 1/3 and the blues from 2/3, the plain scale always, and every scale cells offers at the style’s point (#209, #644)', () => {
     expect(MELODIC_FROM).toEqual({ plain: 0, pentatonic: 1 / 3, blues: 2 / 3 });
+    const byHarm = (harm: number) =>
+      harm >= 2 / 3
+        ? ['plain', 'pentatonic', 'blues']
+        : harm >= 1 / 3
+          ? ['plain', 'pentatonic']
+          : ['plain'];
     for (const { style } of EVERY)
       for (const harm of HARMS) {
-        const { melodic } = licenceOf({ ...style, harm });
-        expect(melodic).toEqual(
-          harm >= 2 / 3
-            ? ['plain', 'pentatonic', 'blues']
-            : harm >= 1 / 3
-              ? ['plain', 'pentatonic']
-              : ['plain'],
+        const at = { ...style, harm };
+        const offered = offeredScales(stylePoint(at));
+        expect(licenceOf(at).melodic, `${harm}`).toEqual(
+          MELODIC_SCALES.filter((s) => byHarm(harm).includes(s) || offered.includes(s)),
         );
       }
-    // Either side of each threshold, by the least step the score writes a style at.
-    const at = (harm: number) => licenceOf({ ...INITIAL_STYLE, harm }).melodic;
+    // Either side of each threshold, by the least step the score writes a style at, at Techno's other axes, where cells
+    // offers the plain scale alone at every harmony.
+    const techno = { ...PRESETS.find((p) => p.name === 'Techno')!.style, entropy: 0.3 };
+    const at = (harm: number) => licenceOf({ ...techno, harm }).melodic;
+    for (const harm of [0.333, 0.334, 0.666, 0.667])
+      expect(offeredScales(stylePoint({ ...techno, harm })), `${harm}`).toEqual(['plain']);
     expect(at(0.333)).toEqual(['plain']);
     expect(at(0.334)).toEqual(['plain', 'pentatonic']);
     expect(at(0.666)).toEqual(['plain', 'pentatonic']);
     expect(at(0.667)).toEqual(['plain', 'pentatonic', 'blues']);
   });
 
-  it('never loses a scale as the harmony rises, and reads the harmony alone (#209)', () => {
-    for (const { style } of EVERY) {
-      const over = HARMS.map((harm) => licenceOf({ ...style, harm }).melodic);
-      over.forEach((melodic, i) => {
-        expect(melodic[0]).toBe('plain');
-        if (i > 0) expect(over[i - 1]!.every((s) => melodic.includes(s))).toBe(true);
-      });
-      expect(licenceOf(style).melodic).toEqual(
-        licenceOf({ ...INITIAL_STYLE, harm: style.harm }).melodic,
-      );
-    }
+  it('reaches the scale cells offers at a style whatever its harmony: the blues at Blues shuffle’s point, below 2/3 (#644)', () => {
+    const blues = { ...PRESETS.find((p) => p.name === 'Blues shuffle')!.style, entropy: 0.3 };
+    expect(blues.harm).toBeLessThan(2 / 3);
+    expect(licenceOf(blues).melodic).toContain('blues');
+    // (it fires: the same harmony at the centre of the other axes reaches no blues)
+    expect(licenceOf({ ...INITIAL_STYLE, harm: blues.harm }).melodic).not.toContain('blues');
   });
 
   it('gives each preset its scales: plain alone in Techno, Funk and Ambient, the pentatonic in Synth-pop and Deep house, the blues from Lo-fi hip hop up (#209)', () => {

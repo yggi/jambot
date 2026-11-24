@@ -254,22 +254,22 @@ describe('the fragment beside the drummer (E36)', () => {
       {
         preset: 'Synth-pop',
         fragment: 12,
-        drummer: 13.4,
+        drummer: 13.39,
         overlap: 0.34,
         self: 0.41,
         filled: 14,
         equal: 0,
-        // (13.7, 0.3, 0.46, 22 before #655's song forms)
+        // (13.7, 0.3, 0.46, 22 before #655's song forms; 13.4 before the found parts, #540, #643, #644, #646)
       },
       {
         preset: 'Techno',
         fragment: 28,
-        drummer: 17.78,
-        overlap: 0.49,
+        drummer: 17.92,
+        overlap: 0.5,
         self: 0.74,
         filled: 26,
         equal: 0,
-        // (17.63, 0.5, 0.64, 22 before #655's song forms)
+        // (17.63, 0.5, 0.64, 22 before #655's song forms; 17.78 and 0.49 before the found parts, #540, #643, #644, #646)
       },
       {
         preset: 'Deep house',
@@ -284,23 +284,23 @@ describe('the fragment beside the drummer (E36)', () => {
       {
         preset: 'Ambient',
         fragment: 18,
-        drummer: 1.82,
-        overlap: 0.08,
+        drummer: 1.92,
+        overlap: 0.09,
         self: 0.67,
         filled: 15,
         equal: 0,
-        // (3.62, 0.17, 0.66, 21 before #655's song forms)
+        // (3.62, 0.17, 0.66, 21 before #655's song forms; 1.82 and 0.08 before the found parts, #540, #643, #644, #646)
       },
       // (Lo-fi hip hop's and Funk's rims swing as the drummer's since the parts of a step swing, cells#306)
       {
         preset: 'Lo-fi hip hop',
         fragment: 17,
-        drummer: 9.55,
+        drummer: 9.53,
         overlap: 0.24,
         self: 0.45,
         filled: 18,
         equal: 0,
-        // (13.78, 0.27, 0.34, 23 before #655's song forms)
+        // (13.78, 0.27, 0.34, 23 before #655's song forms; 9.55 before the found parts, #540, #643, #644, #646)
       },
       {
         preset: 'Funk',
@@ -315,22 +315,24 @@ describe('the fragment beside the drummer (E36)', () => {
       {
         preset: 'Bossa nova',
         fragment: 16,
-        drummer: 13.37,
+        drummer: 13.35,
         overlap: 0.23,
         self: 0.42,
         filled: 20,
         equal: 0,
-        // (14.26, 0.22, 0.41, 26 before #655's song forms; 12.81 and 0.41 before cells v0.30.0's hotter solos)
+        // (14.26, 0.22, 0.41, 26 before #655's song forms; 12.81 and 0.41 before cells v0.30.0's hotter solos; 13.37
+        // before the found parts, #540, #643, #644, #646)
       },
       {
         preset: 'Swing jazz',
         fragment: 14,
-        drummer: 13.06,
+        drummer: 13.02,
         overlap: 0.45,
         self: 0.5,
         filled: 15,
         equal: 0,
-        // (11.98, 0.41, 0.47, 23 before #655's song forms; 13.03 before cells v0.30.0's hotter solos)
+        // (11.98, 0.41, 0.47, 23 before #655's song forms; 13.03 before cells v0.30.0's hotter solos; 13.06 before
+        // the found parts, #540, #643, #644, #646)
       },
     ]);
   });
@@ -358,10 +360,11 @@ describe('the fragment beside the drummer (E36)', () => {
         );
   });
 
-  // (at every preset before #655's song forms; since, Techno's and Funk's `groove` keeps 0.740 and 0.491 of the drummer's
-  // hits where another seed keeps 0.742 and 0.491, a tie within 0.002 the seed wins: the drummer at another seed agrees
-  // with itself more than before, 0.74 and 0.49 where it was 0.64 and 0.41)
-  it('as `groove`, moves fewer of the drummer’s hits than a seed does at 7 presets of 8, ties within 0.002 at Techno, and makes its seeds agree more at every preset', () => {
+  // (at every preset before #655's song forms; between them and the found parts, #540, #643, #644, #646, Techno's and
+  // Funk's `groove` kept 0.740 and 0.491 of the drummer's hits where another seed kept 0.742 and 0.491, a tie within 0.002
+  // the seed won at Techno; since, Techno's keeps 0.741 against 0.740, Funk's 0.493 against 0.491: the drummer at another
+  // seed agrees with itself more than before #655, 0.74 and 0.49 where it was 0.64 and 0.41)
+  it('as `groove`, moves fewer of the drummer’s hits than a seed does at every preset, within 0.002 of it at Techno and Funk, and makes its seeds agree more at every preset', () => {
     expect(
       COMPARED.map((c) => [
         c.preset,
@@ -371,7 +374,7 @@ describe('the fragment beside the drummer (E36)', () => {
       ]),
     ).toEqual([
       ['Synth-pop', 0.75, 1.66, 0.51], // (0.82, 1.26, 0.52 before #655's song forms)
-      ['Techno', 0.74, 1.71, 0.82], // (0.73, 1.95, 0.77)
+      ['Techno', 0.74, 1.71, 0.81], // (0.73, 1.95, 0.77; 0.82 before the found parts, #540, #643, #644, #646)
       ['Deep house', 0.73, 2.02, 0.59], // (0.81, 1.61, 0.52)
       ['Ambient', 0.83, 0.38, 0.72], // (0.82, 0.68, 0.72)
       // (Lo-fi hip hop's and Funk's rims swing as the drummer's do since the parts of a step swing, cells#306)
@@ -382,8 +385,8 @@ describe('the fragment beside the drummer (E36)', () => {
     ]);
     expect(
       COMPARED.filter((c) => c.entries.groove.overlap <= c.selfOverlap).map((c) => c.preset),
-      // (and Funk before cells v0.29.0's accent, yggi/cells#890)
-    ).toEqual(['Techno']);
+      // (Techno before the found parts, #540, #643, #644, #646, and Funk too before cells v0.29.0's accent, yggi/cells#890)
+    ).toEqual([]);
     for (const c of COMPARED) {
       expect(c.selfOverlap - c.entries.groove.overlap, c.preset).toBeLessThan(0.002);
       expect(c.entries.groove.self, c.preset).toBeGreaterThan(c.selfOverlap);

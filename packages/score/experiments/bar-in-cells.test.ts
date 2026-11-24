@@ -130,8 +130,8 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     expect(equal).toEqual({ drums: 384, bass: 384, comp: 384, harmony: 378 }); // (380 before #655's song forms)
     const notes = MEASURED.reduce((n, m) => n + m.played.notes.length, 0);
     expect(notes).toBe(MEASURED.reduce((n, m) => n + composedNotes(m.bar).length, 0));
-    // (7,478 before #655's song forms; 7,047 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without the pad, and whose Ambient 4/4 is straight)
-    expect(notes).toBe(6970);
+    // (7,478 before #655's song forms; 7,047 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without the pad, and whose Ambient 4/4 is straight; 6,970 before the found parts, #540, #643, #644, #646)
+    expect(notes).toBe(6964);
   });
 
   it('places every onset within 1 ms of the transport, the 4 swung presets with their swing on &bar among them', () => {
@@ -145,9 +145,9 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       expect(row.timed, `${row.preset} ${row.meter}`).toBe(notes);
       expect(row.within1ms, `${row.preset} ${row.meter}`).toBe(notes);
     }
-    // (7,478 and 3,411 before #655's song forms; 7,047 and 2,999 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without the pad, and whose Ambient 4/4 is straight)
-    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(6970);
-    expect(TABLE.filter((row) => swung(row)).reduce((n, row) => n + row.timed, 0)).toBe(2752);
+    // (7,478 and 3,411 before #655's song forms; 7,047 and 2,999 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without the pad, and whose Ambient 4/4 is straight; 6,970 and 2,752 before the found parts, #540, #643, #644, #646)
+    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(6964);
+    expect(TABLE.filter((row) => swung(row)).reduce((n, row) => n + row.timed, 0)).toBe(2751);
     // Both count the meter's beats (#367), and cells' swing places Jambot's (yggi/cells#18), so only rounding is left.
     for (const row of TABLE) expect(row.largest, `${row.preset} ${row.meter}`).toBeLessThan(1e-12);
   });
@@ -214,13 +214,14 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     // and the card 17,701; 291,814 in all and the drums 146,522 before the drummer wrote the rim's metric accent, #749,
     // which a line of levels states; 297,848, the meter 13,664, the drums 152,556, the bass 53,055, the comp 39,637 and the
     // card 17,334 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without
-    // the pad, and whose Ambient bar states no swing)
+    // the pad, and whose Ambient bar states no swing; 295,075 and the drums 153,473 before the found parts, #540, #643,
+    // #644, #646)
     expect(characters(MEASURED)).toEqual({
-      total: 295075,
+      total: 295003,
       meter: 13152,
       key: 8640,
       harmony: 12962,
-      drums: 153473,
+      drums: 153401,
       bass: 53065,
       comp: 36798,
       card: 16985,
@@ -232,9 +233,10 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     const overKey = [...RUN_OF.values()].flatMap((r) =>
       r.bars.map((bar) => ({ text: barAsCells(bar, { table: 'key' }) })),
     );
-    // (291,131 before the drummer wrote the rim's metric accent, #749; 297,165 before cells v0.30.0)
+    // (291,131 before the drummer wrote the rim's metric accent, #749; 297,165 before cells v0.30.0; 294,432 before the
+    // found parts, #540, #643, #644, #646)
     expect(characters(overKey)).toMatchObject({
-      total: 294432,
+      total: 294360,
       harmony: 12962,
       bass: 53003,
       comp: 36217,
@@ -243,26 +245,29 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       (n, m) => n + (textOf(m.text).match(/:0:[.\d]+/g) ?? []).join('').length,
       0,
     );
-    expect(levels).toBe(39561); // (41,982 before #655's song forms; 38,816 before cells v0.30.0's solos)
+    // (41,982 before #655's song forms; 38,816 before cells v0.30.0's solos; 39,561 before the found parts)
+    expect(levels).toBe(39501);
     expect(
       Object.fromEntries(TABLE.map((row) => [`${row.preset} ${row.meter}`, row.characters.total])),
     ).toEqual({
       // (26,022, 27,643, 26,964, 16,072, 27,532, 36,367, 25,730, 27,038, 23,543, 23,084, 22,699 and 23,046 before #655's
       // song forms; Bossa nova's 25,728, 23,406 and 22,993 before the drummer wrote the rim's metric accent, #749, a line of
       // levels where its rim is a Euclid; Ambient's 14,085, Bossa nova's 27,806, 25,340 and 25,015 and Swing jazz's 27,304
-      // before cells v0.30.0, whose jazz song form plays its solos as the kind `solo` and whose Ambient is straight)
+      // before cells v0.30.0, whose jazz song form plays its solos as the kind `solo` and whose Ambient is straight;
+      // Ambient's 13,573, Swing jazz's 26,348, Synth-pop's 22,559 in 7/8 and Bossa nova's 24,626 in 7/8 before the found
+      // parts, #540, #643, #644, #646)
       'Synth-pop 4/4': 24703,
       'Techno 4/4': 28000,
       'Deep house 4/4': 22806,
-      'Ambient 4/4': 13573,
+      'Ambient 4/4': 13609,
       'Lo-fi hip hop 4/4': 22014,
       'Funk 4/4': 35811,
       'Bossa nova 4/4': 27393,
-      'Swing jazz 4/4': 26348,
+      'Swing jazz 4/4': 26336,
       'Synth-pop 3/4': 22405,
-      'Synth-pop 7/8': 22559,
+      'Synth-pop 7/8': 22511,
       'Bossa nova 3/4': 24837,
-      'Bossa nova 7/8': 24626,
+      'Bossa nova 7/8': 24578,
     });
   });
 

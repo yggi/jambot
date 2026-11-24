@@ -1,24 +1,25 @@
 /**
- * What a host and its clients say to each other.
+ * What a host and its clients say to each other: version 2 of the family's
+ * session contract (yggi/music-commons `contracts/session`, #553), the one
+ * version Jambot speaks.
  *
- * A host composes; a client plays what it composed, with its own band, and
- * sends back what its players played, judged. Everything here is plain
- * data, so any link carries it: a BroadcastChannel as it is, a WebSocket
- * as JSON. Every join names the protocol's version, and a host refuses a
- * client of another major version, since a cached app can be older than
- * its host; any minor of its own it admits (`sameMajor`, #460).
+ * A host composes; a client plays the section's **score** it sends
+ * (`score`, cells text) on its own band, which never travels, bar by bar as
+ * each bar's **conduct** (`conduct`) says, and sends back what its players
+ * played, judged, and each bar it didn't play (`lacked`). Everything here is
+ * plain data, so any link carries it: a BroadcastChannel as it is, a
+ * WebSocket as JSON. Every join names the protocol, and a host refuses a
+ * client below version 2's first protocol, since a cached app can be older
+ * than its host; any minor of version 2 it admits (`sameMajor`, #460).
  *
  * Times are on the host's clock, in seconds: the song's start, and where
  * each bar starts. A client maps them onto its own clock (`clock.ts`).
  */
 
 import {
-  type BarEnv,
   type DroppedJudgement,
   type HeardNote,
   type Judgement,
-  type Key,
-  type MeterSwing,
   type MuseOutput,
   NUDGED,
   type Nudged,
@@ -26,9 +27,10 @@ import {
   PARTS,
   type Part,
   type Remembered,
+  SECTION_TYPES,
+  type SectionType,
   type StyleTrack,
   type SwingTrack,
-  type WrittenNote,
 } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
 import {
@@ -47,55 +49,28 @@ import {
 import type { ForecastDelta } from './forecast.ts';
 
 /**
- * The protocol's version: a host and a client of different major versions
- * refuse each other (13 on is one, below). The engine's `Motif`, `Judgement`, `BarEnv` (with its `Offer`),
- * `WrittenNote`, the Muse's log (`MuseOutput`, with what she recognised)
- * and her memory (`Remembered`)
+ * The protocol a peer carries in its join or welcome: version 2 of the
+ * session contract at minor 3. Version 2 takes protocols 30 on
+ * (`FIRST_PROTOCOL`, the owner's ruling of 2026-11-06), and each is a minor
+ * of it: 30 is minor 0, which sends a section's score and each bar's
+ * conduct; 31 minor 1, which has a player nudge the key and the meter
+ * (`nudge`), a host tell every line of the session's log (`event`, and a
+ * welcome's `events`), a judgement carry its `origin` (#580 rung 3) and a
+ * style its `mood` (cells' style axis, decision 076); 32 minor 2, which has
+ * a client tell its host each bar it didn't play (`lacked`,
+ * yggi/music-commons#74); and 33 minor 3, which lets a score's section be a
+ * kind of a song form, `verse`, `chorus` or `outro` (#655,
+ * yggi/music-commons#76). A host admits a join of any of them, and a client
+ * stays with a host of any (`sameMajor`), each ignoring a kind it doesn't
+ * know, so a minor that adds a kind deploys without every client in lockstep.
+ *
+ * The engine's `Judgement`, the Muse's log (`MuseOutput`, with what she
+ * recognised), her memory (`Remembered`) and her `Offer` (on a conduct)
  * travel as they are, so a change to their shape is a change to the
  * protocol, and bumps it (`protocol.test.ts` holds the shapes). So does a
- * change to what they mean. Version 10 carries the meter's swing track
- * beside the style (`swing`, #360, #369), and counts the style's bpm in the
- * beats of the meter that travels with it (`tempoMeter`, #367, #373), so a
- * host and a client of different counts would lay a 6/8 bar at different
- * lengths. Version 11 has a section's plan say the meter fragment the
- * composer took from the repository and the share it swings at (`Plan.share`,
- * `Plan.meterFragment`, #375), which a client's transport swings by in place
- * of the swing track's. Version 12 has it say the rhythm fragment the drummer
- * plays the section from and the clave chosen with it (`Plan.rhythmFragment`,
- * `Plan.claveFragment`, #397), and a drum hit may be the clave's
- * (`DrumRole`'s `clave`), which a client's performer accents. Version 13
- * has a client pass on each bar its players played on drums, the notes as
- * its ear heard them (`played`, #410), for the host's Muse to file a groove
- * under the player's name. Version 14 has a host whose band plays through
- * cells send each section's cells text to its clients (`section`, and
- * `texts` in a welcome, #446), which a client's own cells engine plays.
- * Version 15 has a join carry the code a host may admit its clients by
- * (`code`, #461), which a host that asks for one refuses a join without.
- * Version 16 has a lobby's list say a session's host is away (`away` in
- * `OpenSession`, #496), which no peer reads. Version 17 has a host tell a
- * client the role it now seats it as when it changes it (`role`, #567).
- * Version 18 has a player nudge a style axis or the tempo up or down
- * (`nudge`, docs/briefs/session-roles.md step 2), which a host leans its band
- * by. Version 19 has a player nudge the key, a fifth a step, and the
- * meter, a beat a bar a step (`nudge`'s `key` and `meter`), and version 20
- * has a host tell every client each line of the session's log (`event`, and
- * a welcome's `events`). Version 22 has a bar's style and the track carry
- * `mood`, cells' style axis since its v0.23.0 (decision 076), which the
- * composer's queries read (a client takes a track without it as held at the
- * centre, `everyAxis`). Version 23 has a drum hit be a fragment's
- * ostinato (`DrumRole`'s `ostinato`, #651: Salsa's tumbao on the toms),
- * which a client's performer accents. Version 1 keeps 19 to 29 for its minors: version 2
- * starts at 30 (the owner's ruling of 2026-11-06).
- *
- * From 13 on, a protocol is a minor version of the session contract's major
- * version 1 (yggi/music-commons `contracts/session`, the owner's ruling on
- * yggi/music-commons#22, #460): 14 is minor 1, 15 minor 2, 16 minor 3, 17 minor 4, 18 minor 5, 19 minor 6, 20 minor 7, 21 minor 8 (a motif's judgement carries its `origin`, #580 rung 3), 22 minor 9, 23 minor 10 and 24 minor 11 (a section a kind of a song form, and its song, #655, yggi/music-commons#76). A host admits a join of any
- * of them, and a client stays with a host of any (`sameMajor`), each
- * ignoring a kind it doesn't know, so a minor that adds a kind deploys
- * without every client in lockstep: a client at 13 drops the `section`
- * messages and the welcome's `song.texts` it can't read, and plays the bars.
+ * change to what they mean.
  */
-export const PROTOCOL = 24;
+export const PROTOCOL = 33;
 
 /**
  * What a client may be seated as (docs/briefs/session-roles.md): a
@@ -106,79 +81,17 @@ export const PROTOCOL = 24;
 export const ROLES = ['player', 'listener'] as const;
 export type Role = (typeof ROLES)[number];
 
-/** The first protocol of the session contract's major version 1 (#460): every protocol from it on is one of its minors. */
-export const FIRST_PROTOCOL = 13;
+/** The first protocol of version 2 of the session contract (#460, #553): every protocol from it on is one of its minors. */
+export const FIRST_PROTOCOL = 30;
+
+/** Whether a protocol is a minor of version 2: an integer from its first protocol on (#460). */
+export const sameMajor = (protocol: unknown): boolean =>
+  Number.isInteger(protocol) && (protocol as number) >= FIRST_PROTOCOL;
 
 /**
- * A major version of the session contract as a peer speaks it: the protocol
- * its join or welcome carries, and the first of the version, from which a
- * peer admits the other at any minor (#460). Version 2 is what Jambot speaks
- * (`SESSION_V2`, #553); version 1 (`SESSION_V1`) is what it spoke before, and
- * its code stays until it is removed.
- */
-export interface SessionVersion {
-  readonly protocol: number;
-  readonly firstProtocol: number;
-}
-
-/** Version 1 of the session contract, as Jambot spoke it before version 2 (#553). */
-export const SESSION_V1: SessionVersion = { protocol: PROTOCOL, firstProtocol: FIRST_PROTOCOL };
-
-/**
- * Whether a protocol is a minor of a version's major, version 1's unless
- * another is named: an integer from its first protocol on (#460). A peer of
- * the later version, whose first is above the other's numbers, so refuses it.
- */
-export const sameMajor = (protocol: unknown, version: SessionVersion = SESSION_V1): boolean =>
-  Number.isInteger(protocol) && (protocol as number) >= version.firstProtocol;
-
-/**
- * A section's cells text, as a host's band through cells states it (#446,
- * cells decision 037: the text holds what is composed): sent to every client
- * as the host takes it from where it was built (`section`), four bars and a
- * beat before the section plays, again at a bar composed otherwise than
- * foreseen (a beat before it plays), and with a welcome, every text that
- * states a bar not yet played (`texts`). A client compiles and plays it with
- * its own cells engine, and its performer plays its feel on each event, as
- * the host's does, so the two play the same events. The text travels, not
- * the events cells plays from it: the score is what is legible all the way
- * down, and it is the smaller, 2.6 to 6.3 KB a section as JSON over the
- * presets' second sections at entropy 0.3, where the events would be 4 to 12
- * times that, 11 to 75 KB (`section-texts.test.ts` in the app measures both).
- */
-export interface SectionText {
-  /** The first bar the text states, and its first step on the song's clock. */
-  readonly bar: number;
-  readonly step: number;
-  /** The text, or empty where none states the bars (`unstated` says why). */
-  readonly text: string;
-  /** Why no text states the bars (a section's key or meter moving between them), or null where one does. */
-  readonly unstated: string | null;
-  /**
-   * What cells' reading of the text needs beside it, one for the section,
-   * as a text states one meter, swing and key: its first bar's meter, swing,
-   * tempo and key (`SectionFrame` in `@jambot/score`).
-   */
-  readonly frame: {
-    readonly meter: Meter;
-    readonly swing: MeterSwing;
-    readonly bpm: number;
-    readonly key: Key;
-  };
-  /**
-   * What each bar, in order from `bar`, was built from, as a digest
-   * (`foreseenOf` in the app): a client plays the text in a bar only where
-   * the bar the host sends is the one foreseen, as the host does.
-   */
-  readonly foreseen: readonly string[];
-  /** The bars, by their place from `bar`, a note was cut in, which the text doesn't play as the band does. */
-  readonly cut: readonly number[];
-}
-
-/**
- * A line of the session's log (protocol 20, docs/briefs/session-roles.md
- * step 3): human-readable, like a chat, the players' and the band's own
- * voices in one place. The host keeps the log and says each line to every
+ * A line of the session's log (docs/briefs/session-roles.md step 3):
+ * human-readable, like a chat, the players' and the band's own voices in
+ * one place. The host keeps the log and says each line to every
  * client; a welcome carries its tail.
  */
 export interface SessionEvent {
@@ -217,21 +130,6 @@ export interface PlayedBar {
  */
 export const PLAYED_MOST = 64;
 
-/**
- * A bar as a host wrote it: everything its parts read, and the notes they
- * wrote. Its meter travels in its plan (`plan.meter`, #261): the section's,
- * which the client gives back to the bar (`follow.ts`), so a bar holds it once.
- */
-export interface WrittenBar extends Omit<BarEnv, 'meter'> {
-  readonly written: readonly WrittenNote[];
-}
-
-/** A bar a host sent, and where it starts on the host's clock, if the host laid it. */
-export interface SentBar {
-  readonly bar: WrittenBar;
-  readonly start: number | null;
-}
-
 /** A song a host is playing: what a client needs to lay its steps. */
 export interface Song {
   readonly seed: number;
@@ -266,6 +164,63 @@ export interface MuseState {
   readonly players: Readonly<Record<string, string>>;
 }
 
+/** A fragment named by its id and hash: a score's lock's entry, and a welcome's default band. */
+export interface FragmentRef {
+  readonly id: string;
+  readonly hash: string;
+}
+
+/** A fragment's cells text by its id and hash: one a score in force locks that a client may lack. */
+export interface FragmentText extends FragmentRef {
+  readonly text: string;
+}
+
+/**
+ * A bar's conduct: what a client needs beside the score to play the bar as
+ * the host does. A host sends it a beat before the bar.
+ */
+export interface BarConduct {
+  /** The bar, counted from the song's start. */
+  readonly bar: number;
+  /** Where it starts on the host's clock, or null for a bar the host's head passed without laying, in a stall. */
+  readonly start: number | null;
+  /** The seed its draws are keyed by. */
+  readonly seed: number;
+  /** The entropy the homeostat leaned to for the bar, from 0 to 1. */
+  readonly entropy: number;
+  /** The Muse's offer, or null for none. */
+  readonly offer: Offer | null;
+  /** The bar's digest: a client plays the score's bar only where it is the one the score foresaw. */
+  readonly foreseen: string;
+}
+
+/**
+ * A section's score: the cells text that states its bars, ending in a
+ * `* from band` line, bare or passed the score's lines. A host sends it four
+ * bars and a beat before the section plays, and again a beat before a bar
+ * composed otherwise than foreseen.
+ */
+export interface SectionScore {
+  /** The first bar it states, and that bar's first step on the song's clock. */
+  readonly bar: number;
+  readonly step: number;
+  /** The section's type. */
+  readonly section: SectionType;
+  /** The score, or empty where none states the bars (`unstated` says why). */
+  readonly text: string;
+  /** Why no score states the bars (a key or meter moving between them), or null where one does. */
+  readonly unstated: string | null;
+  /** Every fragment the text takes `from`, never `band`. */
+  readonly lock: readonly FragmentRef[];
+  readonly fragments: readonly FragmentText[];
+  /** Each bar's energy, from `bar` on. */
+  readonly energy: readonly number[];
+  /** A digest of what each bar, from `bar` on, was built from (`BarConduct.foreseen`). */
+  readonly foreseen: readonly string[];
+  /** The bars, by their place from `bar`, a note was cut in. */
+  readonly cut: readonly number[];
+}
+
 export type HostMessage =
   | {
       readonly kind: 'welcome';
@@ -276,22 +231,26 @@ export type HostMessage =
        * (`roster.ts`): sent again in the join that follows.
        */
       readonly resume: string;
-      /**
-       * The song playing, with the bars composed and not yet played and the
-       * section texts that state a bar not yet played (#446), or null while stopped.
-       */
+      /** The song playing, with the conducts sent and not yet played and the scores that state a bar not yet played, or null while stopped. */
       readonly song:
-        | (Song & { readonly bars: readonly SentBar[]; readonly texts: readonly SectionText[] })
+        | (Song & {
+            readonly conducts: readonly BarConduct[];
+            readonly scores: readonly SectionScore[];
+          })
         | null;
       readonly forecast: ForecastDelta;
       readonly muse: MuseState;
+      /** The texts a score in force locks that the client may lack. */
+      readonly fragments: readonly FragmentText[];
+      /** The default band the host plays, which a client may show and never plays, or null for none. */
+      readonly band: FragmentRef | null;
       /**
        * Present where the host admits by a code and this client was seated
        * without it (#461): it listens, and what it plays reaches no Muse
        * (`CODE_LISTENS`).
        */
       readonly listening?: true;
-      /** The session's log, its tail as the host keeps it (protocol 20), absent from a host before it. */
+      /** The session's log, its tail as the host keeps it. */
       readonly events?: readonly SessionEvent[];
     }
   | { readonly kind: 'refused'; readonly reason: string }
@@ -307,9 +266,10 @@ export type HostMessage =
       readonly swing: SwingTrack;
       readonly tempoMeter: Meter;
     }
-  | { readonly kind: 'bar'; readonly sent: SentBar }
-  /** A section's cells text, as the host's band through cells states it (#446). */
-  | ({ readonly kind: 'section' } & SectionText)
+  /** A bar's conduct, a beat before the bar. */
+  | ({ readonly kind: 'conduct' } & BarConduct)
+  /** A section's score, with the fragments it locks that this client lacks. */
+  | ({ readonly kind: 'score' } & SectionScore)
   | { readonly kind: 'forecast'; readonly forecast: ForecastDelta }
   | { readonly kind: 'muse'; readonly muse: MuseState }
   | { readonly kind: 'stop' }
@@ -338,7 +298,7 @@ export type HostMessage =
    * when the host changes it, never with a welcome, whose `listening` says it.
    */
   | { readonly kind: 'role'; readonly role: Role }
-  /** A line of the session's log (protocol 20), as the host says it to every client. */
+  /** A line of the session's log, as the host says it to every client. */
   | ({ readonly kind: 'event' } & SessionEvent)
   /**
    * Said by a lobby, never by a host: the host's link dropped, and the
@@ -375,8 +335,8 @@ export type ClientMessage =
   /** A ping, stamped with the client's page clock as it was sent, in seconds. */
   | { readonly kind: 'ping'; readonly sent: number }
   /**
-   * A bar the client didn't play, and why (version 2's minor 2, protocol 32 on, yggi/music-commons#74): one a bar, which
-   * a host counts by client (`countLacked`); a host of version 1 has no use for it and ignores it.
+   * A bar the client didn't play, and why (minor 2, protocol 32 on, yggi/music-commons#74): one a bar, which a host
+   * counts by client (`countLacked`).
    */
   | {
       readonly kind: 'lacked';
@@ -389,7 +349,7 @@ export type ClientMessage =
   | { readonly kind: 'lost' };
 
 /**
- * Why a client didn't play a bar, as the session contract's `lacked` names it (version 2, minor 2): no score stated it
+ * Why a client didn't play a bar, as the session contract's `lacked` names it (minor 2): no score stated it
  * (`silent`), its conduct's digest is not the one its score foresaw (`digest`), its score locks a fragment the client
  * lacks (`lock`), or the client came to it too late to play it (`late`).
  */
@@ -424,54 +384,69 @@ function isHeard(value: unknown): boolean {
   );
 }
 
-const isSent = (s: unknown): boolean =>
-  isObject(s) && isObject(s.bar) && orNull(s.start, Number.isFinite);
-const isText = (t: unknown): boolean =>
-  isObject(t) &&
-  Number.isInteger(t.bar) &&
-  Number.isInteger(t.step) &&
-  isString(t.text) &&
-  orNull(t.unstated, isString) &&
-  isObject(t.frame) &&
-  isObject(t.frame.meter) &&
-  isObject(t.frame.swing) &&
-  Number.isFinite(t.frame.bpm) &&
-  isObject(t.frame.key) &&
-  each(t.foreseen, isString) &&
-  each(t.cut, Number.isInteger);
-/** A welcome's song: its bars not yet played, and its texts, absent from a host of 13. */
-const isPlaying = (s: unknown): boolean =>
-  isSong(s) && each(s.bars, isSent) && (s.texts === undefined || each(s.texts, isText));
+const SECTION_NAMES: ReadonlySet<unknown> = new Set(SECTION_TYPES);
 
-/** The kinds a host sends that the contract's versions 1 and 2 read alike: all but a welcome, a bar and a section, which version 2 replaces. */
-export type KeptHostKind =
-  | 'refused'
-  | 'start'
-  | 'track'
-  | 'forecast'
-  | 'muse'
-  | 'stop'
-  | 'finale'
-  | 'pong'
-  | 'closed'
-  | 'role'
-  | 'event';
+const isRef = (r: unknown): boolean => isObject(r) && isString(r.id) && isString(r.hash);
+/** A fragment's text by its id and hash, each a string. */
+export const isFragmentText = (f: unknown): boolean =>
+  isRef(f) && isString((f as FragmentRef & { text: unknown }).text);
+/** A lock's entry: a fragment by its id and hash, never the band, which never travels. */
+const isLocked = (r: unknown): boolean => isRef(r) && (r as FragmentRef).id !== 'band';
+
+const isConduct = (c: unknown): boolean =>
+  isObject(c) &&
+  Number.isInteger(c.bar) &&
+  orNull(c.start, Number.isFinite) &&
+  Number.isInteger(c.seed) &&
+  Number.isFinite(c.entropy) &&
+  (c.entropy as number) >= 0 &&
+  (c.entropy as number) <= 1 &&
+  orNull(c.offer, isObject) &&
+  isString(c.foreseen);
+
+const isScore = (s: unknown): boolean =>
+  isObject(s) &&
+  Number.isInteger(s.bar) &&
+  Number.isInteger(s.step) &&
+  SECTION_NAMES.has(s.section) &&
+  isString(s.text) &&
+  orNull(s.unstated, isString) &&
+  each(s.lock, isLocked) &&
+  each(s.fragments, isFragmentText) &&
+  each(s.energy, Number.isFinite) &&
+  each(s.foreseen, isString) &&
+  each(s.cut, Number.isInteger);
+
+/** A welcome's song: a song with its conducts and its scores, both always there. */
+const isPlaying = (s: unknown): boolean =>
+  isSong(s) && each(s.conducts, isConduct) && each(s.scores, isScore);
 
 /**
- * Each kind a host sends that both versions keep, and whether a message of
- * it carries that kind's fields, of their types (yggi/music-commons
- * `contracts/session-v1` and `contracts/session`, whose tables agree on
- * them). What a track, a swing, a meter or a Muse's log holds is the shapes'
- * to fix (`protocol.test.ts`), not the reader's.
+ * Each kind a host sends, and whether a message of it carries that kind's
+ * fields, of their types (`contracts/session`'s table of host messages).
+ * What a track, a swing, a meter, a Muse's log, a conduct's offer or a
+ * forecast's bar holds is the shapes' to fix (`protocol.test.ts`), not the
+ * reader's.
  */
-export const KEPT_HOST_FIELDS: Readonly<
-  Record<KeptHostKind, (m: Partial<Record<string, unknown>>) => boolean>
-> = {
+const HOST_FIELDS: FieldChecks = {
+  welcome: (m) =>
+    Number.isInteger(m.protocol) &&
+    isString(m.session) &&
+    isString(m.resume) &&
+    (m.listening === undefined || m.listening === true) &&
+    (m.events === undefined || each(m.events, isEvent)) &&
+    orNull(m.song, isPlaying) &&
+    isForecast(m.forecast) &&
+    isMuse(m.muse) &&
+    each(m.fragments, isFragmentText) &&
+    orNull(m.band, isRef),
   refused: (m) => isString(m.reason),
   start: (m) => isSong(m.song),
   track: (m) => isObject(m.track) && isObject(m.swing) && isObject(m.tempoMeter),
+  conduct: isConduct,
   forecast: (m) => isForecast(m.forecast),
   muse: (m) => isMuse(m.muse),
+  score: isScore,
   stop: () => true,
   finale: (m) => Number.isInteger(m.bar),
   pong: (m) =>
@@ -482,37 +457,41 @@ export const KEPT_HOST_FIELDS: Readonly<
 };
 
 /**
- * Each kind a host of version 1 sends, and whether a message of it carries
- * that kind's fields, of their types (yggi/music-commons
- * `contracts/session-v1`): the kinds both versions keep, and version 1's own
- * welcome, bar and section. What a sent bar holds is the shapes' to fix
- * (`protocol.test.ts`), not the reader's.
- */
-const HOST_FIELDS: FieldChecks = {
-  ...KEPT_HOST_FIELDS,
-  welcome: (m) =>
-    Number.isInteger(m.protocol) &&
-    isString(m.session) &&
-    isString(m.resume) &&
-    (m.listening === undefined || m.listening === true) &&
-    (m.events === undefined || each(m.events, isEvent)) &&
-    orNull(m.song, isPlaying) &&
-    isForecast(m.forecast) &&
-    isMuse(m.muse),
-  bar: (m) => isSent(m.sent),
-  section: isText,
-};
-
-/**
  * A message from a host, or null for anything that isn't one: its kind, and
  * the fields that kind carries, of their types, as a host reads a client's
  * (`readClientMessage`). A client checks them though it chose the host it
  * joined: one not built from this code can't take a field's type on trust
- * (the contract's ruling), and a message it can't read is dropped here, the
- * link kept, rather than thrown on while its band plays.
+ * (the contract's ruling), and a message it can't read, or of a kind it
+ * doesn't know, is dropped here, the link kept, rather than thrown on while
+ * its band plays. A lobby's `away` and `back` are no host's, and read as none.
  */
 export function readHostMessage(data: unknown): HostMessage | null {
   return readByKind<HostMessage>(HOST_FIELDS, data);
+}
+
+/** How many bars a client told its host it didn't play (`lacked`), by why. */
+export type LackedCount = Readonly<Record<LackedWhy, number>>;
+
+/** No bar lacked, for any reason. */
+export const NO_LACKED: LackedCount = { silent: 0, digest: 0, lock: 0, late: 0 };
+
+/** The bars each client lacked, by its seat's id: what a host counts and its Session card shows. */
+export type LackedBy = Readonly<Record<string, LackedCount>>;
+
+/** The counts with one more bar a client lacked, for why. */
+export function countLacked(counts: LackedBy, id: string, why: LackedWhy): LackedBy {
+  const was = counts[id] ?? NO_LACKED;
+  return { ...counts, [id]: { ...was, [why]: was[why] + 1 } };
+}
+
+/** The bars lacked over every client, by why and in all (`bars`): what a soak's bound reads (#553). */
+export function lackedIn(counts: LackedBy): LackedCount & { readonly bars: number } {
+  const sum = (why: LackedWhy) => Object.values(counts).reduce((n, c) => n + c[why], 0);
+  const by = Object.fromEntries(LACKED_WHYS.map((why) => [why, sum(why)])) as Record<
+    LackedWhy,
+    number
+  >;
+  return { ...by, bars: LACKED_WHYS.reduce((n, why) => n + by[why], 0) };
 }
 
 /**
@@ -613,12 +592,11 @@ export function codeOf(word: () => number): string {
 }
 
 /**
- * Why a host refuses a join, or null to admit it: another major version
- * than the one the host speaks, version 1 unless another is named (any
- * minor of its own is admitted, `sameMajor`, #460), a wrong code where
- * the host admits by one (`code`, #461, looked at before the name, so a join
- * refused for it learns nothing of who is in the session; a join without a
- * code is admitted, to listen, `admit`),
+ * Why a host refuses a join, or null to admit it: a protocol below version
+ * 2's first (any minor of version 2 is admitted, `sameMajor`, #460), a wrong
+ * code where the host admits by one (`code`, #461, looked at before the
+ * name, so a join refused for it learns nothing of who is in the session; a
+ * join without a code is admitted, to listen, `admit`),
  * no name, or a name a player in the session already goes by (`inUse`), in
  * any case. A code is compared trimmed, as a phone's keyboard may pad it.
  */
@@ -626,10 +604,9 @@ export function refusal(
   join: ClientMessage & { kind: 'join' },
   inUse: readonly string[] = [],
   code: string | null = null,
-  version: SessionVersion = SESSION_V1,
 ): string | null {
-  if (!sameMajor(join.protocol, version))
-    return `This host speaks version ${version.protocol} of the session protocol, which takes ${version.firstProtocol} on, and this app ${join.protocol}: reload it.`;
+  if (!sameMajor(join.protocol))
+    return `This host speaks version 2 of the session protocol, protocol ${FIRST_PROTOCOL} on, and this app protocol ${join.protocol}: reload it.`;
   if (code !== null) {
     const given = join.code?.trim() ?? '';
     if (given !== '' && given !== code) return CODE_WRONG;

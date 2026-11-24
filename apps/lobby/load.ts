@@ -2,12 +2,15 @@
  * The lobby under load: `node --experimental-strip-types load.ts [clients…]`.
  *
  * It runs the server in a process of its own and plays sessions against
- * it from this one: a host and 8 clients each, the host sending a bar of
- * 2.8 KB and a change to the bars ahead of 0.5 KB every 2 s (120 bpm, the
- * sizes measured from the band), each client pinging 4 times a second and
- * its host answering. For each number of clients it measures, over 20 s,
- * how long a bar takes from its host to every client, a ping's round trip,
- * the server's CPU and its memory.
+ * it from this one: a host and 8 clients each, the host sending what the
+ * session contract has it send at 120 bpm in 4/4: each bar's conduct of
+ * 0.1 KB and a change to the bars ahead of 0.5 KB every 2 s, and each
+ * section's score of 2.8 KB every 8 bars, 16 s (the sizes measured from the
+ * band: the contract's conduct vector, and the presets' scores, 1.9 to 3.3 KB,
+ * `section-texts.test.ts` in the app), each client pinging 4 times a second
+ * and its host answering. For each number of clients it measures, over 20 s,
+ * how long a conduct and a score take from its host to every client, a
+ * ping's round trip, the server's CPU and its memory.
  *
  * The clients share one process and one core, so past some count this end
  * is what saturates, and the numbers say more about the machine than about
@@ -23,8 +26,12 @@ const CLIENTS = counts.length > 0 ? counts : [100, 500, 1000, 2000];
 const PER_SESSION = 8;
 const SECONDS = 20;
 const PORT = 8799;
-const BAR = 'x'.repeat(2800);
+const CONDUCT = 'c'.repeat(100);
+const SCORE = 's'.repeat(2800);
 const AHEAD = 'y'.repeat(500);
+/** How often a host sends a bar's conduct and the bars ahead, and a section's score, in ms: a bar and 8 bars at 120 bpm. */
+const BAR_MS = 2000;
+const SECTION_MS = 8 * BAR_MS;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const quantile = (xs: number[], q: number) => {
@@ -64,7 +71,7 @@ async function round(clients: number) {
   );
   await sleep(800);
   const sessions = Math.ceil(clients / PER_SESSION);
-  const fanout: number[] = [];
+  const fanout: { conduct: number[]; score: number[] } = { conduct: [], score: [] };
   const trips: number[] = [];
   const timers: ReturnType<typeof setInterval>[] = [];
   const sockets: WebSocket[] = [];
@@ -97,7 +104,8 @@ async function round(clients: number) {
       client.onmessage = ({ data }) => {
         const m = JSON.parse(String(data));
         if (!measuring || m.op !== 'said') return;
-        if (m.message.kind === 'bar') fanout.push(performance.now() - m.message.at);
+        if (m.message.kind === 'conduct' || m.message.kind === 'score')
+          fanout[m.message.kind as 'conduct' | 'score'].push(performance.now() - m.message.at);
         if (m.message.kind === 'pong') trips.push(performance.now() - m.message.sent);
       };
       timers.push(
@@ -115,11 +123,21 @@ async function round(clients: number) {
         host.send(
           JSON.stringify({
             op: 'send',
-            message: { kind: 'bar', at: performance.now(), sent: BAR },
+            message: { kind: 'conduct', at: performance.now(), sent: CONDUCT },
           }),
         );
         host.send(JSON.stringify({ op: 'send', message: { kind: 'forecast', sent: AHEAD } }));
-      }, 2000),
+      }, BAR_MS),
+      setInterval(
+        () =>
+          host.send(
+            JSON.stringify({
+              op: 'send',
+              message: { kind: 'score', at: performance.now(), sent: SCORE },
+            }),
+          ),
+        SECTION_MS,
+      ),
     );
   }
 
@@ -139,7 +157,8 @@ async function round(clients: number) {
   const ms = (x: number) => `${x.toFixed(1)} ms`;
   console.log(
     `${clients} clients in ${sessions} sessions: ` +
-      `bar to client p50 ${ms(quantile(fanout, 0.5))}, p99 ${ms(quantile(fanout, 0.99))}, max ${ms(Math.max(...fanout))}; ` +
+      `conduct to client p50 ${ms(quantile(fanout.conduct, 0.5))}, p99 ${ms(quantile(fanout.conduct, 0.99))}, max ${ms(Math.max(...fanout.conduct))}; ` +
+      `score to client p50 ${ms(quantile(fanout.score, 0.5))}, max ${ms(Math.max(...fanout.score))}; ` +
       `ping p50 ${ms(quantile(trips, 0.5))}, p99 ${ms(quantile(trips, 0.99))}; ` +
       `server CPU ${((100 * (after.cpu - before.cpu)) / SECONDS).toFixed(0)} %, ` +
       `memory ${(after.rss / 2 ** 20).toFixed(0)} MB; ` +

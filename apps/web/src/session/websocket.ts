@@ -5,7 +5,7 @@
  * Each part a page plays gets a socket of its own: one to list the
  * sessions, one to host, one to join. The server relays the session's
  * messages; this end reads each as the session protocol says
- * (`readHostSaid`, `readClientMessage`), and turns what the server says
+ * (`readHostMessage`, `readClientMessage`), and turns what the server says
  * itself into what a session hears: a client that left leaves, a host gone
  * closes; a host whose link dropped, that the lobby holds the session for,
  * is away, and back. A socket that closes under a session is a lost lobby.
@@ -19,7 +19,7 @@ import {
   type ToLobby,
   readClientMessage,
   readFromLobby,
-  readHostSaid,
+  readHostMessage,
 } from '@jambot/session';
 import type { ClientLink, HostLink, Lobby, Lost } from './lobby.ts';
 
@@ -149,7 +149,7 @@ export function websocketLobby(url: string): Lobby {
         { op: 'join', session },
         (said) => {
           if (said.op === 'said') {
-            const message = readHostSaid(said.message);
+            const message = readHostMessage(said.message);
             if (message) hear(message);
           } else if (said.op === 'away') hear({ kind: 'away' });
           else if (said.op === 'back') hear({ kind: 'back' });

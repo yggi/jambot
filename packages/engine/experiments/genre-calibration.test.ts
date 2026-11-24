@@ -13,7 +13,7 @@ describe('does Techno land where techno lands? (E24)', () => {
     expect(mean(read.map((r) => r.bar))).toBeGreaterThan(mean(points.map((r) => r.bar)));
     // 0.69 since swing left the style (#360), 0.81 when it was read; 0.641 in songs (#655), whose kinds move a bar's
     // energy farther from its style's than the chain's did; 0.673 since cells v0.30.0, whose jazz solos play hotter and
-    // without the pad.
+    // without the pad; 0.670 since the found parts (#540, #643, #644, #646).
     expect(mean(read.map((r) => r.bar))).toBeGreaterThan(0.6);
     // Against the presets' placed points the mean is recorded, not bounded: placements are the composer's intent,
     // readings the critic's, two scales (the owner's ruling on yggi/cells#681, cells decision 094 in yggi/cells#752, 2026-11-13).
@@ -28,12 +28,18 @@ describe('does Techno land where techno lands? (E24)', () => {
     expect(bar(read, 'Swing jazz')).toBeGreaterThan(0.6);
   });
 
-  it('lands every preset in at least 0.2 of its bars against where the presets read, and all but one in 0.4 (E24, #655)', () => {
+  it('lands every preset in at least 0.2 of its bars against where the presets read, and all but two in 0.4 (E24, #655)', () => {
     // Every preset reached 0.4 before #655's song forms (Synth-pop 0.400 with cells' `sync`); in songs Deep house reads
     // 0.237 and Lo-fi hip hop 0.394, Synth-pop 0.463; since cells v0.30.0, whose jazz solos play hotter and without the
-    // pad, so the presets' readings move, Lo-fi hip hop 0.400 and Synth-pop 0.456.
+    // pad, so the presets' readings move, Lo-fi hip hop 0.400 and Synth-pop 0.456, and since the found parts (#540, #643,
+    // #644, #646) Lo-fi hip hop 0.394 again, one bar of its 160 under the bound it sat on.
     for (const r of read) expect(r.bar, r.preset).toBeGreaterThanOrEqual(0.2);
-    expect(read.filter((r) => r.bar < 0.4).map((r) => r.preset)).toEqual(['Deep house']);
+    expect(read.filter((r) => r.bar < 0.4).map((r) => [r.preset, Math.round(r.bar * 160)])).toEqual(
+      [
+        ['Deep house', expect.any(Number)],
+        ['Lo-fi hip hop', 63],
+      ],
+    );
   });
 
   it('lands Funk and Bossa nova against where the presets read, and not against their points: the reading is compressed short of their extremes (E23, E24)', () => {
