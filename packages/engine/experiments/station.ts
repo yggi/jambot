@@ -6,7 +6,8 @@
  * the song that fits best, whether a song plays its themes again as it first did, whether each play starts from its
  * lead line, and whether the rotation keeps within its cap. And the mixes (step 2a): how often a song played again is
  * one, whether each play starts from its version's tonic, drum bar and bass line, whether each new mix differs from the
- * original, and how many mixes a song keeps.
+ * original, what each changes, whether a speed mix keeps within its reach, whether every section of a play carries its
+ * version's tempo and style shift (step 2b), and how many mixes a song keeps.
  */
 
 import { NO_HISTORY } from '../src/history.ts';
@@ -21,7 +22,14 @@ import { walkRadio } from '../src/radio.ts';
 import { METER_REPOSITORY } from '../src/repository.ts';
 import { RHYTHM_REPOSITORY } from '../src/rhythms.ts';
 import { familyOf, rejectedOf } from '../src/novelty.ts';
-import { capOf, sameSongMeter, weightOf } from '../src/rotation.ts';
+import {
+  type MixChange,
+  SPEED_LEAST,
+  SPEED_REACH,
+  capOf,
+  sameSongMeter,
+  weightOf,
+} from '../src/rotation.ts';
 import { PRESETS, type Style, pointDistance } from '../src/style.ts';
 import { MISS_DISTANCE } from '../src/meter-query.ts';
 
@@ -72,6 +80,13 @@ export interface StationRun {
   /** New mixes, and how many play the original's tonic, drum bar and bass line all the same. */
   readonly mixesMade: number;
   readonly mixesSame: number;
+  /** New mixes by what they change, a mix of two counted under each. */
+  readonly changed: Partial<Record<MixChange, number>>;
+  /** Speed mixes whose tempo lies outside `SPEED_LEAST` to `SPEED_REACH` of the original's. */
+  readonly speedsOutside: number;
+  /** Sections of a song, and how many didn't carry their version's tempo and style shift (an original's none). */
+  readonly sectionsMarked: number;
+  readonly marksDiffering: number;
   /** The most mixes a song kept, at any section. */
   readonly mostMixes: number;
 }
@@ -92,7 +107,10 @@ export function stationRun(
   let [starts, backToBack, draws, nearest, uniform] = [0, 0, 0, 0, 0];
   let [themesCompared, themesDiffering, leadsCompared, leadsDiffering, overCap] = [0, 0, 0, 0, 0];
   let [replays, mixed, versionsCompared, versionsRejected, versionsDiffering] = [0, 0, 0, 0, 0];
-  let [mixesMade, mixesSame, mostMixes] = [0, 0, 0];
+  let [mixesMade, mixesSame, mostMixes, speedsOutside, sectionsMarked, marksDiffering] = [
+    0, 0, 0, 0, 0, 0,
+  ];
+  const changed: Partial<Record<MixChange, number>> = {};
   for (let index = 0; index < sections; index++) {
     const before = carried;
     const env: PlanEnv = {
@@ -178,10 +196,29 @@ export function stationRun(
         if (
           version.tonic === original.tonic &&
           version.drums.rhythmFragment === original.drums.rhythmFragment &&
-          version.bass === original.bass
+          version.bass === original.bass &&
+          version.tempo === original.tempo &&
+          JSON.stringify(version.shift) === JSON.stringify(original.shift)
         )
           mixesSame++;
+        for (const change of version.changes) changed[change] = (changed[change] ?? 0) + 1;
+        if (version.changes.includes('speed')) {
+          const by = Math.abs(version.tempo - 1);
+          if (by < SPEED_LEAST - 1e-12 || by > SPEED_REACH + 1e-12) speedsOutside++;
+        }
       }
+    }
+    // (every section of a play carries its version's tempo and style shift, an original's none)
+    if (song !== null && at !== undefined) {
+      const now = carried.rotation.songs.find((s) => s.id === song)!;
+      const version = now.versions.find((v) => v.id === carried.version)!;
+      const mixed = version.tempo !== 1 || Object.keys(version.shift).length > 0;
+      sectionsMarked++;
+      if (
+        JSON.stringify(plan.mix ?? null) !==
+        JSON.stringify(mixed ? { tempo: version.tempo, shift: version.shift } : null)
+      )
+        marksDiffering++;
     }
     if (song !== null && at !== undefined) {
       const theme = JSON.stringify(plan.theme);
@@ -220,6 +257,10 @@ export function stationRun(
     versionsDiffering,
     mixesMade,
     mixesSame,
+    changed,
+    speedsOutside,
+    sectionsMarked,
+    marksDiffering,
     mostMixes,
   };
 }

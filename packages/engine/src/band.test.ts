@@ -13,6 +13,7 @@ import { type KeyWish, MELODIC_SCALES } from './key.ts';
 import { type Script, lawBreaks } from './machine.ts';
 import { perform } from './performer.ts';
 import { planner } from './plan.ts';
+import { styleShifted } from './rotation.ts';
 import {
   AXIS_NAMES,
   INITIAL_STYLE,
@@ -437,5 +438,33 @@ describe('what a bar says its section took (#731)', () => {
     // (each part takes a fragment somewhere: the bass in every bar here, the harmony and the lead not)
     for (const part of ['harmony', 'bass', 'lead'] as const)
       expect(taken[part], part).toBeGreaterThan(0);
+  });
+});
+
+describe('a style mix (#547 step 2b)', () => {
+  it('writes and plays each bar of a style mix at the style shifted by its plan’s shift, on the score’s grid, and every other bar at the style', () => {
+    // (held at Synth-pop at entropy 0.6, the station's rotation full by then: a play again is a mix 0.6 of the time)
+    const preset = PRESETS.find((p) => p.name === 'Synth-pop')!;
+    const style: Style = { ...preset.style, entropy: 0.6 };
+    let carried = band.initial;
+    let shifted = 0;
+    for (const bar of range(960)) {
+      const env: BandEnv = {
+        seed: 1,
+        bar,
+        style,
+        wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+        offer: null,
+        harmonies: HARMONY_REPOSITORY,
+        leads: LEAD_REPOSITORY,
+      };
+      const next = band.advance(env, carried, null);
+      carried = next.carried;
+      const { plan, style: played } = next.output;
+      const shift = plan.mix?.shift ?? {};
+      if (Object.keys(shift).length > 0) shifted++;
+      expect(played, `bar ${bar}`).toEqual(writtenStyle(styleShifted(writtenStyle(style), shift)));
+    }
+    expect(shifted).toBeGreaterThan(16);
   });
 });

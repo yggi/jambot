@@ -31,7 +31,9 @@ import {
   RADIO_GLIDE,
   baseTempo,
   conduct,
+  conductMix,
   conductRadio,
+  conductSection,
   radioStyle,
   conductSwing,
   stopSwing,
@@ -419,5 +421,62 @@ describe('the radio’s section (#313)', () => {
       track = conductRadio(track, style, (n + 1) * section, 0).track;
       expect(styleAt(track, (n + 2) * section)).toEqual(style);
     }
+  });
+});
+
+describe('a mix’s tempo (#547 step 2b, the owner’s ruling of 2026-11-23)', () => {
+  const section = barStart(SECTION_BARS);
+  const mix = 1.06;
+
+  it('glides the radio’s tempo to its style’s times the mix’s, and reads the style back with both taken out', () => {
+    const style = { ...INITIAL_STYLE, energy: 0.9 };
+    const nudged = tempoLicence(style).high / 2;
+    const { track } = conductRadio(holding(INITIAL_STYLE), style, 0, nudged, mix);
+    expect(styleAt(track, section).bpm).toBeCloseTo(style.bpm * 2 ** nudged * mix, 9);
+    expect(radioStyle(track, nudged, mix)).toEqual(style);
+    expect(baseTempo(track, nudged, mix)).toBe(style.bpm);
+  });
+
+  it('walks a mixed track exactly as an unmixed one: the mix never leaks into the walk', () => {
+    let plain = holding(INITIAL_STYLE);
+    let mixed = holding(INITIAL_STYLE);
+    for (let n = 0; n < 40; n++) {
+      const a = walkRadio(radioStyle(plain, 0), 11, n);
+      const b = walkRadio(radioStyle(mixed, 0, n === 0 ? 1 : mix), 11, n);
+      expect(b).toEqual(a);
+      plain = conductRadio(plain, a, (n + 1) * section, 0).track;
+      mixed = conductRadio(mixed, b, (n + 1) * section, 0, mix).track;
+    }
+  });
+
+  it('glides a held track’s tempo over one section to a mix’s and back, nothing else moving', () => {
+    const track = holding(INITIAL_STYLE);
+    const into = conductMix(track, 0, 1, mix, 2 * section);
+    expect(styleAt(into, 2 * section)).toEqual(INITIAL_STYLE);
+    expect(styleAt(into, 3 * section)).toEqual({ ...INITIAL_STYLE, bpm: INITIAL_STYLE.bpm * mix });
+    const back = conductMix(into, 0, mix, 1, 4 * section);
+    expect(styleAt(back, 5 * section).bpm).toBeCloseTo(INITIAL_STYLE.bpm, 9);
+    expect(radioStyle(back, 0)).toEqual(INITIAL_STYLE);
+  });
+
+  it('at a section line, walks the radio with the section’s mix, glides the tempo alone where the mix changes with no radio, and else leaves the track as it is', () => {
+    const track = holding(INITIAL_STYLE);
+    const next = walkRadio(INITIAL_STYLE, 4, 0);
+    const walked = conductSection(track, next, section, 0, mix, 1).track;
+    expect(styleAt(walked, 2 * section)).toEqual({ ...next, bpm: next.bpm * mix });
+    const alone = conductSection(track, null, section, 0, mix, 1).track;
+    expect(styleAt(alone, 2 * section)).toEqual({ ...INITIAL_STYLE, bpm: INITIAL_STYLE.bpm * mix });
+    expect(conductSection(track, null, section, 0, 1, 1).track).toBe(track);
+    expect(conductSection(alone, null, 3 * section, 0, mix, mix).track).toBe(alone);
+  });
+
+  it('takes a preset or a slider over a mix, keeping the mix: the tempo played is the new style’s times it', () => {
+    const track = holding({ ...INITIAL_STYLE, bpm: INITIAL_STYLE.bpm * mix });
+    const after = conduct(track, { kind: 'preset', preset: funk }, null, 0, mix);
+    expect(styleAt(after, 0).bpm).toBeCloseTo(funk.style.bpm * mix, 9);
+    expect(styleAfter(after, { kind: 'axis', axis: 'sync', value: 0.5 }, 0, mix).bpm).toBeCloseTo(
+      funk.style.bpm,
+      9,
+    );
   });
 });

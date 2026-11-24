@@ -215,7 +215,9 @@ import { type Rhythm, hitsAt, recorded, toggled } from './rhythmGrid.ts';
 import {
   type Intent,
   conduct,
+  conductMix,
   conductRadio,
+  conductSection,
   targetOf,
   conductSwing,
   nudgeAfter,
@@ -507,6 +509,11 @@ export class Player {
   nextScore: Score | null = $state.raw(null);
   /** The players' nudge of the style's tempo, in octaves, within its licence (`conductor.ts`). */
   tempoNudge = $state(0);
+  /**
+   * The tempo of the mix playing (#547 step 2b), a share of the style's: the player glides the track to it at a
+   * play's first section line and back at the song's end; 1 where an original or no song plays.
+   */
+  #mixTempo = 1;
   /**
    * A window of bars the band plays again (#628, `replay.ts`): a section
    * repeated, or locked. The host's, or a band's alone: a client plays the
@@ -846,7 +853,12 @@ export class Player {
    * counts now, which a reloaded host's repository finds again).
    */
   trackCountedIn(meter: Meter | null): StyleTrack {
-    return rebeat(this.track, this.tempoMeter, meter ?? this.tempoMeter);
+    // (without the mix playing: a reloaded host starts a new rotation)
+    const unmixed =
+      this.#mixTempo === 1
+        ? this.track
+        : stopAt(conductMix(this.track, this.tempoNudge, this.#mixTempo, 1, 0));
+    return rebeat(unmixed, this.tempoMeter, meter ?? this.tempoMeter);
   }
 
   /**
@@ -921,7 +933,7 @@ export class Player {
     key: number;
     meter: number;
   } | null {
-    const from = radioStyle(this.track, this.tempoNudge);
+    const from = radioStyle(this.track, this.tempoNudge, this.#mixTempo);
     const walked = this.station ? onward(this.station, from) : null;
     // Nudges pending fade at every section line, those that take no step too.
     if (!walked && !leans(this.nudges)) return null;
@@ -966,21 +978,30 @@ export class Player {
    * stays within the licence of the style reached.
    */
   #sectionLine(composed: readonly BandBar[], carried: TransportCarried<unknown>) {
-    const { station, nudges } = this;
-    if (!station && !leans(nudges)) return;
+    const { station, nudges, track } = this;
     const clock = clockOfTransport(carried);
-    for (const { bar } of composed) {
+    for (const { bar, plan } of composed) {
       // A section played again is no section line: the walk and the lean hold (#628).
       if (bar === 0 || bar % SECTION_BARS !== 0 || replayOf(this.loop, bar) !== null) continue;
+      const at = Math.max(carried.head.step, clock.barStart(bar));
+      // A mix's tempo where the section's version moves it (#547 step 2b), glided into and out of over the section.
+      const mix = plan.mix?.tempo ?? 1;
       const step = this.#sectionStep();
-      if (!step) continue;
       const before = targetOf(this.track);
       const meterBefore = this.#heading();
-      const at = Math.max(carried.head.step, clock.barStart(bar));
-      const conducted = conductRadio(this.track, step.style, at, this.tempoNudge);
+      const conducted = conductSection(
+        this.track,
+        step?.style ?? null,
+        at,
+        this.tempoNudge,
+        mix,
+        this.#mixTempo,
+      );
+      this.#mixTempo = mix;
+      this.track = conducted.track;
+      if (!step) continue;
       this.station = step.station;
       this.nudges = step.nudges;
-      this.track = conducted.track;
       this.tempoNudge = conducted.nudge;
       if (step.key !== 0) this.#stepKey(step.key, step.style);
       const meterAfter = step.meter !== 0 ? this.#stepMeter(step.meter > 0 ? 1 : -1) : null;
@@ -995,7 +1016,7 @@ export class Player {
       if (moved) this.hosting?.said(moved);
     }
     if (this.station !== station) this.hosting?.station(this.station);
-    if (this.station !== station || this.nudges !== nudges) {
+    if (this.station !== station || this.nudges !== nudges || this.track !== track) {
       this.hosting?.track(this.track, this.swing, this.tempoMeter);
       this.#decide();
     }
@@ -1014,7 +1035,10 @@ export class Player {
     const step = this.#sectionStep();
     if (!step) return env;
     const at = Math.max(carried.head.step, clockOfTransport(carried).barStart(first));
-    return { ...env, track: conductRadio(this.track, step.style, at, this.tempoNudge).track };
+    return {
+      ...env,
+      track: conductRadio(this.track, step.style, at, this.tempoNudge, this.#mixTempo).track,
+    };
   }
 
   apply(intent: Intent) {
@@ -1024,8 +1048,8 @@ export class Player {
     // section, as a meter asked for there does (#375).
     if (intent.kind === 'swing' && this.meter === null) this.meter = this.#heading();
     const at = this.status === 'playing' ? (this.#carried?.head.step ?? 0) : null;
-    const style = styleAfter(this.track, intent, this.tempoNudge);
-    this.track = conduct(this.track, intent, at, this.tempoNudge);
+    const style = styleAfter(this.track, intent, this.tempoNudge, this.#mixTempo);
+    this.track = conduct(this.track, intent, at, this.tempoNudge, this.#mixTempo);
     this.swing = conductSwing(this.swing, intent, at);
     this.tempoNudge = nudgeAfter(this.tempoNudge, intent, style);
     this.wish = wishAfter(this.wish, intent, style, this.home);
@@ -1367,6 +1391,7 @@ export class Player {
     this.swing = stopSwing(swing);
     this.wish = wish;
     this.tempoNudge = tempoNudge;
+    this.#mixTempo = 1;
     this.meter = meter;
     this.tempoMeter = this.#opening();
     this.station = station;
@@ -1573,6 +1598,7 @@ export class Player {
     this.mode = 'solo';
     this.skew = 0;
     this.track = holding(INITIAL_STYLE);
+    this.#mixTempo = 1;
     this.swing = holdingSwing(OPENING_SWING);
     this.tempoMeter = SONG_METER;
     this.#countTempoIn(this.#opening());
@@ -1618,7 +1644,13 @@ export class Player {
     this.heard = null;
     this.#metronome?.rest();
     if (!this.#follow) {
-      this.track = stopAt(this.track);
+      // (a mix's tempo is its song's: the next song opens at the style's)
+      this.track = stopAt(
+        this.#mixTempo === 1
+          ? this.track
+          : conductMix(this.track, this.tempoNudge, this.#mixTempo, 1, 0),
+      );
+      this.#mixTempo = 1;
       this.swing = stopSwing(this.swing);
       // A meter asked for and not yet heard, or the repository's at the style, is the one the next song opens in.
       this.#countTempoIn(this.#opening());

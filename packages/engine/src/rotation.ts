@@ -7,9 +7,11 @@
  * chorus every time the song is on air.
  *
  * A song is played in **versions** (step 2; the owner's rulings of 2026-11-23): its original, which its first play makes,
- * and its mixes. A version keeps a tonic, a drum bar and a bass line, and each play starts from its version's, the
- * ladders free within the play, as the lead line starts from the song's. A play again is a mix as often as the entropy
- * says (`nextVersion`); a mix changes the key, the groove or both, never a theme, the lead line or the mode. A song keeps
+ * and its mixes. A version keeps a tonic, a drum bar, a bass line, a tempo and a style shift, and each play starts from
+ * its version's, the ladders free within the play, as the lead line starts from the song's. A play again is a mix as
+ * often as the entropy says (`nextVersion`); a mix changes one of the key, the groove, the speed (the player glides the
+ * tempo to the original's times `tempo`) or the style (the band's written style shifted, so it resolves and performs a
+ * little elsewhere: `styleShifted`), now and then a second, never a theme, the lead line or the mode. A song keeps
  * `MIXES_KEPT` mixes, so a mix comes round again; at entropy 0 a song plays the version it played last.
  *
  * The **rotation** is the songs a session has made, at most `capOf(entropy)` of them: 4 at entropy 0 up to 16 at 1.
@@ -60,8 +62,12 @@ export interface SongMeter {
   readonly meterFragment?: string;
 }
 
-/** What a mix changes of the original: the key's tonic, or the groove (the drum bar, the bass line or both). */
-export type MixChange = 'key' | 'groove';
+/** What a mix changes of the original: the key's tonic, the groove (the drum bar and the bass line), the speed or the style. */
+export const MIX_CHANGES = ['key', 'groove', 'speed', 'style'] as const;
+export type MixChange = (typeof MIX_CHANGES)[number];
+
+/** A shift of the style, axis by axis: what a style mix adds to the style the band writes; none for the original. */
+export type StyleShift = StylePoint;
 
 /** A version of a song: its original (0) or a mix of it (1 on), and the tonic, drum bar and bass line each play starts from. */
 export interface SongVersion {
@@ -74,6 +80,10 @@ export interface SongVersion {
   readonly bass: string | null;
   /** What it changed of the original: none for the original. */
   readonly changes: readonly MixChange[];
+  /** Its tempo, as a share of the one the style sets: 1 for the original. */
+  readonly tempo: number;
+  /** Its style shift, added to the style the band writes: none for the original. */
+  readonly shift: StyleShift;
 }
 
 /** A song of the rotation: what it is, where it fits, and how the station has played it. */
@@ -244,8 +254,46 @@ export function afterSection(
 /** How many mixes a song keeps: a mixed play makes a new one while it keeps fewer (chosen in #547 step 2). */
 export const MIXES_KEPT = 3;
 
-/** How likely a new mix changes both the key and the groove, at entropy 1: a mix varies more as entropy rises. */
-export const MIX_BOTH = 0.5;
+/** How likely a new mix changes a second thing, at entropy 1: a mix varies more as entropy rises. */
+export const MIX_SECOND = 0.5;
+
+/** How far a speed mix moves the tempo, least and most, as a share of the original's: within the plan's ±8 %. */
+export const SPEED_LEAST = 0.03;
+export const SPEED_REACH = 0.08;
+
+/** How far a style mix shifts each axis of the style: 0.15 in all on four axes, half the composer's reach. */
+export const STYLE_STEP = 0.075;
+
+/** A speed mix's tempo, as a share of the original's: faster or slower, by `SPEED_LEAST` to `SPEED_REACH`. */
+export function mixTempoOf(seed: number, index: number): number {
+  const by = SPEED_LEAST + draw(seed, 'mix', index, 5) * (SPEED_REACH - SPEED_LEAST);
+  return chance(draw(seed, 'mix', index, 6), 0.5) ? 1 - by : 1 + by;
+}
+
+/** A style mix's shift: each of the axes `STYLE_STEP` up or down. */
+export function mixShiftOf(seed: number, index: number, axes: readonly string[]): StyleShift {
+  return Object.fromEntries(
+    axes.map((axis, i) => [
+      axis,
+      chance(draw(seed, 'mix', index, 7, i), 0.5) ? -STYLE_STEP : STYLE_STEP,
+    ]),
+  );
+}
+
+/** A style shifted by a shift's axes, each held within 0 to 1, the rest as it was. */
+export function styleShifted<S extends Readonly<Record<string, number>>>(
+  style: S,
+  shift: StyleShift,
+): S {
+  const keys = Object.keys(shift);
+  if (keys.length === 0) return style;
+  return {
+    ...style,
+    ...Object.fromEntries(
+      keys.map((axis) => [axis, Math.min(1, Math.max(0, (style[axis] ?? 0) + shift[axis]!))]),
+    ),
+  };
+}
 
 /** What a song plays as, where it starts: its original, a mix it keeps, or a new mix with what it changes. */
 export type NextVersion =
@@ -274,9 +322,19 @@ export function nextVersion(
   if (!chance(draw(seed, 'mix', index), entropy)) return { kind: 'original' };
   const mixes = song.versions.filter((v) => v.id > 0);
   if (mixes.length < MIXES_KEPT) {
-    const one: MixChange = pick(draw(seed, 'mix', index, 1), [1, 1]) === 0 ? 'key' : 'groove';
-    const both = chance(draw(seed, 'mix', index, 2), quantize(entropy) * MIX_BOTH);
-    return { kind: 'new mix', changes: both ? ['key', 'groove'] : [one] };
+    const even = MIX_CHANGES.map(() => 1);
+    const one = MIX_CHANGES[pick(draw(seed, 'mix', index, 1), even)]!;
+    if (!chance(draw(seed, 'mix', index, 2), quantize(entropy) * MIX_SECOND))
+      return { kind: 'new mix', changes: [one] };
+    const rest = MIX_CHANGES.filter((c) => c !== one);
+    const two =
+      rest[
+        pick(
+          draw(seed, 'mix', index, 8),
+          rest.map(() => 1),
+        )
+      ]!;
+    return { kind: 'new mix', changes: [one, two] };
   }
   const others = mixes.filter((v) => v.id !== song.version);
   const from = others.length > 0 ? others : mixes;

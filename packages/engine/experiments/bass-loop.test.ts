@@ -123,7 +123,8 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     // 4/4, and none plays 2/2; 3,818 before the walk rule retired on top of cells v0.25.1, #650, which leaves March its
     // oom-pah and Sea shanty its quarter bass)
     // (3,763 before the station's mixes, #547 step 2, whose plays hold their version's bass line)
-    expect([sections, mostUsed]).toEqual([8533, 3558]);
+    // (3,558 with the key and groove mixes alone, step 2a)
+    expect([sections, mostUsed]).toEqual([8533, 3618]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -131,7 +132,8 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     const { added, error } = lockIn(asLines(UNLEARNED), asLines(LEARNED));
     // (−7.10 and 1.39 before cells v0.24.0; −7.65 and 1.31 before 2/4 and 2/2 were among the band's meters, #652; −7.66 and 1.32 before the walk rule retired on top of
     // cells v0.25.1, #650; −8.25 and 1.48 before the station's mixes, #547 step 2)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-11.29', '1.36']);
+    // (−11.29 and 1.36 with the key and groove mixes alone, step 2a)
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-10.49', '1.21']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
@@ -140,7 +142,8 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     // (100, 5 and 95 before cells v0.24.0, whose new bass lines leave the bass no miss; 103 the composer's before 2/4
     // and 2/2 were among the band's meters, #652; 102 before the walk rule retired on top of cells v0.25.1, #650)
     // (108 before the station's mixes, #547 step 2)
-    expect([FILED.length, by(BASSIST), by(COMPOSER)]).toEqual([104, 0, 104]);
+    // (104 with the key and groove mixes alone, step 2a)
+    expect([FILED.length, by(BASSIST), by(COMPOSER)]).toEqual([101, 0, 101]);
     for (const run of LEARNED)
       for (const { id } of run.lineFilings.filter((f) => !f.held))
         expect(linesFiled(run.learning!.layer).map((f) => f.fragment.id)).toContain(id);
@@ -161,7 +164,8 @@ describe('the bass on the radio’s walk, learning (E41, #423)', () => {
     // rule retired on top of cells v0.25.1 and #553, #650; 15,115 before the ostinato on top of cells v0.25.1, #651)
     // (15,148 before cells v0.26.0's twelve-eight drums, yggi/cells#706; 14,008 before #655's song forms)
     // (13,875 before the station's mixes, #547 step 2)
-    expect(bytes).toBe(13673);
+    // (13,673 with the key and groove mixes alone, step 2a)
+    expect(bytes).toBe(13606);
     expect(bytes).toBeLessThan(LAYER_CAP);
     expect(LONG.reduce((n, r) => n + r.learning!.dropped, 0)).toBe(0);
   });
