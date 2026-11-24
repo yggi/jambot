@@ -85,12 +85,12 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` and `bass-loop.test.ts` record them: every part, the presets held at entropy 0. */
-const MAIN_STILL = [13891, 'dd722c5f'] as const;
+const MAIN_STILL = [13730, 'f13ba973'] as const;
 
 describe('the lead in the loop with no seed and nothing filed plays what main plays (#424)', () => {
   const lead = (all: readonly TimedEvent[]) => all.filter((e) => e.event.part === 'lead');
 
-  it('plays every event main plays with the lead lines and an empty layer, nobody playing: 13,891, each to 1e-9 s, over 8 presets × 2 seeds × 32 bars', () => {
+  it('plays every event main plays with the lead lines and an empty layer, nobody playing: 13,730, each to 1e-9 s, over 8 presets × 2 seeds × 32 bars', () => {
     const loop = held({ leads: FILED });
     expect([loop.length, hashOf(loop)]).toEqual(MAIN_STILL);
   });
@@ -375,7 +375,7 @@ describe('the Muse files Twinkle played whole as the ternary over twinkle, and i
     expect(FILED.read(cy.fragment.id, METERS['4/4'], layer)?.bars).toBe(6);
     expect(FILED.keyed?.(cy.fragment.id, layer)).toBe(true);
     expect(
-      FILED.vary?.(cy.fragment.id, { meter: METERS['4/4'], meterFragment: 'meter' }, 0.5, layer),
+      FILED.vary?.(cy.fragment.id, { meter: METERS['4/4'], meterFragment: 'bar' }, 0.5, layer),
     ).toBeNull();
   });
 
@@ -445,7 +445,7 @@ describe('the composer tires of a lead line: varies it by lift or turn over, the
   const point = stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 1 }));
   const seeded = FILED.file!(EMPTY_LAYER, {
     notes: ADA_LINE,
-    bench: { meter: METERS['4/4'], meterFragment: 'meter' },
+    bench: { meter: METERS['4/4'], meterFragment: 'bar' },
     point,
     source: 'Ada',
     created: 'song 0, bar 0',

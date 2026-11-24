@@ -141,13 +141,14 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
   });
 
   // (0.309, 0.346, 0.448 and 0.6 before cells v0.25.0, 63 % inside at 4 notes; 0.398, 0.439, 0.528 and 0.652, 48 %
-  // inside, before #655's song forms; 0.421, 0.453, 0.544 and 0.693, 44 % inside, before cells v0.29.0)
+  // inside, before #655's song forms; 0.421, 0.453, 0.544 and 0.693, 44 % inside, before cells v0.29.0; 0.702 and 0.153
+  // at 4 notes before cells v0.30.0, whose jazz solos play hotter and without the pad)
   it('rises with the tolerance, past the band’s middle at 4 notes, 42 % of sections inside it and the rest above, over all members (held at 0.3)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.449, 0.495, 0.567, 0.702]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.702, 0.153, 0.422, 0.047]);
+    expect(means).toEqual([0.449, 0.495, 0.567, 0.704]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.704, 0.155, 0.422, 0.047]);
   });
 });
 

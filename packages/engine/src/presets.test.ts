@@ -18,14 +18,14 @@ const FOUND: Readonly<
   Record<string, { meter: string; swing: string; mode: string; rhythm: string; bass: string }>
 > = {
   'Electro swing': {
-    meter: 'meter(swing=8n:2/3)',
+    meter: 'swing_meter',
     swing: '8n 0.667',
     mode: 'aeolian', // (cells' harmonic minor, read as aeolian: #516)
     rhythm: 'electro_swing_drums',
     bass: 'walking_bass',
   },
   Spooky: {
-    meter: 'meter(grouping=meter("5/4"))',
+    meter: 'odd_meter',
     swing: '16n 0.500',
     mode: 'aeolian',
     rhythm: 'spooky_drums',
@@ -33,7 +33,7 @@ const FOUND: Readonly<
   },
   // (cells' Kinderlied, a preset since #596: since cells v0.23.0 the plain 4/4 sits at its point too, yggi/cells#572)
   Kinderlied: {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'ionian',
     rhythm: 'kinderlied_drums',
     bass: 'root_bass',
@@ -41,28 +41,28 @@ const FOUND: Readonly<
   },
   // (the four styles cut from cells' examples at v0.23.0, yggi/cells#572: each its piece's parts, in A minor)
   Acid: {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'aeolian',
     rhythm: 'acid_drums',
     bass: 'acid_bass',
     swing: '16n 0.500',
   },
   'Happy hardcore': {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'aeolian',
     rhythm: 'happy_hardcore_drums',
     bass: 'pumping_bass',
     swing: '16n 0.500',
   },
   Elektro: {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'aeolian',
     rhythm: 'elektro_drums',
     bass: 'octave_bass',
     swing: '16n 0.500',
   },
   'Dark ambient': {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'aeolian',
     rhythm: 'industrial_drums',
     bass: 'drone_bass',
@@ -70,14 +70,14 @@ const FOUND: Readonly<
   },
   // (the eight styles placed at cells v0.24.0, yggi/cells#675 and #679, each with its parts, where the band plays them)
   Baroque: {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'ionian',
     rhythm: 'quiet_pulse',
     bass: 'continuo_bass',
     swing: '16n 0.500',
   },
   'Blues shuffle': {
-    meter: 'meter(swing=8n:2/3)',
+    meter: 'swing_meter',
     swing: '8n 0.667',
     mode: 'mixolydian',
     rhythm: 'ride_shuffle',
@@ -85,7 +85,7 @@ const FOUND: Readonly<
   },
   // (cells' quarter_bass, the root on every beat: a walk by its rhythm, which the band plays where cells places it, #650)
   'Sea shanty': {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'dorian',
     rhythm: 'shanty_drums',
     bass: 'quarter_bass',
@@ -93,7 +93,7 @@ const FOUND: Readonly<
   },
   // (cells' harmonic minor, read as aeolian: #516)
   Chiptune: {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'aeolian',
     rhythm: 'chip_drums',
     bass: 'octave_bass',
@@ -101,14 +101,14 @@ const FOUND: Readonly<
   },
   // (cells' salsa_drums play the conga's tumbao on the toms, which the drummer plays as an ostinato, #651)
   Salsa: {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'mixolydian',
     rhythm: 'salsa_drums',
     bass: 'tumbao_bass',
     swing: '16n 0.500',
   },
   Waltz: {
-    meter: 'meter(grouping=meter("3/4"))',
+    meter: 'bar(meter="3/4")',
     mode: 'ionian',
     rhythm: 'waltz_drums',
     bass: 'waltz_bass',
@@ -116,14 +116,14 @@ const FOUND: Readonly<
   },
   // (cells' 2/4, one of the band's meters since #652, and its oom-pah, a note on every pulse, since #650)
   March: {
-    meter: 'meter(grouping=meter("2/4"))',
+    meter: 'bar(meter="2/4")',
     mode: 'ionian',
     rhythm: 'march_drums',
     bass: 'oom_pah_bass',
     swing: '16n 0.500',
   },
   'Trip-hop': {
-    meter: 'meter',
+    meter: 'bar',
     mode: 'aeolian',
     rhythm: 'trip_hop_drums',
     bass: 'dub_bass',

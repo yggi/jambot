@@ -25,7 +25,7 @@ import type { MemoryView } from './hud.ts';
 const section = (index: number, over: Partial<TakenSection> = {}): TakenSection => ({
   index,
   section: 'Groove',
-  meter: 'meter(swing=8n:2/3)',
+  meter: 'swing_meter',
   rhythm: 'lo_fi_hip_hop_drums',
   clave: null,
   ...over,
@@ -125,7 +125,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
       playing: true,
       source: 'seed',
     });
-    expect(byName(all, 'meter(swing=8n:2/3)')).toMatchObject({
+    expect(byName(all, 'swing_meter')).toMatchObject({
       role: 'meter',
       sections: 2,
       playing: false,
@@ -136,7 +136,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
     expect(all.map((r) => r.name)).toEqual([
       'lo_fi_hip_hop_drums',
       '3/4',
-      'meter(swing=8n:2/3)',
+      'swing_meter',
       'bossa_nova_clave',
     ]);
   });
@@ -253,7 +253,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
 
   it('lists what each fragment was used together with, the most first', () => {
     const together = [
-      { ids: ['meter(swing=8n:2/3)', 'lo_fi_hip_hop_drums'] as const, count: 4 },
+      { ids: ['swing_meter', 'lo_fi_hip_hop_drums'] as const, count: 4 },
       { ids: ['lo_fi_hip_hop_drums', 'bossa_nova_clave'] as const, count: 6 },
       { ids: ['3/4', 'funk_drums'] as const, count: 2 },
     ];
@@ -263,7 +263,7 @@ describe('the fragments, as rows (`fragmentRows`)', () => {
     );
     expect(row.together).toEqual([
       { id: 'bossa_nova_clave', count: 6 },
-      { id: 'meter(swing=8n:2/3)', count: 4 },
+      { id: 'swing_meter', count: 4 },
     ]);
   });
 
@@ -296,7 +296,7 @@ describe('the filters', () => {
       shownRows(all, filter).map((r) => r.name);
     expect(names('all')).toHaveLength(all.length);
     expect(names('filed')).toEqual(['drummer song 1, bar 8', 'Ada song 1, bar 16']);
-    expect(names('retrieved')).toEqual(['meter(swing=8n:2/3)', 'drummer song 1, bar 8']);
+    expect(names('retrieved')).toEqual(['swing_meter', 'drummer song 1, bar 8']);
     expect(names('muse')).toEqual(['Ada song 1, bar 16', "Ada's keys, bar 12"]);
   });
 
@@ -342,7 +342,7 @@ describe('the composer’s workbench, in mind (#443)', () => {
       retrieved: false,
       filed: false,
     });
-    expect(row('meter(swing=8n:2/3)')).toMatchObject({ mind: false, weight: null, lineage: null });
+    expect(row('swing_meter')).toMatchObject({ mind: false, weight: null, lineage: null });
     expect(shownRows(all, 'mind').map((r) => r.name)).toEqual([
       'lo_fi_hip_hop_drums',
       'Ada song 1, bar 16',

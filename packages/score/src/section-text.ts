@@ -7,9 +7,9 @@
  * who plays it, on what, or where it goes out:
  *
  * - the host's lines, stated once, each taken by its `from` line from the
- *   fragment it is (#531, yggi/cells#714): the meter from cells' `meter`
- *   template with the section's tempo and swing (`&bar from
- *   meter(swing=16n:.65) 84bpm`, which plays `&bar meter("4/4") step=84bpm
+ *   fragment it is (#531, yggi/cells#714): the meter from cells' `bar`
+ *   template with the section's tempo and swing (`&bar swing=16n:.65 from
+ *   bar 84bpm`, which plays `&bar meter("4/4") step=84bpm
  *   swing=16n:.65`) and the key from its mode fragment (`&key from
  *   diatonic(mode=aeolian) A`, which plays `scale(aeolian, A)`); the plan
  *   holds both, and the melodic scale, for the section's bars, so each is one
@@ -171,16 +171,19 @@ export const keyLine = (key: ScoreKey) =>
   });
 
 /**
- * The meter as the score takes it (#531): cells' `meter` template, its grouping where it isn't the template's 4/4 and its
- * swing where it swings, the tempo its main argument, `&bar from meter(swing=16n:.6) 104bpm`, which plays `&bar
- * meter("4/4") step=104bpm swing=16n:.6`. Where the composer took a meter from the repository, this is that fragment.
+ * The meter as the score takes it (#531): cells' `bar` template (yggi/cells decision 103), its meter where it isn't the
+ * template's 4/4 and its swing on the head where it swings, the tempo its main argument, `&bar swing=16n:.6 from bar
+ * 104bpm`, which plays `&bar meter("4/4") step=104bpm swing=16n:.6`, as the composer's meter fragment plays it.
  */
 export function meterLine(meter: string, bpm: number, swing: string): string {
-  const args = [
-    ...(meter === '4/4' ? [] : [{ name: 'grouping', value: `meter("${meter}")` }]),
-    ...(swing ? [{ name: 'swing', value: swing.replace(/^ swing=/, '') }] : []),
-  ];
-  return fromLine({ names: ['&bar'], id: 'meter', args, main: `${bpm}bpm` });
+  const swung = swing.replace(/^ swing=/, '');
+  return fromLine({
+    names: ['&bar'],
+    ...(swung ? { head: [`swing=${swung}`] } : {}),
+    id: 'bar',
+    ...(meter === '4/4' ? {} : { args: [{ name: 'meter', value: `"${meter}"` }] }),
+    main: `${bpm}bpm`,
+  });
 }
 
 /** A degree as a cells number writes it: the accidental after it (`6#`, `3bb`), as decision 033 reads. */

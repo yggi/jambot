@@ -22,7 +22,7 @@ const LEARNED = {
   filed: [],
   points: [
     {
-      id: 'meter(grouping=meter("5/4"))',
+      id: 'odd_meter',
       point: { sync: 0.3, harm: 0.4, bite: 0.6 },
       weight: 1.1,
       facet: 'meter',

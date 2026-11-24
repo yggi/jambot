@@ -1975,7 +1975,7 @@ describe('the band through cells (#399, #469)', () => {
     const sections = hosting.told.sections;
     expect(sections).toHaveLength(readout.texts.told);
     expect(sections.map((t) => t.bar)).toEqual([0, 8, 16, 24]);
-    expect(sections.every((t) => t.text.split('\n')[1]!.startsWith('&bar from meter'))).toBe(true);
+    expect(sections.every((t) => t.text.split('\n')[1]!.startsWith('&bar from bar'))).toBe(true);
     // A client joining now is given the texts that state a bar not yet played.
     const hosted = hosting.player.hosted!;
     const first = hosted.bars[0]!.bar.bar;
@@ -2043,7 +2043,7 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
     // the meter's use, the rhythm's that fits it (#397), the bass line's (#423), and the lead line's, cells' motif (#520)
     expect(saved.map((l) => l.points.map((p) => [p.id, p.weight]))).toEqual([
       [
-        ['meter', 1.1],
+        ['bar', 1.1],
         ['synth_pop_drums', 1.1],
         ['root_bass', 1.1],
         ['hook', 1.1],
@@ -2051,7 +2051,7 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
         ['axis_progression', 0.5],
       ],
       [
-        ['meter', 1.2],
+        ['bar', 1.2],
         ['synth_pop_drums', 1.2],
         ['root_bass', 1.2],
         ['hook', 1.2],

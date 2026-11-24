@@ -4,6 +4,7 @@ import {
   RETIRED_LEAD_VOICE,
   RHYTHM_REPOSITORY,
   leadRepository,
+  repositoryLayerProblems,
 } from '@jambot/engine';
 import { METERS } from '@jambot/theory';
 import { describe, expect, it } from 'vitest';
@@ -22,19 +23,19 @@ const LEARNED: LearnedLayer = {
   filed: [],
   points: [
     {
-      id: 'meter(swing=16n:.65)',
+      id: 'lofi_meter',
       point: { sync: 0.5, harm: 0.75, bite: 0.35 },
       weight: 1.2,
       facet: 'meter',
     },
     {
-      id: 'meter(grouping=meter("5/4"))',
+      id: 'odd_meter',
       point: { sync: 0.3, harm: 0.4, bite: 0.6 },
       weight: 1.1,
       facet: 'meter',
     },
   ],
-  together: [{ ids: ['meter', 'meter(grouping=meter("5/4"))'], count: 3 }],
+  together: [{ ids: ['bar', 'odd_meter'], count: 3 }],
 };
 
 /** A slot in memory, with every warning a store gave. */
@@ -89,6 +90,35 @@ describe('the learned layer a host keeps (#398)', () => {
     }
   });
 
+  it('reads a layer kept before cells v0.30.0 with its meters named as cells names them now, which it would refuse as kept (#751)', () => {
+    // (kept at cells v0.29.0: each meter a variant of the one template `meter`, and a groove variation's bench one)
+    const before = {
+      filed: [],
+      points: [
+        { ...LEARNED.points[0]!, id: 'meter(swing=16n:.65)' },
+        { ...LEARNED.points[1]!, id: 'meter(grouping=meter("5/4"))' },
+      ],
+      together: [
+        { ids: ['meter', 'meter(grouping=meter("5/4"))'], count: 2 },
+        { ids: ['meter', 'meter(swing=16n:31/60)'], count: 4 },
+        { ids: ['meter(swing=16n:31/60)', 'meter(grouping=meter("5/4"))'], count: 1 },
+        { ids: ['meter(swing=16n:.6)', 'funk_drums'], count: 5 },
+      ],
+    };
+    // (as kept, cells refuses it whole: a pair out of the order its ids now take)
+    expect(repositoryLayerProblems(before)).not.toEqual([]);
+    const read = readLayerText(layerText(before as unknown as LearnedLayer));
+    expect(read.problem).toBeNull();
+    expect(read.layer).toEqual({
+      ...LEARNED,
+      // (`meter` and Ambient's lean are both `bar` now: their pair is gone, and the two pairs with 5/4 are one)
+      together: [
+        { ids: ['bar', 'odd_meter'], count: 3 },
+        { ids: ['funk_meter', 'funk_drums'], count: 5 },
+      ],
+    });
+  });
+
   it('reads a layer kept before #580, its lead lines carrying the lead’s voice and card, with the lines alone', () => {
     const filed = leadRepository().file!(EMPTY_LAYER, {
       // (a line no seed motif plays: one that is a seed's is a use of it, not filed, #553)
@@ -97,7 +127,7 @@ describe('the learned layer a host keeps (#398)', () => {
         { step: 4, degree: 3, alter: 0 },
         { step: 8, degree: 1, alter: 0 },
       ],
-      bench: { meter: METERS['4/4'], meterFragment: 'meter' },
+      bench: { meter: METERS['4/4'], meterFragment: 'bar' },
       point: { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 },
       source: 'Ada',
       created: 'song 1, bar 0',
@@ -151,7 +181,7 @@ describe('the learned layer a host keeps (#398)', () => {
           filed: [
             {
               fragment: {
-                id: 'meter',
+                id: 'bar',
                 text: '&bar meter("4/4")',
                 association: [{ point: { sync: 0.5 }, weight: 0.1 }],
               },
@@ -161,7 +191,7 @@ describe('the learned layer a host keeps (#398)', () => {
           ],
         },
       }),
-      "the layer files meter, a seed fragment's id",
+      "the layer files bar, a seed fragment's id",
     ],
   ])('loads %s as the empty layer, with one warning that says why', async (_, text, why) => {
     const { store, warnings } = slot(text);
@@ -185,7 +215,7 @@ describe('the learned layer a host keeps (#398)', () => {
 });
 
 describe('a layer kept with its groove variations by reference (#553)', () => {
-  const FOUR = { meter: METERS['4/4'], meterFragment: 'meter' };
+  const FOUR = { meter: METERS['4/4'], meterFragment: 'bar' };
   const v = RHYTHM_REPOSITORY.vary!('techno_drums', FOUR, 0.5)!;
   const VARIED = RHYTHM_REPOSITORY.file!(EMPTY_LAYER, {
     hits: v.hits,

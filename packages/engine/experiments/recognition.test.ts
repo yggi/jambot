@@ -19,14 +19,16 @@ describe('repetition heard by the Muse, E20 and #204 H8 (#204, Q12)', () => {
 describe('the cells of the lead’s phrases, E20 and #207 M1 (#207, Q12)', () => {
   it('hears the shape the lead returns to, but its variations, fitted to the chords, rarely as an exact operator on it (Q12)', () => {
     const lead = leadCells();
-    // (385 phrases, all joined, 1155 later, 443 repeated, 45 under an operator, 240 of A B A C before #655's song forms)
+    // (385 phrases, all joined, 1155 later, 443 repeated, 45 under an operator, 240 of A B A C before #655's song forms;
+    // 352, 352, 1056, 366 repeated and 220 of A B A C before cells v0.30.0, whose jazz solos play hotter and without the
+    // pad)
     expect(lead).toMatchObject({
-      phrases: 352,
-      joined: 352,
-      later: 1056,
-      repeated: 366,
+      phrases: 354,
+      joined: 354,
+      later: 1062,
+      repeated: 365,
       underOp: 42,
     });
-    expect(lead.orders[0]).toEqual(['A B A C', 220]);
+    expect(lead.orders[0]).toEqual(['A B A C', 214]);
   });
 });

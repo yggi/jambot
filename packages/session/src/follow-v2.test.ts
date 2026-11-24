@@ -220,7 +220,7 @@ describe('what a score states of each of its bars, as a client reads it', () => 
     bar: 8,
     step: 128,
     section: 'groove',
-    text: '&bar from meter 104bpm',
+    text: '&bar from bar 104bpm',
     unstated: null,
     lock: [],
     fragments: [],

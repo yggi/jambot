@@ -117,9 +117,10 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
     );
+    // (Techno 0.81 before cells v0.30.0)
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0.88,
-      Techno: 0.81,
+      Techno: 0.82,
       'Deep house': 0.92,
       Ambient: 0.89,
       'Lo-fi hip hop': 0.66,
@@ -131,11 +132,11 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
 
   // (3,682 bytes before cells v0.24.0, whose grooves' lines write their roles, `role=kick`, and whose March drums Techno
   // turns to)
-  it(`keeps a layer of at most 1,865 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+  it(`keeps a layer of at most 1,847 bytes after an hour, each variation naming its operator (by, #442), under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
     // (3,860 before the layer kept the composer's groove variations by reference, as a host keeps it, #553; 2,577
     // before the ostinato on top of cells v0.25.1, #651, where Funk's drummer no longer files its own once tired of Funk's, which now plays Salsa drums; 1,954 before #655's song forms; 1,866 before cells v0.27.1; 1,867 before cells v0.29.0; 1,869 before the station's mixes, #547 step 2, whose groove mixes leave a song's drum bar for the next nearest, which the composer varies in turn)
-    // (2,086 with the key and groove mixes alone, step 2a)
-    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(1865);
+    // (2,086 with the key and groove mixes alone, step 2a; 1,865 before cells v0.30.0, whose meters' ids are shorter)
+    expect(Math.max(...CLIMBING.map((r) => layerBytes(r.learning!.layer)))).toBe(1847);
     // (3 grooves filed at most before cells v0.29.0)
     expect(Math.max(...CLIMBING.map((r) => r.learning!.layer.filed.length))).toBe(2);
   });

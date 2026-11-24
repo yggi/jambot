@@ -44,7 +44,21 @@ const walkedOf = (bar: Theme['bars'][number]) => {
 
 describe('themes', () => {
   it('are A for grooves and drops, B for contrast, and their own for a build; a song form’s verse A and its chorus B, so each comes back as it was (#655)', () => {
-    expect(SECTION_TYPES.map(themeKind)).toEqual(['A', 'A', 'B', 'build', 'A', 'B', 'A', 'B', 'A']);
+    // (cells v0.30.0's solo, coro and mambo A, as a groove: which theme salsa's coro plays is not ruled yet)
+    expect(SECTION_TYPES.map(themeKind)).toEqual([
+      'A',
+      'A',
+      'B',
+      'build',
+      'A',
+      'B',
+      'A',
+      'B',
+      'A',
+      'A',
+      'A',
+      'A',
+    ]);
   });
 
   it('are eight bars of slots for their section, kind, mode and harmony, each bar starting on a degree, with at most one more on step 8', () => {

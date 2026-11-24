@@ -17,15 +17,18 @@ import { kindOffset, songFormAt, songSections } from './section-kinds.ts';
 import type { Style } from './style.ts';
 import { SECTION_KINDS, SECTION_TYPES as FEEL_SECTIONS } from '@yggi/cells/library';
 
-/** The three kinds a song form adds to the chain's six (yggi/cells#814), which cells lists only as strings (`SECTION_KINDS`). */
-type SongKind = 'verse' | 'chorus' | 'outro';
+/**
+ * The kinds a song form adds to the chain's six (yggi/cells#814; `solo`, `coro` and `mambo` since cells v0.30.0), which
+ * cells lists only as strings (`SECTION_KINDS`).
+ */
+type SongKind = 'verse' | 'chorus' | 'outro' | 'solo' | 'coro' | 'mambo';
 
 /** A section's kind: one of the feel's six (cells' `SECTION_TYPES`), the chain's, or one a song form adds. */
 export type SectionType = (typeof FEEL_SECTIONS)[number] | SongKind;
 
 /**
  * Every kind of section, cells' library's (`SECTION_KINDS`): the chain's six, as the feel frames them (cells'
- * `SECTION_TYPES`), then the three a song form adds, a verse, a chorus and an outro, in the library's order.
+ * `SECTION_TYPES`), then those a song form adds (a verse, a chorus, an outro, a solo, a coro and a mambo), in the library's order.
  */
 export const SECTION_TYPES: readonly SectionType[] = [
   ...FEEL_SECTIONS,
@@ -73,6 +76,9 @@ const FOLLOWERS: Record<SectionType, readonly SectionType[]> = {
   verse: ['groove', 'bridge', 'build'],
   chorus: ['groove', 'bridge', 'build'],
   outro: ['intro'],
+  solo: ['groove', 'bridge', 'build'],
+  coro: ['groove', 'bridge', 'build'],
+  mambo: ['groove', 'bridge', 'build'],
 };
 
 /** How strongly each kind is wanted next, by energy and entropy. An intro only starts a song. */
@@ -93,6 +99,9 @@ const appeal = (type: SectionType, energy: number, entropy: number): number => {
     case 'verse':
     case 'chorus':
     case 'outro':
+    case 'solo':
+    case 'coro':
+    case 'mambo':
       return 0;
   }
 };

@@ -141,7 +141,8 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
           }),
         );
     // (A and B both from the seeds: the three that vamp, and Blues shuffle, whose B draws another of its three equals;
-    // and the three whose song form is strophic, verse after verse, which play A alone: #655)
+    // and the three whose song form is strophic, verse after verse, which play A alone: #655; and Salsa, whose song form
+    // since cells v0.30.0, `son_montuno`, holds no section that plays B: its verses, coros and mambo play A)
     expect(PRESETS.filter((p) => fromSeed(p.name)).map((p) => p.name)).toEqual([
       'Techno',
       'Ambient',
@@ -149,6 +150,7 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
       'Kinderlied',
       'Blues shuffle',
       'Sea shanty',
+      'Salsa',
       'Waltz',
     ]);
     // (above the vamps, A is what cells placed and B the tables', for contrast, where nothing else is equally near)
@@ -324,7 +326,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
   const point = stylePoint(writtenStyle({ ...SYNTH_POP.style, entropy: 1 }));
   const seeded = AWAY.file!(EMPTY_LAYER, {
     notes: ADA,
-    bench: { meter: METERS['4/4'], meterFragment: 'meter' },
+    bench: { meter: METERS['4/4'], meterFragment: 'bar' },
     point,
     source: 'Ada',
     created: 'song 0, bar 0',
@@ -359,7 +361,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
       index: 0,
     };
     const key = { tonic: 9, mode: 'aeolian' } as const;
-    const bench = { meter: METERS['4/4'], meterFragment: 'meter' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'bar' };
     const none = { A: null, B: null };
     expect(sectionTheme(env, 'A', key, bench, none, none).fragment).toBe(seeded.id);
     // (and each of cells' harmonies, since cells v0.25.0 places some within reach of Synth-pop at entropy 1)

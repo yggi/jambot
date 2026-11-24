@@ -69,7 +69,8 @@ describe('the Playing tree (#642)', () => {
 
   it('reads a section from the ground: each part under what it is taken on, the clave in its drums', () => {
     expect(drawn(playingRows(funk.text, funk.outline, 'ground'))).toEqual([
-      'bar meter',
+      // (the meter from cells' `bar` since cells v0.30.0, `meter` before: decision 103)
+      'bar bar',
       '  drums -',
       '    clave rumba_clave_3_2',
       // (the lead's row starts at the motif it takes, `* from riff &key`, before the pad's line)
@@ -92,7 +93,8 @@ describe('the Playing tree (#642)', () => {
     const rows = playingRows(funk.text, funk.outline, 'ground');
     const row = (label: string) => rows.find((r) => r.label === label)!;
     expect(row('bass').on).toEqual(['bass_performer', 'bass']);
-    expect(row('bar').args).toBe('swing=16n:.6, tempo=104bpm');
+    // (the swing on the bar's head since cells v0.30.0, `&bar swing=16n:.6 from bar 104bpm`, where it was an argument)
+    expect(row('bar').args).toBe('tempo=104bpm');
     expect(row('key').args).toBe('mode=dorian, tonic=D');
     const lines = funk.text.split('\n');
     expect(row('clave').lines.map((n) => lines[n - 1])).toEqual(['&clave from rumba_clave_3_2']);
@@ -115,7 +117,7 @@ describe('the Playing tree (#642)', () => {
       '    bass_performer bass_performer',
       '      bass -',
       '        harm vamp_to_the_seventh',
-      '          bar meter',
+      '          bar bar',
       '          key diatonic',
     ]);
   });

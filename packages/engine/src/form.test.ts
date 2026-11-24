@@ -28,7 +28,7 @@ const run = (seed: number, styleOf: (index: number) => Style, sections = 64, mac
 };
 
 describe('the chain, the generator on a miss', () => {
-  it('has six kinds of section of its own, and a song form adds three, eight bars each', () => {
+  it('has six kinds of section of its own, and a song form adds six, eight bars each', () => {
     // The prototype calls the bridge "shift", which is the theory's word for a
     // transposition.
     expect(SECTION_TYPES).toEqual([
@@ -41,6 +41,9 @@ describe('the chain, the generator on a miss', () => {
       'verse',
       'chorus',
       'outro',
+      'solo',
+      'coro',
+      'mambo',
     ]);
     // (cells’ own: the feel’s six, then the library’s other kinds, #737)
     expect(SECTION_TYPES.slice(0, 6)).toEqual(FEEL_SECTIONS);
@@ -73,6 +76,9 @@ describe('the chain, the generator on a miss', () => {
       verse: ['groove', 'bridge', 'build'],
       chorus: ['groove', 'bridge', 'build'],
       outro: ['intro'],
+      solo: ['groove', 'bridge', 'build'],
+      coro: ['groove', 'bridge', 'build'],
+      mambo: ['groove', 'bridge', 'build'],
     };
     for (const type of SECTION_TYPES)
       for (const energy of grid)
@@ -143,7 +149,7 @@ describe('barEnergy', () => {
   it('shapes the style’s energy by the section', () => {
     const at = (type: SectionType, bar = 0) => +barEnergy(0.5, type, bar).toFixed(12);
     expect(SECTION_TYPES.map((t) => at(t))).toEqual([
-      0.2, 0.5, 0.4, 0.35, 0.8, 0.05, 0.4, 0.65, 0.5,
+      0.2, 0.5, 0.4, 0.35, 0.8, 0.05, 0.4, 0.65, 0.5, 0.55, 0.7, 0.75,
     ]);
   });
 

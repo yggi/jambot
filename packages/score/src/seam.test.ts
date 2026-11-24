@@ -414,7 +414,8 @@ describe('the seam, over the bars the band writes', () => {
         else stabs += hits.length;
       }
     }
-    expect(pads).toBeGreaterThan(1900);
+    // (1,734 pads; over 1,900 before cells v0.30.0, whose jazz solos rest the pad)
+    expect(pads).toBeGreaterThan(1700);
     expect(stabs).toBeGreaterThan(1000);
   });
 

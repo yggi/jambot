@@ -49,7 +49,7 @@ describe('the cells card', () => {
   it('opens on what the band plays: the section heard as a tree, from the ground or, switched, from the outputs (#642)', async () => {
     const text = [
       '&harm, &key from',
-      '&bar from meter 120bpm',
+      '&bar from bar 120bpm',
       '&key from diatonic(mode=aeolian) A',
       '&style label="groove" style=&(map=style .5 .5 .5 .5)',
       '&harm over=&key step=1m [0,2,4] [5,7,9]',
@@ -81,7 +81,7 @@ describe('the cells card', () => {
   it('says how each part came, joined to the Library, and opens its fragment beside its lines (#730), read off the score on a host and a client alike (#731)', async () => {
     const text = [
       '&harm, &key from',
-      '&bar from meter 120bpm',
+      '&bar from bar 120bpm',
       '&key from diatonic(mode=aeolian) A',
       '&harm over=&key step=1m [0,2,4]',
       '&kick role=kick step=16n &bd:0:.4 ~ ~ ~',
@@ -128,7 +128,7 @@ describe('the cells card', () => {
     const at = (tonic: string, motif?: string) => {
       const lead = motif ? `&${motif}` : '&leadline';
       const text = [
-        '&bar from meter 120bpm',
+        '&bar from bar 120bpm',
         `&key from diatonic(mode=aeolian) ${tonic}`,
         ...(motif ? [`* from ${motif} &key`] : []),
         `${lead} part=lead over=&key step=4n 0 2 4 2`,

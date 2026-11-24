@@ -16,7 +16,8 @@
  * to the same layer (`rebuiltLayer`) and writes back to the same text, byte
  * for byte. A record of version 1, each text written out, reads as it did. A
  * reference that can't be rebuilt (its source moved at another cells pin) is
- * left out and named (`dropped`), never played otherwise than it was filed. A text that
+ * left out and named (`dropped`), never played otherwise than it was filed. A meter a layer
+ * kept under an id cells v0.30.0 renamed is read under its new one (`meterIdsRenamed`, #751). A text that
  * isn't one (not JSON, another format, another version, a layer a query
  * would refuse, `repositoryLayerProblems`) reads as the empty layer with its
  * problem (`readLayerText`): a store warns once and the band starts from
@@ -27,6 +28,7 @@ import {
   EMPTY_LAYER,
   type LearnedLayer,
   keptLayer,
+  meterIdsRenamed,
   rebuiltLayer,
   repositoryLayerProblems,
   storedLayer,
@@ -79,12 +81,14 @@ export function readLayerText(text: string | null): LayerRead {
     return wrong(`it is not a ${LAYER_FORMAT}`);
   if (!READ_VERSIONS.includes(record.version))
     return wrong(`its version, ${String(record.version)}, is not ${READ_VERSIONS.join(' or ')}`);
+  // (its meters named as cells names them now, before a groove's bench is rebuilt or the pairs' order checked, #751)
+  const kept = meterIdsRenamed(record.layer);
   // (a reference's text given back before the layer is checked, which asks every fragment for its text)
-  const filed = isRecord(record.layer) && Array.isArray(record.layer.filed);
+  const filed = isRecord(kept) && Array.isArray(kept.filed);
   const rebuilt =
     record.version === LAYER_VERSION && filed
-      ? rebuiltLayer(record.layer as LearnedLayer)
-      : { layer: record.layer, dropped: [] };
+      ? rebuiltLayer(kept as unknown as LearnedLayer)
+      : { layer: kept, dropped: [] };
   const problems = repositoryLayerProblems(rebuilt.layer);
   if (problems.length) return wrong(problems.join('; '));
   // (a layer kept before cells v0.16.0 names the seed's old ids, #558, and one kept before #580 carries the lead's voice)

@@ -97,7 +97,8 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       'Synth-pop 4/4': '&bar meter("4/4") step=108bpm',
       'Techno 4/4': '&bar meter("4/4") step=130bpm',
       'Deep house 4/4': '&bar meter("4/4") step=122bpm swing=16n:.6',
-      'Ambient 4/4': '&bar meter("4/4") step=72bpm swing=16n:31/60',
+      // (Ambient's swung 16n:31/60 before cells v0.30.0, whose 4/4 is straight there, yggi/cells decision 103)
+      'Ambient 4/4': '&bar meter("4/4") step=72bpm',
       'Lo-fi hip hop 4/4': '&bar meter("4/4") step=84bpm swing=16n:.65',
       'Funk 4/4': '&bar meter("4/4") step=104bpm swing=16n:.6',
       'Bossa nova 4/4': '&bar meter("4/4") step=132bpm',
@@ -129,13 +130,14 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     expect(equal).toEqual({ drums: 384, bass: 384, comp: 384, harmony: 378 }); // (380 before #655's song forms)
     const notes = MEASURED.reduce((n, m) => n + m.played.notes.length, 0);
     expect(notes).toBe(MEASURED.reduce((n, m) => n + composedNotes(m.bar).length, 0));
-    expect(notes).toBe(7047); // (7,478 before #655's song forms)
+    // (7,478 before #655's song forms; 7,047 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without the pad, and whose Ambient 4/4 is straight)
+    expect(notes).toBe(6970);
   });
 
-  it('places every onset within 1 ms of the transport, the 5 swung presets with their swing on &bar among them', () => {
+  it('places every onset within 1 ms of the transport, the 4 swung presets with their swing on &bar among them', () => {
     expect(
       PROTOTYPE_PRESETS.filter((p) => swung({ preset: p.name, meter: '4/4' })).map((p) => p.name),
-    ).toEqual(['Deep house', 'Ambient', 'Lo-fi hip hop', 'Funk', 'Swing jazz']);
+    ).toEqual(['Deep house', 'Lo-fi hip hop', 'Funk', 'Swing jazz']); // (and Ambient before cells v0.30.0)
     for (const row of TABLE) {
       const notes = MEASURED.filter(
         (m) => m.run.preset === row.preset && m.run.meter === row.meter,
@@ -143,20 +145,20 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
       expect(row.timed, `${row.preset} ${row.meter}`).toBe(notes);
       expect(row.within1ms, `${row.preset} ${row.meter}`).toBe(notes);
     }
-    // (7,478 and 3,411 before #655's song forms)
-    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(7047);
-    expect(TABLE.filter((row) => swung(row)).reduce((n, row) => n + row.timed, 0)).toBe(2999);
+    // (7,478 and 3,411 before #655's song forms; 7,047 and 2,999 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without the pad, and whose Ambient 4/4 is straight)
+    expect(TABLE.reduce((n, row) => n + row.timed, 0)).toBe(6970);
+    expect(TABLE.filter((row) => swung(row)).reduce((n, row) => n + row.timed, 0)).toBe(2752);
     // Both count the meter's beats (#367), and cells' swing places Jambot's (yggi/cells#18), so only rounding is left.
     for (const row of TABLE) expect(row.largest, `${row.preset} ${row.meter}`).toBeLessThan(1e-12);
   });
 
-  it('states the bass and the comp over the chord in force, `over=&harm`, in 741 of their 764 lines, 686 of them with whole indices alone (#387)', () => {
+  it('states the bass and the comp over the chord in force, `over=&harm`, in 705 of their 729 lines, 650 of them with whole indices alone (#387)', () => {
     const lines = MEASURED.flatMap((m) => m.text.pitched.map((p) => ({ m, p })));
     const over = (x: (typeof lines)[number]) => x.p.table;
-    // (802, 781 and 720 before #655's song forms)
-    expect(lines).toHaveLength(764);
-    expect(lines.filter((x) => over(x) === 'harm')).toHaveLength(741);
-    expect(lines.filter((x) => over(x) === 'harm' && x.p.accidentals === 0)).toHaveLength(686);
+    // (802, 781 and 720 before #655's song forms; 764, 741 and 686 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without the pad, and whose Ambient 4/4 is straight: the pad rests in the solos)
+    expect(lines).toHaveLength(729);
+    expect(lines.filter((x) => over(x) === 'harm')).toHaveLength(705);
+    expect(lines.filter((x) => over(x) === 'harm' && x.p.accidentals === 0)).toHaveLength(650);
     // Each line as the text has it: over the harmony, or over the key with the notes no index reaches.
     for (const m of MEASURED)
       for (const p of m.text.pitched) {
@@ -168,14 +170,15 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     const accidentals = (part: string) =>
       lines.filter((x) => x.p.part === part).reduce((n, x) => n + x.p.accidentals, 0);
     expect(['bass', 'pad', 'stab'].map(accidentals)).toEqual([29, 0, 57]);
-    // The 23 lines over the key (21 before #655's song forms) are Swing jazz's walking bass: 29 notes off the key (25), each a semitone from the root of
+    // The 24 lines over the key (21 before #655's song forms, 23 before cells v0.30.0) are Swing jazz's walking bass and,
+    // since cells v0.30.0's solos, one of Bossa nova's stabs in 7/8: 30 notes off the key (25; 29), each a semitone from the root of
     // the chord that sounds next (the bar's next, or the next bar's first), and off the chord sounding. An accidental on
     // an index moves a degree of the key (cells decision 015), so no index into a chord names a step of the 12 that
     // none of its tones carries.
     const kept = lines.filter((x) => over(x) === 'key');
-    expect(kept).toHaveLength(23);
+    expect(kept).toHaveLength(24);
     expect(new Set(kept.map((x) => `${x.m.run.preset} ${x.m.run.meter} ${x.p.part}`))).toEqual(
-      new Set(['Swing jazz 4/4 bass']),
+      new Set(['Swing jazz 4/4 bass', 'Bossa nova 7/8 stab']),
     );
     const swingJazz = run('Swing jazz');
     const approaches = kept.flatMap(({ m, p }) =>
@@ -190,7 +193,7 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
         };
       }),
     );
-    expect(approaches).toHaveLength(29);
+    expect(approaches).toHaveLength(30);
     expect(approaches.every((a) => a.offKey && a.semitone)).toBe(true);
     // Witness: Swing jazz's bar 0, Imaj9 in C, the bass's last note G♭2 (42) leading to IVmaj7's F; written over the key.
     const w = at('Swing jazz', '4/4', 0);
@@ -206,56 +209,60 @@ describe('the band writes a whole bar as one cells text (E33)', () => {
     );
   });
 
-  it('counts the characters of every part, the bass and the comp over the chord in force 683 more than over the key (#387)', () => {
+  it('counts the characters of every part, the bass and the comp over the chord in force 643 more than over the key (#387)', () => {
     // (305,740 in all before #655's song forms: the harmony 12,921, the drums 154,249, the bass 54,278, the comp 44,287
     // and the card 17,701; 291,814 in all and the drums 146,522 before the drummer wrote the rim's metric accent, #749,
-    // which a line of levels states)
+    // which a line of levels states; 297,848, the meter 13,664, the drums 152,556, the bass 53,055, the comp 39,637 and the
+    // card 17,334 before cells v0.30.0, whose jazz song form plays its solos as the kind `solo`, 0.05 hotter and without
+    // the pad, and whose Ambient bar states no swing)
     expect(characters(MEASURED)).toEqual({
-      total: 297848,
-      meter: 13664,
+      total: 295075,
+      meter: 13152,
       key: 8640,
       harmony: 12962,
-      drums: 152556,
-      bass: 53055,
-      comp: 39637,
-      card: 17334,
+      drums: 153473,
+      bass: 53065,
+      comp: 36798,
+      card: 16985,
     });
     // The same bars with the bass and the comp over the key, as E33 stated them before cells v0.5.0: the harmony
-    // stated again in the comp, and 683 characters fewer (52,993 + 39,016 + 12,962 = 104,971 against 105,654; 716
+    // stated again in the comp, and 643 characters fewer (53,003 + 36,217 + 12,962 = 102,182 against 102,825; 683 fewer,
+    // 52,993 + 39,016 + 12,962 = 104,971 against 105,654, before cells v0.30.0, whose jazz solos rest the pad; 716
     // before #655's song forms, 54,221 + 43,628 + 12,921 = 110,770 against 111,486).
     const overKey = [...RUN_OF.values()].flatMap((r) =>
       r.bars.map((bar) => ({ text: barAsCells(bar, { table: 'key' }) })),
     );
-    // (291,131 before the drummer wrote the rim's metric accent, #749)
+    // (291,131 before the drummer wrote the rim's metric accent, #749; 297,165 before cells v0.30.0)
     expect(characters(overKey)).toMatchObject({
-      total: 297165,
+      total: 294432,
       harmony: 12962,
-      bass: 52993,
-      comp: 39016,
+      bass: 53003,
+      comp: 36217,
     });
     const levels = MEASURED.reduce(
       (n, m) => n + (textOf(m.text).match(/:0:[.\d]+/g) ?? []).join('').length,
       0,
     );
-    expect(levels).toBe(38816); // (41,982 before #655's song forms)
+    expect(levels).toBe(39561); // (41,982 before #655's song forms; 38,816 before cells v0.30.0's solos)
     expect(
       Object.fromEntries(TABLE.map((row) => [`${row.preset} ${row.meter}`, row.characters.total])),
     ).toEqual({
       // (26,022, 27,643, 26,964, 16,072, 27,532, 36,367, 25,730, 27,038, 23,543, 23,084, 22,699 and 23,046 before #655's
       // song forms; Bossa nova's 25,728, 23,406 and 22,993 before the drummer wrote the rim's metric accent, #749, a line of
-      // levels where its rim is a Euclid)
+      // levels where its rim is a Euclid; Ambient's 14,085, Bossa nova's 27,806, 25,340 and 25,015 and Swing jazz's 27,304
+      // before cells v0.30.0, whose jazz song form plays its solos as the kind `solo` and whose Ambient is straight)
       'Synth-pop 4/4': 24703,
       'Techno 4/4': 28000,
       'Deep house 4/4': 22806,
-      'Ambient 4/4': 14085,
+      'Ambient 4/4': 13573,
       'Lo-fi hip hop 4/4': 22014,
       'Funk 4/4': 35811,
-      'Bossa nova 4/4': 27806,
-      'Swing jazz 4/4': 27304,
+      'Bossa nova 4/4': 27393,
+      'Swing jazz 4/4': 26348,
       'Synth-pop 3/4': 22405,
       'Synth-pop 7/8': 22559,
-      'Bossa nova 3/4': 25340,
-      'Bossa nova 7/8': 25015,
+      'Bossa nova 3/4': 24837,
+      'Bossa nova 7/8': 24626,
     });
   });
 
@@ -425,7 +432,8 @@ describe('what cells could not say (E33: the gaps)', () => {
         const k = `${m.run.preset} ${m.run.meter} ${w.part}`;
         shares.set(k, (shares.get(k) ?? new Set()).add(share.toFixed(4)));
       }
-    expect({ gated, all }).toEqual({ gated: 2017, all: 2766 }); // (2,242 and 2,979 before #655's song forms)
+    // (2,242 and 2,979 before #655's song forms; 2,017 and 2,766 before cells v0.30.0's solos, hotter and without the pad)
+    expect({ gated, all }).toEqual({ gated: 2026, all: 2619 });
     // Sounding its share, no note runs into its line's next onset, and 47 stabs (a share over 1; 46 before #655's song
     // forms) run past the bar line, whole in cells too.
     let into = 0;
@@ -512,7 +520,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     const lengths = (preset: string) =>
       MEASURED.filter((m) => m.run.preset === preset).flatMap((m) => m.lengths);
     const off = (preset: string) => lengths(preset).filter((l) => Math.abs(l.steps) > 1e-6);
-    expect(MEASURED.reduce((n, m) => n + m.lengths.length, 0)).toBe(2766); // (2,979 before #655's song forms)
+    expect(MEASURED.reduce((n, m) => n + m.lengths.length, 0)).toBe(2619); // (2,979 before #655's song forms; 2,766)
     expect(
       Object.fromEntries(
         PROTOTYPE_PRESETS.map((p) => [
@@ -525,15 +533,16 @@ describe('what cells could not say (E33: the gaps)', () => {
         ]),
       ),
     ).toEqual({
-      // (576, 394, 239, 155, 254, 413, 648 and 300 before #655's song forms)
+      // (576, 394, 239, 155, 254, 413, 648 and 300 before #655's song forms; Bossa nova's 580 and Swing jazz's 324 before
+      // cells v0.30.0's solos, without the pad)
       'Synth-pop': [485, 0, []],
       Techno: [412, 0, []],
       'Deep house': [212, 0, []],
       Ambient: [144, 0, []],
       'Lo-fi hip hop': [214, 0, []],
       Funk: [395, 0, []],
-      'Bossa nova': [580, 0, []],
-      'Swing jazz': [324, 0, []],
+      'Bossa nova': [493, 0, []],
+      'Swing jazz': [264, 0, []],
     });
     for (const l of MEASURED.flatMap((m) => m.lengths))
       expect(Math.abs(l.steps) > 1e-6).toBe(Math.abs(l.seconds) > 0.001);
@@ -555,7 +564,7 @@ describe('what cells could not say (E33: the gaps)', () => {
     expect(lean.written(lean.played(10) + 0.425 * 3.2) - 10).toBeCloseTo(1.2, 9);
   });
 
-  it('gap 2, what the chord in force leaves: a step of the 12 off the chord (Swing jazz’s 29 approach notes), the next chord (81 notes beside this one), and the hand (549 stacks of indices, 501 close)', () => {
+  it('gap 2, what the chord in force leaves: a step of the 12 off the chord (30 approach notes, Swing jazz’s 29), the next chord (83 notes beside this one), and the hand (511 stacks of indices, 466 close)', () => {
     const text = [
       '&bar meter("4/4") step=120bpm',
       '&key scale(aeolian, A)',
@@ -582,8 +591,9 @@ describe('what cells could not say (E33: the gaps)', () => {
         t[1]++;
         if (pitchClasses.has(w.note % 12)) t[0]++;
       }
-    // (868 of 927, 678 of 678 and 1,316 of 1,374 before #655's song forms)
-    expect(tones).toEqual({ bass: [839, 897], pad: [709, 709], stab: [1103, 1160] });
+    // (868 of 927, 678 of 678 and 1,316 of 1,374 before #655's song forms; 839 of 897, 709 of 709 and 1,103 of 1,160
+    // before cells v0.30.0's solos, hotter and without the pad)
+    expect(tones).toEqual({ bass: [840, 898], pad: [553, 553], stab: [1109, 1168] });
     // Off the chord: an accidental on an index is a degree of the key, so a step of the 12 that no tone of the chord
     // carries has no index. Swing jazz's bar 0: G♭2 (42), over the key `11b`, over Imaj9 none.
     const c = { tonic: 0, mode: 'ionian' as const };
@@ -593,8 +603,8 @@ describe('what cells could not say (E33: the gaps)', () => {
     expect(indexOf(c, imaj9, 42, 'bass')).toBeNull();
     // (G2 a semitone up is the chord's fifth a lap up, index 7)
     expect(indexOf(c, imaj9, 43, 'bass')).toEqual({ n: 7, alter: 0 });
-    // The next chord: of the notes off the chord sounding, 81 are tones of the next bar's first chord (the bass 27, the
-    // stab 54; 83, 31 and 52 before #655's song forms), which the text writes beside this chord's tones, since cells has no next chord (yggi/cells#50).
+    // The next chord: of the notes off the chord sounding, 83 are tones of the next bar's first chord (the bass 27, the
+    // stab 56; 83, 31 and 52 before #655's song forms; 81, 27 and 54 before cells v0.30.0's solos), which the text writes beside this chord's tones, since cells has no next chord (yggi/cells#50).
     const next: Record<string, number> = { bass: 0, pad: 0, stab: 0 };
     for (const r of RUN_OF.values())
       for (const [i, bar] of r.bars.entries()) {
@@ -613,7 +623,7 @@ describe('what cells could not say (E33: the gaps)', () => {
             next[w.part]!++;
         }
       }
-    expect(next).toEqual({ bass: 27, pad: 0, stab: 54 });
+    expect(next).toEqual({ bass: 27, pad: 0, stab: 56 });
     // The hand: the comp's stacks over the chord are its indices, the voicing written out, not led from a pin (E32's
     // gap 3); most are close, consecutive tones of the chord with no accidental, which a voicing could choose.
     const stacks = MEASURED.flatMap((m) =>
@@ -626,7 +636,8 @@ describe('what cells could not say (E33: the gaps)', () => {
         (t, i) => /^-?\d+$/.test(t) && (i === 0 || Number(t) === Number(tones[i - 1]) + 1),
       ),
     );
-    expect([close.length, stacks.length]).toEqual([501, 549]); // (543 and 599 before #655's song forms)
+    // (543 and 599 before #655's song forms; 501 and 549 before cells v0.30.0's solos, without the pad)
+    expect([close.length, stacks.length]).toEqual([466, 511]);
   });
 
   it("gap 3, a secondary's function (E32's gap 1): Swing jazz's V7/V and V9/V read back as II7 and II9", () => {

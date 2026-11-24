@@ -227,9 +227,12 @@ export function cellsFit(): RhythmFit {
   return (fragment, workbench) => fit(fragment, workbench).fits;
 }
 
-/** Whether a filed fragment is a rhythm: associated as one at some point. */
-const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) =>
+/** Whether a fragment is a rhythm: associated as one at some point. */
+const isRhythmFragment = (fragment: Fragment) =>
   fragment.association.some((p) => p.facet === 'rhythm');
+
+/** Whether a filed fragment is a rhythm. */
+const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) => isRhythmFragment(fragment);
 
 /**
  * The rhythms held of each list of fragments, kept by the list: a read of each is a compile, about 100 ms over cells'
@@ -238,8 +241,9 @@ const isRhythm = ({ fragment }: LearnedLayer['filed'][number]) =>
 const HELD = new WeakMap<readonly Fragment[], readonly Fragment[]>();
 
 /**
- * The fragments the drummer holds, each by its lines (`grooveLines`: what is fitted, read, unioned, layered, varied and
- * filed beside): all but a rhythm it can't play, one with no mix of lines (`hitsOf`) or a line that strikes a sound it
+ * The fragments the drummer holds, each rhythm by its lines (`grooveLines`: what is fitted, read, unioned, layered,
+ * varied and filed beside), and any other fragment as it is (a count of cells v0.30.0 is `from` lines alone, which
+ * would leave it no text): all but a rhythm it can't play, one with no mix of lines (`hitsOf`) or a line that strikes a sound it
  * has no role for (`roleOf`), read in 4/4. Of cells' seed that is every rhythm, 33 of 33 at cells v0.29.0, `salsa_drums`'
  * tumbao on the toms an ostinato (#651, #717).
  */
@@ -249,12 +253,8 @@ export function heldRhythms(fragments: readonly Fragment[] = RHYTHM_FRAGMENTS): 
     HELD.set(
       fragments,
       (held = fragments
-        .filter(
-          (f) =>
-            !f.association.some((p) => p.facet === 'rhythm') ||
-            readRhythm(f.text, METERS['4/4']) !== null,
-        )
-        .map((f) => ({ ...f, text: grooveLines(f.text) }))),
+        .filter((f) => !isRhythmFragment(f) || readRhythm(f.text, METERS['4/4']) !== null)
+        .map((f) => (isRhythmFragment(f) ? { ...f, text: grooveLines(f.text) } : f))),
     );
   return [...held];
 }

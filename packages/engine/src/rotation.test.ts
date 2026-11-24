@@ -35,7 +35,7 @@ import { METERS } from '@jambot/theory';
 const at = (sync: number) => ({ sync, harm: 0.5, bite: 0.5, mood: 0.5 });
 const HERE = at(0.5);
 /** The song's 4/4, as the repository gives it; and a waltz. */
-const FOUR = { meter: METERS['4/4'], swing: '16n' as const, meterFragment: 'meter' };
+const FOUR = { meter: METERS['4/4'], swing: '16n' as const, meterFragment: 'bar' };
 const WALTZ = { meter: METERS['3/4'], swing: '16n' as const, meterFragment: 'meter_3_4' };
 
 /** A rotation of songs made at these syncs, in order, each in ionian, none played. */

@@ -202,8 +202,13 @@ describe('the comp', () => {
   });
 
   it('pads legato and stabs staccato', () => {
-    // (the sections whose kind plays the stab: not a breakdown, nor a verse, #655)
-    const grooves = bars.filter((b) => kindPlays(b.plan.section.type, 'stab') && b.barEnergy > 0.5);
+    // (the sections whose kind plays the stab and the pad: not a breakdown, nor a verse, #655, nor a solo, cells v0.30.0)
+    const grooves = bars.filter(
+      (b) =>
+        kindPlays(b.plan.section.type, 'stab') &&
+        kindPlays(b.plan.section.type, 'pad') &&
+        b.barEnergy > 0.5,
+    );
     const with_ = (artic: number) =>
       grooves.flatMap(
         (b) => comp.advance({ ...b, style: { ...b.style, artic } }, null, null).output,
@@ -234,6 +239,27 @@ describe('the comp', () => {
       for (const artic of [0, 0.5, 1])
         for (const e of comp.advance({ ...b, style: { ...b.style, artic } }, null, null).output)
           expect(e.part).toBe('pad');
+  });
+
+  it('pads nothing where its kind leaves the pad out (a solo, a mambo: cells v0.30.0), at any articulation', () => {
+    for (const type of ['solo', 'mambo'] as const)
+      for (const b of bars.slice(0, 40)) {
+        const section = { ...b.plan.section, type };
+        for (const artic of [0, 0.5, 1]) {
+          const env = { ...b, plan: { ...b.plan, section }, style: { ...b.style, artic } };
+          expect(comp.advance(env, null, null).output.filter((e) => e.part === 'pad')).toEqual([]);
+        }
+      }
+    // (the same bars as a groove pad at full legato, so the kind is what rests it)
+    expect(
+      bars
+        .slice(0, 40)
+        .some((b) =>
+          comp
+            .advance({ ...b, style: { ...b.style, artic: 0 } }, null, null)
+            .output.some((e) => e.part === 'pad'),
+        ),
+    ).toBe(true);
   });
 
   it('anticipates the next bar’s chord on its last steps when syncopated', () => {

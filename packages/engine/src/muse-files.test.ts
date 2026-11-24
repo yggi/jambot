@@ -163,16 +163,14 @@ describe('the Muse files the groove the drummer invents on a miss (#401)', () =>
 
   it('counts the groove as used together with the meter fragment it was played in, so the two pull each other', () => {
     const cool = play(16, { layer: EMPTY_LAYER, rhythms: NO_SPOOKY }, COOL);
-    expect(cool[0]!.bar.plan.meterFragment).toBe('meter(grouping=meter("5/4"))');
+    expect(cool[0]!.bar.plan.meterFragment).toBe('odd_meter');
     const layer = cool[7]!.carried.plans.layer!;
     expect(layer.filed.map((f) => f.fragment.id)).toEqual(['drummer song 1, bar 0']);
     // filed beside its meter, and kept with it by the section planned there: twice together
-    expect(layer.together).toEqual([
-      { ids: ['meter(grouping=meter("5/4"))', 'drummer song 1, bar 0'], count: 2 },
-    ]);
+    expect(layer.together).toEqual([{ ids: ['odd_meter', 'drummer song 1, bar 0'], count: 2 }]);
     expect(cool[8]!.bar.plan.rhythmFragment).toBe('drummer song 1, bar 0');
     expect(cool[15]!.carried.plans.layer!.together).toEqual([
-      { ids: ['meter(grouping=meter("5/4"))', 'drummer song 1, bar 0'], count: 3 },
+      { ids: ['odd_meter', 'drummer song 1, bar 0'], count: 3 },
     ]);
   });
 

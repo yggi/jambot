@@ -67,17 +67,17 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
   });
 
   it('recognises nearly every bar once it hears itself, where deaf it recognises about half, and hears a third as many new motifs (E22, Q7b, Q12)', () => {
-    // (0.57, 0.63, 0.55, 0.52, 0.56, 0.51, 0.53, 0.63 before #655's song forms; the first 0.46 before the station's rotation, #547 rung 5)
+    // (0.57, 0.63, 0.55, 0.52, 0.56, 0.51, 0.53, 0.63 before #655's song forms; the first 0.46 before the station's rotation, #547 rung 5; the seventh 0.73 before cells v0.30.0, whose Bossa nova solos play hotter and without the pad)
     expect(column(middle, 'deaf', 'recognised')).toEqual([
-      0.49, 0.58, 0.75, 0.59, 0.66, 0.59, 0.73, 0.61,
+      0.49, 0.58, 0.75, 0.59, 0.66, 0.59, 0.64, 0.61,
     ]);
     // (0.93, 0.91, 0.84, 0.86, 0.93, 0.89, 0.92, 0.84 before #655's song forms)
     expect(column(middle, 'hearing', 'recognised')).toEqual([
       0.92, 0.92, 0.93, 0.89, 0.88, 0.88, 0.87, 0.9,
     ]);
-    // (3.08, 2.75, 1.08, 3.42, 3.17, 3.42, 2.83, 2.75 before #655's song forms; the first 2.83 before the station's rotation, #547 rung 5)
+    // (3.08, 2.75, 1.08, 3.42, 3.17, 3.42, 2.83, 2.75 before #655's song forms; the first 2.83 before the station's rotation, #547 rung 5; the seventh 1.5 before cells v0.30.0, whose Bossa nova solos play hotter and without the pad)
     expect(column(middle, 'deaf', 'novelty')).toEqual([
-      2.67, 2.25, 1.08, 2.33, 1.58, 1.92, 1.5, 2.33,
+      2.67, 2.25, 1.08, 2.33, 1.58, 1.92, 2.08, 2.33,
     ]);
     // (0.5, 0.67, 1, 1, 0.5, 0.83, 0.58, 1.17 before #655's song forms)
     expect(column(middle, 'hearing', 'novelty')).toEqual([
@@ -87,8 +87,8 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
 
   it('hears what it recognises of itself mostly as exact repeats, as it does deaf (E22, Q7b, Q12)', () => {
     expect(column(middle, 'hearing', 'exact')).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
-    // (0.84, 0.87, 0.88, 0.87, 0.92, 0.95, 0.89, 0.93 before #655's song forms; the first 0.93 before the station's rotation, #547 rung 5)
-    expect(column(middle, 'deaf', 'exact')).toEqual([0.9, 0.95, 0.71, 0.83, 0.86, 1, 0.9, 0.89]);
+    // (0.84, 0.87, 0.88, 0.87, 0.92, 0.95, 0.89, 0.93 before #655's song forms; the first 0.93 before the station's rotation, #547 rung 5; the seventh 0.9 before cells v0.30.0, whose Bossa nova solos play hotter and without the pad)
+    expect(column(middle, 'deaf', 'exact')).toEqual([0.9, 0.95, 0.71, 0.83, 0.86, 1, 0.87, 0.89]);
   });
 
   it('doesn’t stall on one bar where its harmony moves, but oscillates: the first motif it heard on every other bar, a few others between; over a chord that holds, it stalls (E22, Q7b, #655)', () => {
@@ -102,17 +102,17 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
     expect(column(middle, 'hearing', 'oscillating')).toEqual([
       0.63, 0.45, 0.11, 0.81, 0.42, 0.48, 0.52, 0.38,
     ]);
-    // (0.28, 0.37, 0.45, 0.36, 0.36, 0.38, 0.35, 0.38 before #655's song forms; the first 0.24 before the station's rotation, #547 rung 5)
+    // (0.28, 0.37, 0.45, 0.36, 0.36, 0.38, 0.35, 0.38 before #655's song forms; the first 0.24 before the station's rotation, #547 rung 5; the seventh 0.52 before cells v0.30.0, whose Bossa nova solos play hotter and without the pad)
     expect(column(middle, 'deaf', 'oscillating')).toEqual([
-      0.22, 0.41, 0.24, 0.34, 0.52, 0.5, 0.52, 0.44,
+      0.22, 0.41, 0.24, 0.34, 0.52, 0.5, 0.31, 0.44,
     ]);
     // (0.59, 0.66, 0.5, 0.58, 0.6, 0.55, 0.54, 0.64 before #655's song forms)
     expect(column(middle, 'hearing', 'commonest')).toEqual([
       0.58, 0.68, 0.9, 0.51, 0.58, 0.65, 0.55, 0.63,
     ]);
-    // (0.28, 0.4, 0.52, 0.1, 0.33, 0.11, 0.13, 0.36 before #655's song forms)
+    // (0.28, 0.4, 0.52, 0.1, 0.33, 0.11, 0.13, 0.36 before #655's song forms; the seventh 0.18 before cells v0.30.0, whose Bossa nova solos play hotter and without the pad)
     expect(column(middle, 'deaf', 'commonest')).toEqual([
-      0.16, 0.3, 0.27, 0.22, 0.29, 0.29, 0.18, 0.19,
+      0.16, 0.3, 0.27, 0.22, 0.29, 0.29, 0.17, 0.19,
     ]);
     expect(column(middle, 'hearing', 'firstHeld')).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
     // (1, 1, 0, 0, 1, 0, 0, 1 before #655's song forms)
@@ -135,14 +135,15 @@ describe('the loop closed with no players, the Muse hearing the band’s own lea
     expect(column(middle, 'deaf', 'returns')).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
     // (6, 6, 10, 9, 6, 9, 6, 10 before #655's song forms)
     expect(column(middle, 'hearing', 'distinct')).toEqual([6, 6, 5, 6, 9, 9, 8, 9]);
-    // (37, 31, 14, 45, 32, 41, 37, 31 before #655's song forms; the first 35 before the station's rotation, #547 rung 5)
-    expect(column(middle, 'deaf', 'distinct')).toEqual([33, 27, 18, 31, 18, 18, 21, 31]);
+    // (37, 31, 14, 45, 32, 41, 37, 31 before #655's song forms; the first 35 before the station's rotation, #547 rung 5; the seventh 21 before cells v0.30.0, whose Bossa nova solos play hotter and without the pad)
+    expect(column(middle, 'deaf', 'distinct')).toEqual([33, 27, 18, 31, 18, 18, 28, 31]);
   });
 
   it('recognises less as the entropy rises, deaf, but not monotonically less as the licence widens (E22, Q7b)', () => {
     const licence = BY_LICENCE.map((p) => p.style.harm);
-    // (-0.18 deaf and -0.18 hearing before #655's song forms)
-    expect(round(kendall(licence, exactly(middle, 'deaf', 'recognised')))).toBe(0.43);
+    // (-0.18 deaf and -0.18 hearing before #655's song forms; 0.43 deaf before cells v0.30.0, whose Bossa nova solos play
+    // hotter and without the pad)
+    expect(round(kendall(licence, exactly(middle, 'deaf', 'recognised')))).toBe(0.36);
     expect(round(kendall(licence, exactly(middle, 'hearing', 'recognised')))).toBe(-0.5);
     const at = (rows: readonly LoopMeasure[], condition: Condition) => [
       round(rows.find((m) => m.condition === condition && m.preset === 'Techno')!.recognised),

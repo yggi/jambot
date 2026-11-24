@@ -70,7 +70,7 @@ const held = (extra: Partial<TransportEnv> = {}) =>
   ).flat();
 
 /** Main's events as `layer.test.ts` records them (its `MAIN_RHYTHMS.still`): every part, the presets held at entropy 0. */
-const MAIN_STILL = [13891, 'dd722c5f'] as const;
+const MAIN_STILL = [13730, 'f13ba973'] as const;
 
 describe('the drums, the comp and the lead, unchanged by the bass in the loop (#423)', () => {
   const main = held();
@@ -78,7 +78,7 @@ describe('the drums, the comp and the lead, unchanged by the bass in the loop (#
   const part = (all: readonly TimedEvent[], p: string, not = false) =>
     all.filter((e) => (e.event.part === p) !== not);
 
-  it('plays main without the bass lines: 13,891 events', () => {
+  it('plays main without the bass lines: 13,730 events', () => {
     expect([main.length, hashOf(main)]).toEqual(MAIN_STILL);
   });
 
@@ -159,7 +159,7 @@ describe('the composer asks for a bass line by the facet `bass` at the style (#4
   it('takes a walk where cells places it, under any meter: at Swing jazz’s point the walking bass, swung or straight (#650)', () => {
     const swing = byName('Swing jazz');
     const env = { bassLines: BASS_REPOSITORY, style: writtenStyle({ ...swing.style, entropy: 0 }) };
-    const meter = { meter: METERS['4/4'], meterFragment: 'meter(swing=8n:2/3)' };
+    const meter = { meter: METERS['4/4'], meterFragment: 'swing_meter' };
     expect(sectionLine(env, { ...meter, swing: '8n', share: 2 / 3 }, undefined)).toBe(
       'walking_bass',
     );

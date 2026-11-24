@@ -92,7 +92,7 @@ describe('what a score states, read from the score alone (#553 rung 3)', () => {
     expect(frameOf(text)).not.toBeNull();
     // (shown firing: the key's line gone, or taken from the major scale alone, gives no key to read)
     expect(frameOf(text.replace(/^&key from diatonic.*$/m, '&key scale(dorian, D)'))).toBeNull();
-    expect(frameOf(text.replace(/^&bar from meter.*$/m, ''))).toBeNull();
+    expect(frameOf(text.replace(/^&bar (swing=\S+ )?from bar.*$/m, ''))).toBeNull();
   });
 
   it('reads a fragment the session sent by its hash, and names each locked one neither it nor the seed holds', () => {

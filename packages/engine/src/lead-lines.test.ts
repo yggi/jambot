@@ -122,7 +122,7 @@ describe('a lead line as cells text, and read back (#424)', () => {
 
 const FILING: LeadFiling = {
   notes: PLAIN,
-  bench: { meter: METERS['4/4'], meterFragment: 'meter' },
+  bench: { meter: METERS['4/4'], meterFragment: 'bar' },
   point: { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 },
   source: 'Ada',
   created: 'song 1, bar 0',

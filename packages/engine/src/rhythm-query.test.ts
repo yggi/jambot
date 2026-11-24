@@ -74,7 +74,7 @@ const at = (
   };
 };
 
-const bench = { meter: SONG_METER, meterFragment: 'meter' };
+const bench = { meter: SONG_METER, meterFragment: 'bar' };
 
 describe('the composer asks the repository for a rhythm (#397)', () => {
   it('takes the nearest that fits, and none past the miss distance or where none fits: the drummer invents', () => {

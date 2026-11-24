@@ -115,7 +115,12 @@ export const comp: Machine<BarEnv, readonly number[] | null, null, WrittenNote[]
     // (in a song form's section the kind says who plays, whatever the energy; in the chain's, below 0.3 it pads only)
     const quiet =
       !kindPlays(plan.section.type, 'stab') || (plan.section.song === undefined && energy < 0.3);
-    const padWeight = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
+    // (a kind that leaves the pad out, a solo or a mambo since cells v0.30.0, pads nothing: `section-kinds.ts`)
+    const padWeight = !kindPlays(plan.section.type, 'pad')
+      ? 0
+      : quiet
+        ? Math.max(0.85, 1 - style.artic)
+        : 1 - style.artic;
     const stabDensity = quiet
       ? 0
       : (0.35 + 0.65 * energy) * (1 - 0.45 * eighth) * style.artic * 1.4;
