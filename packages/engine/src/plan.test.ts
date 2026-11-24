@@ -22,7 +22,7 @@ import { LEAD_REPOSITORY } from './lead-lines.ts';
 import { EMPTY_LAYER } from './layer.ts';
 import { RHYTHM_REPOSITORY } from './rhythms.ts';
 import { BASS_REPOSITORY } from './bass-lines.ts';
-import { MIXES_KEPT, type SongVersion } from './rotation.ts';
+import { MIXES_KEPT, type SongVersion, capOf, onAir } from './rotation.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 
@@ -634,6 +634,36 @@ describe('the station (#547 rung 5, the owner’s rulings of 2026-11-23): songs 
         }
       }
     });
+  });
+
+  it('rests a worn song and brings it back, never starting one resting, the songs on air never past the cap (step 3)', () => {
+    for (const name of ['Synth-pop', 'Swing jazz']) {
+      const run = station(name, 0.3, 600);
+      let rested = 0;
+      let back = 0;
+      const resting = new Set<number>();
+      for (const [i, { plan, song, rotation }] of run.entries()) {
+        const before = i > 0 ? run[i - 1]!.rotation : rotation;
+        if (plan.section.song?.at === 0 && song !== null)
+          expect(before.songs.find((s) => s.id === song)?.resting ?? false, `${name} ${i}`).toBe(
+            false,
+          );
+        // (a song back from its rest takes the songs on air past the cap no further than the section it comes back in)
+        expect(onAir(rotation).length).toBeLessThanOrEqual(capOf(0.3));
+        for (const s of rotation.songs) {
+          if (s.resting && !resting.has(s.id)) {
+            rested++;
+            resting.add(s.id);
+          }
+          if (!s.resting && resting.has(s.id)) {
+            back++;
+            resting.delete(s.id);
+          }
+        }
+      }
+      expect(rested, name).toBeGreaterThan(2);
+      expect(back, name).toBeGreaterThan(0);
+    }
   });
 
   it('plays one song over and over at entropy 0, the same plans every time', () => {
