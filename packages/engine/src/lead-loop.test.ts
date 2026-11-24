@@ -502,6 +502,8 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     Waltz: 'waltzBar',
     March: 'march',
     'Trip-hop': 'smoke',
+    // (cells' Pop of v0.31.0, yggi/cells#947, #764: Synth-pop's hook, which gains its point)
+    Pop: 'hook',
   };
 
   /**
@@ -533,6 +535,8 @@ describe('cells’ motifs are the lead’s lines (#520)', () => {
     Waltz: 'sentence',
     March: 'rounded_binary',
     'Trip-hop': 'call_and_answer',
+    // (Pop of cells v0.31.0: the sentence, as Synth-pop's, 0.104 from its point, #764)
+    Pop: 'sentence',
   };
   /** Each form's second bar, as degrees from its call: the answer two down, the presentation's or the antecedent's one up, AABA's A again. */
   const SECOND: Record<string, number> = {

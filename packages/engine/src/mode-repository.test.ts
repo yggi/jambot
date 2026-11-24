@@ -41,6 +41,8 @@ const HAND_MODE: Readonly<Record<string, ComposerMode>> = {
   Waltz: 'ionian',
   March: 'ionian',
   'Trip-hop': 'aeolian',
+  // (cells' Pop, the 24th style, at v0.31.0, yggi/cells#947, #764: `diatonic(mode=ionian)` at its point)
+  Pop: 'ionian',
 };
 
 /** A fragment of the key, its tonic its main parameter where it reads one (`&key from &tonic`), as cells writes a mode (decision 075). */

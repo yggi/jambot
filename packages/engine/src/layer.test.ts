@@ -96,8 +96,11 @@ const range = (n: number) => [...Array(n).keys()];
  * song form plays its solos as cells' kind `solo`, 0.05 hotter than the `groove` it played, and Ambient's 4/4 is
  * straight, its lean of 31/60 dropped (yggi/cells decision 103); and the solos rest the pad, the kind leaving it out;
  * held, only those three presets' bars move, the two in their solos alone.
+ * And at cells v0.31.0 (13,176 and 8114dd6a walked, before): cells places Pop's parts and four seed progressions at
+ * Pop's point and beside Baroque's and Swing jazz's (yggi/cells#947, #764), which the walk finds where it found others;
+ * held, nothing moves.
  */
-const MAIN = { held: [13271, '911719b1'], walked: [13176, '8114dd6a'] } as const;
+const MAIN = { held: [13271, '911719b1'], walked: [13321, '253de0f6'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
   it('over the 8 presets held, 2 seeds of 32 bars: 13,271 events, each to 1e-9 s', () => {
@@ -107,7 +110,7 @@ describe('the band given an empty learned layer plays exactly what main plays (#
     }
   });
 
-  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,176 events', () => {
+  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,321 events', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);

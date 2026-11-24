@@ -308,7 +308,7 @@ describe('drums', () => {
   });
 
   it('write the rim’s Euclid with the bar’s metric accent, as the seed grooves’ `metric_accent` writes theirs (#749)', () => {
-    // (at full energy in 4/4: one, three, two and four, an eighth, a sixteenth, as cells' `metricWeights(16)` weighs them)
+    // (at full energy in 4/4: one, three, two and four, an eighth, a sixteenth, as cells' `metricWeights('4/4')` weighs them)
     expect([0, 8, 4, 2, 1].map((step) => rimAccentOf(SONG_METER, step, 1))).toEqual([
       6, 4, 2, 0, -2,
     ]);
