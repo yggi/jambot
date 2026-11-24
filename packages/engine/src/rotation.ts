@@ -23,14 +23,19 @@
  * - at entropy 0 the song playing again, where it still fits: the station holds, as a groove holds at 0.
  *
  * **Boredom** is counted as the novelty ladder counts a groove's (`novelty.ts`): a section a song plays adds the
- * entropy the band plays at, which the homeostat leans, and a section it doesn't takes as much away, to none. Full,
- * the rotation lets the song that fits worst and played least go (`made`). Pure.
+ * entropy the band plays at, which the homeostat leans, and a section it doesn't takes that entropy shared among the
+ * songs on air away, to none, so a song drawn more than its share tires the station (step 3, the owner's rulings of
+ * 2026-11-24). **A worn song rests:** past the ladder's last rung (`WORN`) it leaves the air until its boredom has faded
+ * to none, as a rejected groove does; resting, it doesn't count toward the cap, so a new song is made in its place, and
+ * where it comes back the songs on air are trimmed to the cap (`trimmed`). Full, the rotation lets the song that fits
+ * worst and played least go, never one resting or the one playing (`made`, `trimmed`). Pure.
  */
 
 import type { Meter } from '@jambot/theory';
 import type { ComposerMode } from './key.ts';
 import type { SwingLevel } from './swing.ts';
 import { MISS_DISTANCE, type StylePoint } from './meter-query.ts';
+import { BORED, GROOVE_RUNGS } from './novelty.ts';
 import { chance, draw, pick, quantize } from './random.ts';
 import type { SectionRhythm } from './rhythm-query.ts';
 import { pointDistance } from './style.ts';
@@ -107,6 +112,8 @@ export interface Song extends SongThemes {
   readonly versions: readonly SongVersion[];
   /** The version it played last, by id; null before its first. */
   readonly version: number | null;
+  /** Whether it rests: worn past `WORN`, off the air and the cap until its boredom has faded to none. */
+  readonly resting: boolean;
 }
 
 /** The songs a session has made, and how many it has made, which numbers the next. */
@@ -117,6 +124,13 @@ export interface Rotation {
 
 /** A session's rotation before its first song. */
 export const NO_ROTATION: Rotation = { songs: [], made: 0 };
+
+/** The boredom past which a song rests: the novelty ladder's last rung, as a groove past it is rejected. */
+export const WORN = BORED * GROOVE_RUNGS;
+
+/** The songs on air: those not resting, which the cap counts and the station draws among. */
+export const onAir = (rotation: Rotation): readonly Song[] =>
+  rotation.songs.filter((s) => !s.resting);
 
 /** The rotation's cap at entropy 0, and how much it grows to entropy 1 (the owner's ruling, 2026-11-23). */
 export const ROTATION_FLOOR = 4;
@@ -170,6 +184,7 @@ export const sameSongMeter = (a: SongMeter, b: SongMeter): boolean =>
   a.meter.heights.join() === b.meter.heights.join();
 
 const fits = (song: Song, { point, mode, meter }: Pick<SongAsk, 'point' | 'mode' | 'meter'>) =>
+  !song.resting &&
   song.mode === mode &&
   sameSongMeter(song.meter, meter) &&
   pointDistance(song.point, point) <= MISS_DISTANCE;
@@ -182,7 +197,7 @@ export function nextSong(rotation: Rotation, ask: SongAsk): NextSong {
   const fitting = rotation.songs.filter(
     (s) => fits(s, ask) && (s.id !== playing || quantize(entropy) === 0),
   );
-  if ((fitting.length === 0 || rotation.songs.length < capOf(entropy)) && found !== null)
+  if ((fitting.length === 0 || onAir(rotation).length < capOf(entropy)) && found !== null)
     return { kind: 'new', form: found };
   if (fitting.length === 0) return { kind: 'none' };
   const weights = fitting.map((s) => weightOf(s, point));
@@ -190,8 +205,34 @@ export function nextSong(rotation: Rotation, ask: SongAsk): NextSong {
 }
 
 /**
- * The rotation with a song made at `point` on `form`, numbered next; past `cap`, the song that lies farthest from
- * `now` leaves, the one played least among those as far, then the oldest, never the one made.
+ * The rotation with its songs on air at most `cap`: past it, the song that lies farthest from `now` leaves, the one played
+ * least among those as far, then the oldest, never one resting or `keep` (the one playing, or the one made); the same
+ * rotation where it is within its cap.
+ */
+export function trimmed(
+  rotation: Rotation,
+  cap: number,
+  now: StylePoint,
+  keep: number | null,
+): Rotation {
+  let songs = rotation.songs;
+  while (songs.filter((s) => !s.resting).length > Math.max(1, cap)) {
+    const leaving = songs
+      .filter((s) => !s.resting && s.id !== keep)
+      .reduce<Song | null>((worst, s) => {
+        if (!worst) return s;
+        const [d, w] = [pointDistance(s.point, now), pointDistance(worst.point, now)];
+        return d > w || (d === w && s.plays < worst.plays) ? s : worst;
+      }, null);
+    if (!leaving) break;
+    songs = songs.filter((s) => s !== leaving);
+  }
+  return songs === rotation.songs ? rotation : { ...rotation, songs };
+}
+
+/**
+ * The rotation with a song made at `point` on `form`, numbered next, its songs on air trimmed to `cap` (`trimmed`),
+ * never the one made.
  */
 export function made(
   rotation: Rotation,
@@ -209,18 +250,9 @@ export function made(
     boredom: 0,
     versions: [],
     version: null,
+    resting: false,
   };
-  let songs = [...rotation.songs, fresh];
-  while (songs.length > Math.max(1, cap)) {
-    const leaving = songs
-      .filter((s) => s !== fresh)
-      .reduce((worst, s) => {
-        const [d, w] = [pointDistance(s.point, now), pointDistance(worst.point, now)];
-        return d > w || (d === w && s.plays < worst.plays) ? s : worst;
-      });
-    songs = songs.filter((s) => s !== leaving);
-  }
-  return { songs, made: fresh.id };
+  return trimmed({ songs: [...rotation.songs, fresh], made: fresh.id }, cap, now, fresh.id);
 }
 
 /** The rotation with a song's play counted, where it starts. */
@@ -235,20 +267,28 @@ export const heard = (rotation: Rotation, id: number, themes: SongThemes): Rotat
   songs: rotation.songs.map((s) => (s.id === id ? { ...s, ...themes } : s)),
 });
 
-/** The rotation after a section: the song playing a section's entropy more tired of, every other as much less, to none. */
+/**
+ * The rotation after a section: the song playing a section's entropy more tired of, every other that entropy shared among
+ * the songs on air less, to none; a song past `WORN` rests, and one resting comes back once its boredom is none, the
+ * songs on air then trimmed to the cap where it takes them past it, as seen from `now` (`trimmed`), never the one
+ * playing.
+ */
 export function afterSection(
   rotation: Rotation,
   playing: number | null,
   entropy: number,
+  now?: StylePoint,
 ): Rotation {
   const step = quantize(entropy);
-  return {
+  const share = quantize(step / Math.max(1, onAir(rotation).length));
+  const after = {
     ...rotation,
-    songs: rotation.songs.map((s) => ({
-      ...s,
-      boredom: s.id === playing ? s.boredom + step : Math.max(0, s.boredom - step),
-    })),
+    songs: rotation.songs.map((s) => {
+      const boredom = s.id === playing ? s.boredom + step : Math.max(0, s.boredom - share);
+      return { ...s, boredom, resting: boredom >= WORN || (s.resting && boredom > 0) };
+    }),
   };
+  return now ? trimmed(after, capOf(entropy), now, playing) : after;
 }
 
 /** How many mixes a song keeps: a mixed play makes a new one while it keeps fewer (chosen in #547 step 2). */

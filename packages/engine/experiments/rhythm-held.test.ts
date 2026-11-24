@@ -35,20 +35,21 @@ beforeAll(() => {
 });
 
 describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #414)', () => {
-  it('plays the run’s most used rhythm in 42 % of 8,450 sections, under 60 %, where main plays the preset’s drum bar in 93 %, its groove mixes the next nearest', () => {
+  it('plays the run’s most used rhythm in 42 % of 8,450 sections, under 60 %, where main plays the preset’s drum bar in 93 %, its groove mixes and new songs the next nearest', () => {
     expect(CLIMBING).toHaveLength(40);
     // (in every one before the station's mixes, #547 step 2: a groove mix of a song plays the next nearest drum bar;
-    // 7,528 with the key and groove mixes alone, step 2a)
+    // 7,528 with the key and groove mixes alone, step 2a; 7,873 before a worn song rested, step 3)
     expect(mostUsedRhythm(MAIN)).toEqual({
       sections: 8450,
-      mostUsed: 7873,
-      share: 7873 / 8450,
+      mostUsed: 7887,
+      share: 7887 / 8450,
     });
     const { sections, mostUsed, share } = mostUsedRhythm(CLIMBING);
     // (3,944 before #651 held Salsa drums, which Funk's runs turn to once tired of their own; 3,969 before cells v0.29.0,
     // whose breathing drums the drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799
     // and #890; 3,975 before the station's mixes, #547 step 2)
-    expect([sections, mostUsed]).toEqual([8450, 3534]);
+    // (3,534 before a worn song rested, step 3)
+    expect([sections, mostUsed]).toEqual([8450, 3577]);
     expect(share).toBeLessThan(0.6);
   });
 
@@ -110,20 +111,21 @@ describe('a seed rhythm climbs the novelty ladder while a preset is held (E40, #
   // 0.92, Techno 0.82, Deep house 0.95, Ambient 0.89, Lo-fi hip hop 0.67, Funk 0.74, Bossa nova 0.65, Swing jazz 0.78;
   // before the station's mixes, #547 step 2, which hold a song's drum bar through its play: Synth-pop 0.87, Techno 0.79,
   // Ambient 0.89, Bossa nova 0.62, Swing jazz 0.74; with the key and groove mixes alone, step 2a: Lo-fi hip hop 0.65,
-  // Funk 0.72, Bossa nova 0.63, Swing jazz 0.78)
+  // Funk 0.72, Bossa nova 0.63, Swing jazz 0.78; before a worn song rested, step 3: Techno 0.82, Ambient 0.9, Swing
+  // jazz 0.77)
   it('keeps 62 % to 92 % of the drummer’s hits where main plays them, bar beside bar, against all of them on main', () => {
     expect(drumOverlap(MAIN, MAIN)).toEqual(
       Object.fromEntries(PROTOTYPE_PRESETS.map((p) => [p.name, 1])),
     );
     expect(drumOverlap(CLIMBING, MAIN)).toEqual({
       'Synth-pop': 0.88,
-      Techno: 0.82,
+      Techno: 0.81,
       'Deep house': 0.92,
-      Ambient: 0.9,
+      Ambient: 0.89,
       'Lo-fi hip hop': 0.66,
       Funk: 0.71,
       'Bossa nova': 0.62,
-      'Swing jazz': 0.77,
+      'Swing jazz': 0.78,
     });
   });
 

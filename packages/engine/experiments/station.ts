@@ -7,7 +7,9 @@
  * lead line, and whether the rotation keeps within its cap. And the mixes (step 2a): how often a song played again is
  * one, whether each play starts from its version's tonic, drum bar and bass line, whether each new mix differs from the
  * original, what each changes, whether a speed mix keeps within its reach, whether every section of a play carries its
- * version's tempo and style shift (step 2b), and how many mixes a song keeps.
+ * version's tempo and style shift (step 2b), and how many mixes a song keeps. And the rests (step 3): how many songs
+ * rest, after how many plays and for how long, whether one resting ever starts or leaves the rotation, and whether the
+ * songs on air keep within the cap where a song starts.
  */
 
 import { NO_HISTORY } from '../src/history.ts';
@@ -27,6 +29,7 @@ import {
   SPEED_LEAST,
   SPEED_REACH,
   capOf,
+  onAir,
   sameSongMeter,
   weightOf,
 } from '../src/rotation.ts';
@@ -64,8 +67,22 @@ export interface StationRun {
   /** Plays after a song's first whose first section's lead is neither the song's lead line nor a variation of it, of those that had one. */
   readonly leadsCompared: number;
   readonly leadsDiffering: number;
-  /** Sections where the rotation held more songs than its cap. */
+  /** Plays after a song's first whose kept lead line no longer reads, in the section's meter and the layer. */
+  readonly leadsUnread: number;
+  /** Sections where the songs on air were more than the cap (step 3: resting songs are off it). */
   readonly overCap: number;
+  /** Rests begun, and the plays each song had when it began one (step 3). */
+  readonly rests: number;
+  readonly playsAtRest: readonly number[];
+  /** Rests ended, and how many sections each lasted. */
+  readonly returns: number;
+  readonly restLengths: readonly number[];
+  /**
+   * Song starts of a song that was resting, none; and songs that came back from their rest and left the rotation in the
+   * same section, the one fitting worst where the radio walked away from it (`trimmed` never takes one resting).
+   */
+  readonly restingStarts: number;
+  readonly leftOnReturn: number;
   /** Plays after a song's first, and how many of them were mixes. */
   readonly replays: number;
   readonly mixed: number;
@@ -106,6 +123,10 @@ export function stationRun(
   const seen = new Map<number, number>();
   let [starts, backToBack, draws, nearest, uniform] = [0, 0, 0, 0, 0];
   let [themesCompared, themesDiffering, leadsCompared, leadsDiffering, overCap] = [0, 0, 0, 0, 0];
+  let [restingStarts, leftOnReturn, leadsUnread] = [0, 0, 0];
+  const restingSince = new Map<number, number>();
+  const playsAtRest: number[] = [];
+  const restLengths: number[] = [];
   let [replays, mixed, versionsCompared, versionsRejected, versionsDiffering] = [0, 0, 0, 0, 0];
   let [mixesMade, mixesSame, mostMixes, speedsOutside, sectionsMarked, marksDiffering] = [
     0, 0, 0, 0, 0, 0,
@@ -128,13 +149,29 @@ export function stationRun(
     };
     const { output: plan, carried: next } = planner.advance(env, carried, null);
     carried = next;
-    if (carried.rotation.songs.length > capOf(style.entropy)) overCap++;
+    if (onAir(carried.rotation).length > capOf(style.entropy)) overCap++;
+    // (rests: begun where a song is first seen resting, ended where it is first seen on air again)
+    for (const s of carried.rotation.songs) {
+      if (s.resting && !restingSince.has(s.id)) {
+        restingSince.set(s.id, index);
+        playsAtRest.push(s.plays);
+      } else if (!s.resting && restingSince.has(s.id)) {
+        restLengths.push(index - restingSince.get(s.id)!);
+        restingSince.delete(s.id);
+      }
+    }
+    for (const id of restingSince.keys())
+      if (!carried.rotation.songs.some((s) => s.id === id)) {
+        leftOnReturn++;
+        restingSince.delete(id);
+      }
     for (const s of carried.rotation.songs)
       mostMixes = Math.max(mostMixes, s.versions.filter((v) => v.id > 0).length);
     const song = carried.song;
     const at = plan.section.song?.at;
     if (song !== null && at === 0) {
       starts++;
+      if (before.rotation.songs.find((s) => s.id === song)?.resting) restingStarts++;
       if (song === last) backToBack++;
       const plays = (seen.get(song) ?? 0) + 1;
       seen.set(song, plays);
@@ -155,7 +192,13 @@ export function stationRun(
       }
       // (each later play starts from the lead line the song kept: it, or a variation the ladder made of it at once)
       const kept = before.rotation.songs.find((s) => s.id === song)?.lead ?? null;
-      if (plays > 1 && kept !== null) {
+      // (a play starts from it only where it still reads, in the section's meter and the layer: a song back from a long
+      // rest may find its filed line dropped from the layer, step 3)
+      const reads =
+        kept !== null &&
+        LEAD_REPOSITORY.read(kept, plan.meter, carried.layer ?? undefined) !== null;
+      if (plays > 1 && kept !== null && !reads) leadsUnread++;
+      if (plays > 1 && kept !== null && reads) {
         leadsCompared++;
         const family = familyOf(carried.layer ?? EMPTY_LAYER, kept);
         if (carried.leadFragment === null || !family.includes(carried.leadFragment))
@@ -249,7 +292,14 @@ export function stationRun(
     themesDiffering,
     leadsCompared,
     leadsDiffering,
+    leadsUnread,
     overCap,
+    rests: playsAtRest.length,
+    playsAtRest,
+    returns: restLengths.length,
+    restLengths,
+    restingStarts,
+    leftOnReturn,
     replays,
     mixed,
     versionsCompared,

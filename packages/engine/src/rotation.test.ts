@@ -19,6 +19,8 @@ import {
   nextVersion,
   played,
   titleOf,
+  trimmed,
+  WORN,
   type SongVersion,
   mixShiftOf,
   mixTempoOf,
@@ -141,7 +143,8 @@ describe('the next song (the owner’s rulings of 2026-11-23)', () => {
 
   it('plays a song it tired of less often: its boredom lowers its weight', () => {
     let r = rotationOf(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5);
-    for (let s = 0; s < 8; s++) r = afterSection(r, 1, 1);
+    // (5 of boredom, under WORN: on air, at a sixth of the weight)
+    for (let s = 0; s < 5; s++) r = afterSection(r, 1, 1);
     const counts = new Map<number, number>();
     for (let index = 0; index < 2000; index++) {
       const next = nextSong(r, ask({ index }));
@@ -204,15 +207,90 @@ describe('a song as it plays', () => {
     expect([song.plays, song.themeFragments.A, song.lead]).toEqual([1, 'main', 'twinkle']);
   });
 
-  it('grows bored with the song playing by the entropy a section, and the others fade as fast, to none', () => {
-    let r = rotationOf(0.5, 0.5);
+  it('grows bored with the song playing by the entropy a section, and the others fade by that entropy shared among the songs on air, to none (step 3)', () => {
+    let r = rotationOf(0.5, 0.5, 0.5);
     r = afterSection(r, 1, 0.3);
     r = afterSection(r, 1, 0.3);
     r = afterSection(r, 2, 0.3);
-    const [one, two] = r.songs;
-    expect([one!.boredom, two!.boredom].map((b) => b.toFixed(4))).toEqual(['0.3000', '0.3000']);
-    r = afterSection(afterSection(r, null, 0.3), null, 0.3);
-    expect(r.songs.map((s) => s.boredom)).toEqual([0, 0]);
+    const fixed = (rot: Rotation) => rot.songs.map((s) => s.boredom.toFixed(4));
+    // (0.3 a section shared among 3 songs: 0.1 off each other a section)
+    expect(fixed(r)).toEqual(['0.5000', '0.3000', '0.0000']);
+    for (let i = 0; i < 5; i++) r = afterSection(r, null, 0.3);
+    expect(fixed(r)).toEqual(['0.0000', '0.0000', '0.0000']);
+  });
+});
+
+describe('a worn song rests (step 3, the owner’s rulings of 2026-11-24)', () => {
+  /** The rotation after `sections` sections of song `id` at entropy 1. */
+  const playedFor = (r: Rotation, id: number, sections: number) => {
+    for (let i = 0; i < sections; i++) r = afterSection(r, id, 1);
+    return r;
+  };
+
+  it('rests past the ladder’s last rung, WORN, and comes back once its boredom has faded to none', () => {
+    expect(WORN).toBe(6);
+    let r = playedFor(rotationOf(0.5, 0.52, 0.54, 0.56, 0.58), 1, 5);
+    expect(r.songs[0]!.resting).toBe(false);
+    r = playedFor(r, 1, 1);
+    expect([r.songs[0]!.boredom, r.songs[0]!.resting]).toEqual([6, true]);
+    // (off air, a section no song plays: 1 shared among the 4 songs on air, a quarter each; 24 sections to none)
+    for (let i = 0; i < 23; i++) r = afterSection(r, null, 1);
+    expect([r.songs[0]!.boredom, r.songs[0]!.resting]).toEqual([0.25, true]);
+    r = afterSection(r, null, 1);
+    expect([r.songs[0]!.boredom, r.songs[0]!.resting]).toEqual([0, false]);
+  });
+
+  it('never draws a resting song, and doesn’t count it toward the cap: a new song is made in its place', () => {
+    // (cap 8 at 0.3: a rotation of 8 with one resting has 7 on air, under its cap, so a new song is made)
+    let r = rotationOf(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5);
+    r = playedFor(r, 3, 6);
+    expect(r.songs.find((s) => s.id === 3)!.resting).toBe(true);
+    expect(nextSong(r, ask({ playing: 1 }))).toEqual({ kind: 'new', form: 'verse_chorus' });
+    // (with no form found, a draw among those on air: never song 3)
+    for (let index = 0; index < 200; index++) {
+      const next = nextSong(r, ask({ playing: 1, found: null, index }));
+      expect(next.kind === 'replay' && next.song.id).not.toBe(3);
+    }
+  });
+
+  it('keeps a resting song where a new one is made, and trims the songs on air to the cap once it returns: the one that fits worst and played least leaves, never a resting one or the one playing', () => {
+    let r = rotationOf(0.5, 0.9, 0.55, 0.6);
+    r = playedFor(r, 1, 6);
+    // (cap 4 at entropy 0: song 1 resting, a fifth made at 0.5 leaves 4 on air and keeps song 1)
+    const fifth = made(
+      r,
+      { form: 'verse_chorus', point: HERE, mode: 'ionian', meter: FOUR },
+      capOf(0),
+      HERE,
+    );
+    expect(fifth.songs.map((s) => s.id)).toEqual([1, 2, 3, 4, 5]);
+    // (song 1 back on air makes 5: the farthest, song 2 at 0.9, leaves; where song 2 is playing, the next farthest, 4)
+    const back = { ...fifth, songs: fifth.songs.map((s) => ({ ...s, resting: false })) };
+    expect(trimmed(back, capOf(0), HERE, 2).songs.map((s) => s.id)).toEqual([1, 2, 3, 5]);
+    expect(trimmed(back, capOf(0), HERE, null).songs.map((s) => s.id)).toEqual([1, 3, 4, 5]);
+    const kept = trimmed(back, capOf(0), HERE, null);
+    expect(trimmed(kept, capOf(0), HERE, null)).toBe(kept);
+    expect(trimmed(fifth, capOf(0), HERE, null)).toBe(fifth);
+  });
+
+  it('trims the songs on air as a song comes back from its rest, as seen from the style now, never the one playing', () => {
+    // (cap 4 at entropy 0.04: song 1 resting with a hair of boredom left comes back after a section, making 5 on air)
+    const r = playedFor(rotationOf(0.5, 0.9, 0.55, 0.6), 1, 6);
+    const fifth = made(
+      r,
+      { form: 'verse_chorus', point: HERE, mode: 'ionian', meter: FOUR },
+      capOf(0.04),
+      HERE,
+    );
+    const nearlyRested = {
+      ...fifth,
+      songs: fifth.songs.map((s) => (s.id === 1 ? { ...s, boredom: 0.005 } : s)),
+    };
+    const back = afterSection(nearlyRested, 2, 0.04, HERE);
+    expect(back.songs.find((s) => s.id === 1)!.resting).toBe(false);
+    // (song 2, at 0.9 the farthest, is playing: the next farthest, song 4, leaves)
+    expect(back.songs.map((s) => s.id)).toEqual([1, 2, 3, 5]);
+    expect(afterSection(nearlyRested, 2, 0.04).songs.map((s) => s.id)).toEqual([1, 2, 3, 4, 5]);
   });
 });
 

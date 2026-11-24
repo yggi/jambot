@@ -1203,7 +1203,7 @@ export const planner: Machine<PlanEnv, PlanCarried, null, Plan> = {
                 },
               }
             : null,
-        rotation: afterSection(withVersion, current?.id ?? null, style.entropy),
+        rotation: afterSection(withVersion, current?.id ?? null, style.entropy, stylePoint(style)),
         song: current?.id ?? null,
         version: heardVersion ? heardVersion.id : current ? version : null,
       },
