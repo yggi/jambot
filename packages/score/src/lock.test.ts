@@ -64,7 +64,7 @@ describe("a score's lock (session version 2, #553)", () => {
       expect(
         lock.map((l) => l.id),
         preset.name,
-      ).toEqual(expect.arrayContaining(['meter', 'diatonic', 'styles']));
+      ).toEqual(expect.arrayContaining(['bar', 'diatonic', 'styles']));
       // Each is the seed's at this pin, so none is sent.
       for (const l of lock) expect(isSeed(l), `${preset.name}: ${l.id}`).toBe(true);
       expect(filed, preset.name).toEqual([]);

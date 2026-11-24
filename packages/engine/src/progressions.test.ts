@@ -220,7 +220,7 @@ describe('a seed vamp plays the chords main’s vamp does (#425)', () => {
 });
 
 describe('the composer’s ask (#425)', () => {
-  const bench = { meter: METERS['4/4'], meterFragment: 'meter' };
+  const bench = { meter: METERS['4/4'], meterFragment: 'bar' };
 
   it('offers a preset the vamps of its mode in main’s order, and none where main walks the tables', () => {
     const offered = (name: string) => {

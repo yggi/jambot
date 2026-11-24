@@ -55,12 +55,13 @@ describe('the key’s loop, left alone (E19)', () => {
   });
 
   it('still has no home under the radio’s walk: where the key moves it ends more than 1.5 fifths from where it opened (a random key lies 3), and is back on it in at most 1 run in 5, but Funk in songs (Q11, #313, #655)', () => {
-    // (Funk too before #655's song forms; in songs it ends 1.6 fifths away and back in 4 runs of 10)
+    // (Funk too before #655's song forms; in songs it ends 1.5 fifths away and back in 4 runs of 10, 1.6 before cells
+    // v0.30.0, where the walk met Ambient's leaning 4/4 and the jazz solos as grooves)
     for (const m of wandering.filter((m) => m.reach > 0 && m.preset !== 'Funk')) {
       expect(m.drift.at(-1), m.preset).toBeGreaterThan(1.5);
       expect(m.back, m.preset).toBeLessThanOrEqual(0.2);
     }
-    expect([wanders('Funk').drift.at(-1), wanders('Funk').back]).toEqual([1.6, 0.4]);
+    expect([wanders('Funk').drift.at(-1), wanders('Funk').back]).toEqual([1.5, 0.4]);
   });
 
   it('moves a key the preset holds still once the walk has raised its harmony, and then leaves it as wide a jump as the walk’s harmony reaches (#313)', () => {

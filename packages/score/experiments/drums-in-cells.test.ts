@@ -48,9 +48,11 @@ const SEEDED = PROTOTYPE_PRESETS.map((preset) => {
 /**
  * The presets whose bar 23 is still cells' seed drum bar: each ends a groove at its preset's energy. Since #655's song
  * forms Synth-pop's bar 23 ends a chorus and Techno's a build, which play louder, and Ambient's groove plays two roles
- * where its seed plays four; no bar of the three's first 256 at seeds 0 to 3 is their seed (all 8 before).
+ * where its seed plays four; no bar of the three's first 256 at seeds 0 to 3 is their seed (all 8 before). Since cells
+ * v0.30.0 Bossa nova's and Swing jazz's bar 23 ends the first of their song form's solos, the kind `solo`, 0.05 hotter
+ * than the `groove` it was, so their drummer plays more and louder there than their seed (5 presets before).
  */
-const SEED_HELD = ['Deep house', 'Lo-fi hip hop', 'Funk', 'Bossa nova', 'Swing jazz'];
+const SEED_HELD = ['Deep house', 'Lo-fi hip hop', 'Funk'];
 
 /** The presets whose seed drums take their euclid's levels from `metric_accent` since cells v0.29.0 (yggi/cells#890). */
 const ACCENTED = ['Lo-fi hip hop', 'Funk', 'Bossa nova'];
@@ -94,7 +96,8 @@ describe("the band's drums as cells text, one bar per preset (E31)", () => {
       expect(w.band.length, w.preset).toBeGreaterThan(0);
       expect(mismatches(w.band, w.cells), w.preset).toEqual([]);
     }
-    expect(WITNESSES.reduce((n, w) => n + w.cells.length, 0)).toBe(136); // (144 before #655's song forms)
+    // (144 before #655's song forms; 136 before cells v0.30.0, whose jazz song form plays its solos hotter)
+    expect(WITNESSES.reduce((n, w) => n + w.cells.length, 0)).toBe(138);
   });
 
   it("states each role as a line of its own name, which plays that role's hits alone", () => {
@@ -255,7 +258,7 @@ describe('what cells could not say (E31: the gaps)', () => {
 });
 
 describe('E31’s translation as the engine states a groove the Muse files (#401)', () => {
-  it('states bar 23 as cells’ seed drum bar for its preset, character for character, less the bar line and its card, each with the kit it strikes, where it ends a groove: 5 presets of 8', () => {
+  it('states bar 23 as cells’ seed drum bar for its preset, character for character, less the bar line and its card, each with the kit it strikes, where it ends a groove: 3 presets of 8', () => {
     const seedOf = (preset: string) =>
       // (the seed's lines: a groove is a template since cells v0.24.0, its drums `gm_kit`'s by default, #634)
       withInstruments(

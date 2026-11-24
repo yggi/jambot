@@ -705,7 +705,7 @@ describe('the lead over a melodic scale', () => {
 });
 
 describe('whether the lead rests', () => {
-  it('is what the lead does: it rests in an intro, a breakdown, an outro and below energy 0.4, every section and energy', () => {
+  it('is what the lead does: it rests in an intro, a breakdown, an outro, a mambo and below energy 0.4, every section and energy', () => {
     const { bar, after: carried } = playing[0]!;
     let rests = 0;
     for (const type of SECTION_TYPES)
@@ -721,9 +721,9 @@ describe('whether the lead rests', () => {
         expect(rested, `${type} at ${energy}`).toBe(leadRests({ type }, energy));
         if (rested) rests++;
       }
-    // 3 of 9 kinds always (an intro, a breakdown, an outro: cells' section kinds, #655), and the other 6 below 0.4: 40 of
-    // 101 energies.
-    expect(rests).toBe(3 * 101 + 6 * 40);
+    // 4 of 12 kinds always (an intro, a breakdown, an outro, a mambo: cells' section kinds, #655, the mambo since cells
+    // v0.30.0), and the other 8 below 0.4: 40 of 101 energies.
+    expect(rests).toBe(4 * 101 + 8 * 40);
   });
 });
 

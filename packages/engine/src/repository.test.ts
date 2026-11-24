@@ -39,6 +39,9 @@ const HAND_SWING: Readonly<Record<string, MeterSwing>> = {
   'Swing jazz': { level: '8n', share: 2 / 3 },
 };
 
+/** Each preset's swing as cells' meters place it since v0.30.0: Ambient's lean of 31/60 dropped, straight (yggi/cells decision 103, the owner's ruling, #751). */
+const FOUND_SWING: Readonly<Record<string, MeterSwing>> = { ...HAND_SWING, Ambient: STRAIGHT };
+
 /** The transport over a preset held, 32 bars: every event's part, step, note, velocity, onset and duration. */
 function events(env: TransportEnv): TimedEvent[] {
   let carried: TransportCarried | null = transport.initial;
@@ -66,36 +69,28 @@ describe("cells' seed, as a screen reads it", () => {
 });
 
 describe("cells' repository of meters, as the composer asks it (#375)", () => {
-  it('reads every one of cells’ thirteen meters into the band’s, 2/4 and alla breve among them (#652)', () => {
+  it('reads every one of cells’ twelve meters into the band’s, 2/4 and alla breve among them (#652)', () => {
     expect(METER_READINGS.filter((r) => typeof r.read === 'string')).toEqual([]);
-    expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(13);
-    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("2/4"))')!.meter).toEqual(
-      METERS['2/4'],
-    );
-    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("2/2", 2))')!.meter).toEqual(
-      METERS['2/2'],
-    );
-    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("10/8"))')!.meter).toEqual(
+    expect([...METER_REPOSITORY.fragments.keys()]).toHaveLength(12);
+    expect(METER_REPOSITORY.fragments.get('bar(meter="2/4")')!.meter).toEqual(METERS['2/4']);
+    expect(METER_REPOSITORY.fragments.get('bar(meter="4/4 in 2")')!.meter).toEqual(METERS['2/2']);
+    expect(METER_REPOSITORY.fragments.get('odd_meter(meter="10/8")')!.meter).toEqual(
       METERS['10/8'],
     );
-    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("7/8"))')!.meter).toEqual(
-      METERS['7/8'],
-    );
-    expect(METER_REPOSITORY.fragments.get('meter(grouping=meter("12/8"))')!.meter).toEqual(
-      METERS['12/8'],
-    );
-    expect(METER_REPOSITORY.fragments.get('meter(swing=8n:2/3)')!.swing).toEqual({
+    expect(METER_REPOSITORY.fragments.get('odd_meter(meter="7/8")')!.meter).toEqual(METERS['7/8']);
+    expect(METER_REPOSITORY.fragments.get('bar(meter="12/8")')!.meter).toEqual(METERS['12/8']);
+    expect(METER_REPOSITORY.fragments.get('swing_meter')!.swing).toEqual({
       level: '8n',
       share: 2 / 3,
     });
   });
 
-  it('finds each preset’s swing at its point, at distance 0: 4/4, swinging exactly as the preset named it by hand (#459)', () => {
+  it('finds each preset’s swing at its point, at distance 0: 4/4, swinging as the preset named it by hand but Ambient, straight since cells v0.30.0 (#459, #751)', () => {
     expect(PROTOTYPE_PRESETS.map((p) => p.name)).toEqual(Object.keys(HAND_SWING));
     for (const preset of PROTOTYPE_PRESETS) {
       const found = composedMeter(METER_REPOSITORY, preset.style, null)!;
       expect(found.meter, preset.name).toEqual(METERS['4/4']);
-      expect(presetSwing(preset), preset.name).toEqual(HAND_SWING[preset.name]);
+      expect(presetSwing(preset), preset.name).toEqual(FOUND_SWING[preset.name]);
       expect(presetSwing(preset), preset.name).toEqual(found.swing);
       expect(METER_REPOSITORY.query(stylePoint(preset.style))[0]!.distance, preset.name).toBe(0);
     }
@@ -120,7 +115,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
     }
   });
 
-  it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 13,413 events, each to 1e-9 s', () => {
+  it('plays every preset held, 2 seeds of 32 bars, as the meter and swing asked for do: 13,271 events, each to 1e-9 s', () => {
     let count = 0;
     for (const preset of PROTOTYPE_PRESETS)
       for (const seed of [0, 1]) {
@@ -130,7 +125,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
           track: holding({ ...preset.style, entropy: 0.3 }),
           wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
         };
-        const asked = events({ ...env, swing: holdingSwing(HAND_SWING[preset.name]!) });
+        const asked = events({ ...env, swing: holdingSwing(FOUND_SWING[preset.name]!) });
         // The repository's share wins over the swing track's, so a straight track changes nothing.
         const found = events({
           ...env,
@@ -152,7 +147,7 @@ describe("cells' repository of meters, as the composer asks it (#375)", () => {
         }
         count += asked.length;
       }
-    expect(count).toBe(13413);
+    expect(count).toBe(13271);
   });
 });
 
@@ -203,16 +198,19 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     // (as under cells v0.8.0 but near Electro swing's and Spooky's points, whose meters cells v0.12.0 placed there;
     // re-recorded at cells v0.23.0, whose grid lies on sync harm bite mood and whose 4/4 is placed at Kinderlied's and
     // the four new styles' points too: the nearest moves at 41 of the 81 grid points and at none of the presets'; and at
-    // cells v0.24.0, whose plain and swung 4/4 sit at its eight new styles' points too: at 24 more, none a preset's)
-    expect([asked.length, hashOf(asked)]).toEqual([89, '787bc72a']);
+    // cells v0.24.0, whose plain and swung 4/4 sit at its eight new styles' points too: at 24 more, none a preset's; and
+    // at cells v0.30.0, whose meters are `bar` and a fragment a style's feel, yggi/cells decision 103: every answer the
+    // same fragment at the same distance, named anew, 787bc72a before)
+    expect([asked.length, hashOf(asked)]).toEqual([89, '91467e14']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
-    expect(hashOf(asBefore(asked))).toBe('112cb67a');
+    // (112cb67a before cells v0.30.0, whose Ambient finds the plain bar, named `4/4` before, where it found its own lean)
+    expect(hashOf(asBefore(asked))).toBe('5e224c7f');
     // (what of cells' library is neither a meter nor a rhythm: bass lines, harmonies, kits, modes … whatever it holds)
     expect(OTHERS.length).toBeGreaterThan(0);
     expect(meterQueries(meterRepository([...METER_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });
 
-  it('picks the rhythms, and the clave layered on the drum bar picked, as under cells v0.8.0 but where a newer seed is nearer, on each of 24 benches at each of 89 points, and as with every other facet of the library beside them', () => {
+  it('picks the rhythms, and the clave layered on the drum bar picked, as under cells v0.8.0 but where a newer seed is nearer, on each of 23 benches at each of 89 points, and as with every other facet of the library beside them', () => {
     const asked = rhythmQueries(RHYTHM_REPOSITORY);
     // (as under cells v0.8.0 but where Electro swing drums (held since #508) or Spooky drums (cells v0.12.0) is nearer, or
     // since cells v0.15.0 Ghost drums, near Spooky, in 476 answers, and Kinderlied drums in 14, yggi/cells#409 and #417)
@@ -230,20 +228,24 @@ describe('every query the composer asks names its facet (cells v0.9.0: the libra
     // another drum bar was, the clave beside none moved; the hash was 1715f0de)
     // (and at cells v0.29.0, with its breathing drums the drummer holds, yggi/cells#799: at one point, on each of the 24
     // benches, they are nearer than the Lo-fi hip hop drums, the clave beside unmoved; 24 answers, the hash was 4b5a0b26)
-    expect([asked.length, hashOf(asked)]).toEqual([2136, 'bd19f532']);
+    // (and at cells v0.30.0, whose meters are `bar` and a fragment a style's feel, yggi/cells decision 103: one bench
+    // fewer, Ambient's leaning 4/4, which is the plain bar's now, and its 89 answers; every other answer the same, its
+    // bench named anew; 2,136 answers and bd19f532 before)
+    expect([asked.length, hashOf(asked)]).toEqual([2047, 'f83a01d8']);
     // (the same answers as before the seed ids became words, cells v0.16.0: each named as it was)
     // (since cells v0.19.0 the cinquillo is the nearest clave beside 84 of them, never within CO_SELECT, so never layered)
     // (71ea5405 before cells v0.25.0, whose two new drum bars' 45 answers have no name before; 6cd9792d before 2/4 and
     // 2/2 were among the band's meters on top of v0.25.0, #652, and its four benches; 07713acd before cells v0.26.0's
     // twelve-eight drums, yggi/cells#706; a073bd31 before cells v0.29.0's breathing drums, whose 24 answers have no name
-    // before)
-    expect(hashOf(asBefore(asked))).toBe('41efceb1');
+    // before; 41efceb1 before cells v0.30.0's bench fewer)
+    expect(hashOf(asBefore(asked))).toBe('37a280bf');
     // (a rhythm is found on the six benches in 4/4, 6 × 89, a clave layered on every one; and since cells v0.12.0 Spooky
     // drums, which fits every meter but 7/8, on ten benches more, 10 × 89, where no clave fits; and since cells v0.15.0
-    // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one)
+    // Ghost drums, which fits 7/8, on the four benches left, 4 × 89: every bench finds one; since cells v0.30.0 one bench
+    // in 4/4 fewer, Ambient's lean, so 7 × 89 with a clave where 8 × 89 were)
     const found = asked.filter((line) => !line.startsWith(' |'));
     expect([found.length, found.filter((line) => !line.endsWith('| ')).length]).toEqual([
-      2136, 712,
+      2047, 623,
     ]);
     expect(rhythmQueries(rhythmRepository([...RHYTHM_FRAGMENTS, ...OTHERS]))).toEqual(asked);
   });

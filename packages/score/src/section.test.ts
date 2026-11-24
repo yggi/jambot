@@ -182,7 +182,7 @@ describe('a section as one cells text, for the app (#399)', () => {
     expect(() => hostOf(bars)).toThrow(/bpm changes at its bar 1/);
     expect(hostOf(bars, { tempo: 'first' }).bpm).toBe(bars[0]!.style.bpm);
     const text = sectionTextOf(sectionAsCells(bars, { tempo: 'first' }));
-    expect(text.split('\n')[1]).toBe(`&bar from meter ${bars[0]!.style.bpm}bpm`);
+    expect(text.split('\n')[1]).toBe(`&bar from bar ${bars[0]!.style.bpm}bpm`);
     // The rest of the text is the held tempo's.
     const held = sectionTextOf(sectionAsCells(section('Synth-pop')));
     expect(text.split('\n').slice(1)).toEqual(held.split('\n').slice(1));
@@ -637,11 +637,11 @@ describe('what the composer took, written as its `from` line (#531, yggi/cells#7
     const [bars] = sections('Funk', 1, 8, true);
     const text = sectionTextOf(sectionAsCells(bars!));
     expect(text.split('\n').slice(1, 3)).toEqual([
-      '&bar from meter(swing=16n:.6) 104bpm',
+      '&bar swing=16n:.6 from bar 104bpm',
       '&key from diatonic(mode=dorian) D',
     ]);
     expect(references(text).map((r) => r.id)).toEqual([
-      'meter',
+      'bar',
       'diatonic',
       'styles',
       bars![0]!.derivedFrom!.harmony,
@@ -676,7 +676,7 @@ describe('what the composer took, written as its `from` line (#531, yggi/cells#7
           expect(played.diagnostics, at).toEqual([]);
           for (const [i, bar] of bars.entries())
             expect(mismatches(writtenNotes(bar), played.bars[i]!.notes, true), at).toEqual([]);
-          expect(text, at).toMatch(/^&bar from meter\b/m);
+          expect(text, at).toMatch(/^&bar (swing=\S+ )?from bar\b/m);
           expect(text, at).toMatch(/^&key from diatonic\(/m);
           if (bars[0]!.plan.claveFragment === undefined) continue;
           claves++;
@@ -741,7 +741,7 @@ describe('a part the composer took, written as its `from` line with the band’s
     // (cells' outline gives a `*` take's heads the band's own lines write as none; `sectionOutline` names them as the
     // take overridden, from its signature, which cells leaves empty for a template's `*`)
     expect(takes.map((p) => [p.id, p.heads, p.overrode])).toEqual([
-      ['meter', ['&bar'], []],
+      ['bar', ['&bar'], []],
       ['diatonic', ['&key'], []],
       ['styles', ['&funk'], []],
       ['vamp_to_the_seventh', ['&harm'], []],
@@ -758,11 +758,12 @@ describe('a part the composer took, written as its `from` line with the band’s
         .parts.filter((p) => p.id !== null && p.within === null)
         .every((p) => p.overrode.length === 0),
     ).toBe(true);
-    // #531's bound of 1,500 bytes waits on the drums and the bass played whole (#656)
+    // #531's bound of 1,500 bytes waits on the drums and the bass played whole (#656) (2,585 and 2,579 before cells
+    // v0.30.0, whose meter line is `&bar swing=16n:.6 from bar 104bpm`, 3 bytes fewer)
     expect([
       utf8(sectionTextOf(sectionAsCells(untaken(bars), { tempo: 'first' }))),
       utf8(text),
-    ]).toEqual([2585, 2579]);
+    ]).toEqual([2582, 2576]);
   });
 
   it('takes every part whose fragment the composer kept by that fragment’s `from` line, and plays as the band writes it: every preset, seeds 1 and 2, 32 bars', () => {
@@ -796,17 +797,19 @@ describe('a part the composer took, written as its `from` line with the band’s
           }
       return out;
     };
-    // (seed 1: 92 sections; the harmony from the tables in the other 18, so none kept)
+    // (seed 1: 92 sections; the harmony from the tables in the other 17, so none kept; 29 over and 18 from the tables
+    // before cells v0.30.0, where Salsa's song form was `vamp`: its `son_montuno`'s coro keeps the montuno where the
+    // vamp's bridge played the tables, and 63 over at seeds 1 and 2)
     expect(count([1])).toEqual({
       'harmony whole': 45,
-      'harmony over': 29,
+      'harmony over': 30,
       'bass over': 92,
       'lead over': 92,
       'drums over': 92,
     });
     expect(count([1, 2])).toEqual({
       'harmony whole': 85,
-      'harmony over': 63,
+      'harmony over': 65,
       'bass over': 184,
       'lead over': 184,
       'drums over': 184,
@@ -1191,7 +1194,9 @@ describe('a voice’s own sound, read off the text for the built-in synth (#497)
     'Happy hardcore': { lead: 'sawtooth' },
     Elektro: { bass: 'square' },
     'Dark ambient': { pad: 'sawtooth', lead: 'triangle' },
-    'Blues shuffle': { bass: 'sawtooth', pad: 'square', lead: 'sawtooth' },
+    // (and its pad a square, heard in its first solo before cells v0.30.0, whose solos rest the pad: none of its first
+    // three sections plays one since)
+    'Blues shuffle': { bass: 'sawtooth', lead: 'sawtooth' },
     Chiptune: { bass: 'square', lead: 'square' },
     // (the leads below, Chiptune's and Baroque's stab, heard since the first three sections are played, #655)
     Baroque: { stab: 'sine', lead: 'sawtooth' },

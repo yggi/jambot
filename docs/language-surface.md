@@ -126,7 +126,7 @@ prototype's takeovers. Decided: the prototype, inherited.
 prototype's `shift` section a bridge, because `shift` is the theory's
 transposition and a candidate motif operator: `bar 12 shift` would read as an
 operation. Counterexample: a score word with two meanings. Test: `form.test.ts`,
-"has six kinds of section of its own, and a song form adds three, eight bars each". Source: the law of true names, #37
+"has six kinds of section of its own, and a song form adds six, eight bars each". Source: the law of true names, #37
 step 3. Status: measured. Decided: #37 step 3, in the working track.
 
 ## Surface

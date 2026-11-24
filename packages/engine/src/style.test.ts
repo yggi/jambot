@@ -65,6 +65,8 @@ describe('the presets', () => {
     'Bossa nova': 0,
     'Swing jazz': 1,
   };
+  /** The swing each preset's meter swings at since cells v0.30.0: the axis's but Ambient's, straight (yggi/cells decision 103, the owner's ruling, #751). */
+  const FOUND_SWING: Readonly<Record<string, number>> = { ...AXIS_SWING, Ambient: 0 };
 
   it('each find a meter swinging on the level the swing axis swung, the straight ones on the 16ths (#360, #459: the shares, `repository.test.ts`)', () => {
     for (const p of PROTOTYPE_PRESETS) {
@@ -79,7 +81,7 @@ describe('the presets', () => {
     const beats = meterOnSteps(METERS['4/4']).heights;
     let worst = 0;
     for (const p of PROTOTYPE_PRESETS) {
-      const was = leanMap(swingParts(AXIS_SWING[p.name]!));
+      const was = leanMap(swingParts(FOUND_SWING[p.name]!));
       for (let i = 0; i <= 16 * 48; i++) {
         const x = i / 48;
         const start = beats.findLast((b) => b <= x) ?? 0;

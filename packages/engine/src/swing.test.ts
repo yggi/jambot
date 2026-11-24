@@ -348,7 +348,8 @@ describe('the meter’s swing (#360)', () => {
   });
 
   it('weighs a 16th lean half of an 8th’s, so every preset weighs what its swing axis value was', () => {
-    const was = [0, 0, 0.3, 0.05, 0.45, 0.3, 0, 1];
+    // (Ambient's 0.05 straight since cells v0.30.0, its lean of 31/60 dropped: yggi/cells decision 103, #751)
+    const was = [0, 0, 0.3, 0, 0.45, 0.3, 0, 1];
     PROTOTYPE_PRESETS.forEach((p, i) =>
       expect(swingWeight(presetSwing(p)!)).toBeCloseTo(was[i]!, 12),
     );

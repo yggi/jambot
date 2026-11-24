@@ -6,7 +6,8 @@
  * the stab, the lead); a build's offset ramps by the bar, a line by its weight (`&buildRise`, 0 to 1 over its bars).
  *
  * This is the one place a section's kind decides who plays: the lead rests where its kind leaves it out (an intro, a
- * breakdown), and the comp plays no stab where its kind leaves the stab out (a breakdown). How a part plays in a kind (a
+ * breakdown), and the comp plays no stab where its kind leaves the stab out (a breakdown) and no pad where it leaves the
+ * pad out (a solo, a mambo: cells v0.30.0). How a part plays in a kind (a
  * breakdown's hats alone and held roots, a build's fill) is its composer's, as cells' fragments say, and stays with it.
  *
  * Pure: it reads cells' seed library and parser, no I/O.

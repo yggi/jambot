@@ -34,6 +34,7 @@ import { setTiming } from '@yggi/cells/edit';
 import {
   type Fragment,
   type LearnedLayer,
+  byId,
   createRepository,
   layerProblems,
   useFragments,
@@ -42,7 +43,7 @@ import { METER_FRAGMENTS, BASS_FRAGMENTS, HARMONY_FRAGMENTS, RHYTHM_FRAGMENTS } 
 import { isLibraryFragment } from '@yggi/cells/library';
 import { sameMeter } from './events.ts';
 import { askOptions } from './facet.ts';
-import { cappedLayer } from './layer.ts';
+import { BENCH_FRAGMENT, cappedLayer } from './layer.ts';
 import { MOTIF_LEADS, leadsAlone } from './lead-lines.ts';
 import {
   MISS_DISTANCE,
@@ -188,19 +189,113 @@ export const SEED_FRAGMENTS: readonly Fragment[] = [
 ];
 
 /**
+ * The ids of cells' meters before v0.30.0, each with the one it is now (yggi/cells decision 103, the map its changelog
+ * gives, #751): the template `meter` is `bar`, each style's feel a fragment of its own, Ambient's lean dropped (its 4/4
+ * straight, `bar`), and the odd groupings `odd_meter`.
+ */
+export const RENAMED_METERS: ReadonlyMap<string, string> = new Map([
+  ['meter', 'bar'],
+  ['meter(swing=8n:2/3)', 'swing_meter'],
+  ['meter(swing=16n:.65)', 'lofi_meter'],
+  ['meter(swing=16n:.6)', 'funk_meter'],
+  ['meter(swing=16n:31/60)', 'bar'],
+  ['meter(grouping=meter("2/2", 2))', 'bar(meter="4/4 in 2")'],
+  ['meter(grouping=meter("2/4"))', 'bar(meter="2/4")'],
+  ['meter(grouping=meter("3/4"))', 'bar(meter="3/4")'],
+  ['meter(grouping=meter("6/8"))', 'bar(meter="6/8")'],
+  ['meter(grouping=meter("12/8"))', 'bar(meter="12/8")'],
+  ['meter(grouping=meter("5/4"))', 'odd_meter'],
+  ['meter(grouping=meter("7/8"))', 'odd_meter(meter="7/8")'],
+  ['meter(grouping=meter("10/8"))', 'odd_meter(meter="10/8")'],
+]);
+
+const isMap = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * A learned layer kept before cells v0.30.0, its meters named as they are now (`RENAMED_METERS`, #751): each learned
+ * point, each pair used together and each groove variation's bench (`BENCH_FRAGMENT`) that names an old id names its
+ * new one, each pair in cells' order (`byId`), two pairs that come to name the same two summed, and a pair that comes to
+ * name one twice gone. Cells orders a pair by its ids and refuses a layer whose pair is out of order, so without it a
+ * layer that kept a meter with a rhythm would be refused whole; and `from meter` finds no fragment, so a meter learned
+ * under its old id would answer no query. Anything else, and a layer that names no old id, is given back as it is.
+ */
+export function meterIdsRenamed<T>(layer: T): T {
+  if (!isMap(layer)) return layer;
+  const renamed = (id: unknown) => (typeof id === 'string' ? (RENAMED_METERS.get(id) ?? id) : id);
+  let changed = false;
+  const points = Array.isArray(layer.points)
+    ? layer.points.map((p: unknown) => {
+        if (!isMap(p) || renamed(p.id) === p.id) return p;
+        changed = true;
+        return { ...p, id: renamed(p.id) };
+      })
+    : layer.points;
+  const filed = Array.isArray(layer.filed)
+    ? layer.filed.map((file: unknown) => {
+        if (!isMap(file) || !isMap(file.meta)) return file;
+        const bench = file.meta[BENCH_FRAGMENT];
+        if (renamed(bench) === bench) return file;
+        changed = true;
+        return { ...file, meta: { ...file.meta, [BENCH_FRAGMENT]: renamed(bench) } };
+      })
+    : layer.filed;
+  let together = layer.together;
+  if (
+    Array.isArray(together) &&
+    together.some(
+      (pair: unknown) =>
+        isMap(pair) &&
+        Array.isArray(pair.ids) &&
+        pair.ids.some((id: unknown) => renamed(id) !== id),
+    )
+  ) {
+    changed = true;
+    const summed = new Map<string, { ids: [string, string]; count: number }>();
+    const kept: unknown[] = [];
+    for (const pair of together as unknown[]) {
+      const [a, b] =
+        isMap(pair) && Array.isArray(pair.ids) ? (pair.ids as unknown[]).map(renamed) : [];
+      if (
+        typeof a !== 'string' ||
+        typeof b !== 'string' ||
+        !isMap(pair) ||
+        typeof pair.count !== 'number'
+      ) {
+        kept.push(pair);
+        continue;
+      }
+      if (a === b) continue;
+      const ids: [string, string] = byId(a, b) < 0 ? [a, b] : [b, a];
+      const key = JSON.stringify(ids);
+      const before = summed.get(key);
+      if (before) before.count += pair.count;
+      else {
+        const entry = { ids, count: pair.count };
+        summed.set(key, entry);
+        kept.push(entry);
+      }
+    }
+    together = kept;
+  }
+  return changed ? ({ ...layer, points, filed, together } as T) : layer;
+}
+
+/**
+ * A learned layer as a band reads it on load: its meters named as cells names them now (`meterIdsRenamed`, #751), and
+ * its lead lines without the voice and card they carried before #580 (`leadsAlone`, Jambot's own). Cells reads no
+ * retired form before its 1.0.0 (yggi/cells#643), so nothing else is rewritten: a layer kept in an older form loads as
+ * it was kept, and a text in it that takes an id cells refuses now answers no query, so the band plays its own line
+ * there. A layer kept now is the layer itself.
+ */
+export const keptLayer = (layer: LearnedLayer): LearnedLayer => leadsAlone(meterIdsRenamed(layer));
+
+/**
  * What is wrong with a learned layer for cells' meters and rhythms, each
  * problem a sentence; none for one a query takes. Its shape (cells'
  * `layerProblems`), and that it files no seed fragment's id, which a query
  * refuses.
  */
-/**
- * A learned layer as a band reads it on load: its lead lines lose the voice and card they carried before #580
- * (`leadsAlone`, Jambot's own). Cells reads no retired form before its 1.0.0 (yggi/cells#643), so nothing else is
- * rewritten: a layer kept in an older form loads as it was kept, and a text in it that takes an id cells refuses now
- * answers no query, so the band plays its own line there. A layer kept now is the layer itself.
- */
-export const keptLayer = (layer: LearnedLayer): LearnedLayer => leadsAlone(layer);
-
 export function repositoryLayerProblems(layer: unknown): string[] {
   if (typeof layer !== 'object' || layer === null || Array.isArray(layer))
     return ['the layer is not a map'];

@@ -194,7 +194,8 @@ const presetById = (id: string): Preset => {
 /**
  * The prototype's eight presets, by id. Each swings as it did on the swing axis: the meter the repository finds at
  * its point swings at the level and share `swingParts` gave at its value there (`presetSwing`), the straight ones on
- * the 16ths, where nothing brings in the jazz band. Each one's mode is the one the repository finds at its point
+ * the 16ths, where nothing brings in the jazz band; but Ambient, whose lean of 31/60 (the axis's 0.05) cells v0.30.0
+ * dropped, so it plays straight (yggi/cells decision 103, the owner's ruling, #751). Each one's mode is the one the repository finds at its point
  * (`presetMode`). The experiments' records were measured over these eight, and so are the tests that hold what `main`
  * plays.
  */

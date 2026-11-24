@@ -143,7 +143,7 @@ describe("cells' rhythms, as the composer asks them (#397)", () => {
 
   it('finds none it can’t read under the section’s meter, though cells fits it: a hit between the bar’s sixteenths (yggi/cells#360)', () => {
     const synthPop = PROTOTYPE_PRESETS[0]!;
-    const bench = { meter: METERS['4/4'], meterFragment: 'meter' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'bar' };
     const all = rhythmRepository(RHYTHM_FRAGMENTS, () => true);
     const found = all.query(stylePoint(synthPop.style), bench)[0]!.id;
     const unreadable = rhythmRepository(
@@ -322,8 +322,9 @@ describe('a fragment layered beside the rhythm chosen (#397, #430)', () => {
       }
     // (1,632 over the 22 rhythms held at cells v0.23.0, as there; with cells v0.24.0's seven, 2,322; with v0.25.0's two, 2,436;
     // and on the four benches of 2/4 and 2/2 the band plays since #652, on top of v0.25.0's, 2,088 and 3,108; the breathing
-    // drums add 96)
-    expect([before, pairs]).toEqual([2088, 3204]);
+    // drums add 96; since cells v0.30.0 one bench fewer, Ambient's leaning 4/4, which is the plain bar's: 2,088 and 3,204
+    // before)
+    expect([before, pairs]).toEqual([1896, 2910]);
   });
 });
 
@@ -387,8 +388,10 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
       ['Ambient', 0.84, 0.31, 1.7, 0],
       ['Lo-fi hip hop', 0.67, 2.36, 8.38, 0],
       ['Funk', 0.65, 5.25, 24.55, 2.5],
-      ['Bossa nova', 0.64, 3.31, 14.08, 5],
-      ['Swing jazz', 0.78, 1.44, 12.66, 0],
+      // (Bossa nova 0.64, 3.31 and 14.08, and Swing jazz 0.78 and 12.66, before cells v0.30.0, whose jazz solos play
+      // 0.05 hotter)
+      ['Bossa nova', 0.66, 3.16, 14.52, 5],
+      ['Swing jazz', 0.79, 1.44, 12.73, 0],
     ]);
   });
 });
@@ -403,15 +406,15 @@ describe('the rhythm and the learned layer (#397, #398)', () => {
     expect(bars.map((b) => b.dough)).toEqual(run(funk, 1, true).map((b) => b.dough));
     const learned = layer! as LearnedLayer;
     expect(new Set(learned.points.map((p) => p.id))).toEqual(
-      new Set(['meter(swing=16n:.6)', 'funk_drums', 'rumba_clave_3_2']),
+      new Set(['funk_meter', 'funk_drums', 'rumba_clave_3_2']),
     );
     expect(
       learned.points.filter((p) => p.id === 'rumba_clave_3_2').every((p) => p.facet === 'rhythm'),
     ).toBe(true);
     // 4 sections played, and the fifth decided a bar ahead: each the rhythm and the clave kept together, and each with the meter (#401)
     expect(learned.together).toEqual([
-      { ids: ['meter(swing=16n:.6)', 'funk_drums'], count: 5 },
-      { ids: ['meter(swing=16n:.6)', 'rumba_clave_3_2'], count: 5 },
+      { ids: ['funk_meter', 'funk_drums'], count: 5 },
+      { ids: ['funk_meter', 'rumba_clave_3_2'], count: 5 },
       { ids: ['funk_drums', 'rumba_clave_3_2'], count: 5 },
     ]);
   });
@@ -452,10 +455,10 @@ describe('the pull of a group the composer keeps, from its place on the ladder (
   // Funk's drum bar and the 4/4 meter fragment, known together (cells' 10 uses)
   const layer: LearnedLayer = {
     ...EMPTY_LAYER,
-    together: [{ ids: ['meter', 'funk_drums'], count: 10 }],
+    together: [{ ids: ['bar', 'funk_drums'], count: 10 }],
   };
   const taken = (entropy: number) =>
-    composedRhythm(RHYTHM_REPOSITORY, style, bench, null, layer, ['meter'], [], pullOf(entropy))
+    composedRhythm(RHYTHM_REPOSITORY, style, bench, null, layer, ['bar'], [], pullOf(entropy))
       .rhythmFragment;
 
   it('keeps the group at entropy 0 (repeat), and follows the style at entropy 1 (fetch far): the nearest by style alone', () => {
@@ -474,8 +477,9 @@ describe('the rhythm repository warmed ahead (#397, review of #407)', () => {
       fits++;
       return fit(fragment, workbench);
     });
-    // (a bench for each of cells' 13 meter fragments, all the band's since #652, and one for each named meter)
-    expect(RHYTHM_BENCHES.length).toBe(13 + Object.keys(METERS).length);
+    // (a bench for each of cells' 12 meter fragments, all the band's since #652 (13 before cells v0.30.0, whose Ambient
+    // 4/4 is the plain bar's), and one for each named meter)
+    expect(RHYTHM_BENCHES.length).toBe(12 + Object.keys(METERS).length);
     const steps = [...repository.warm!(RHYTHM_BENCHES)].length;
     const warmed = fits;
     // (how many there are follows from cells' library, its drum bars' variations among them, which the composer's ladder
@@ -622,7 +626,7 @@ describe('a groove the layer’s cap dropped (#424)', () => {
 });
 
 describe('a groove variation kept by reference (#553)', () => {
-  const FOUR = { meter: METERS['4/4'], meterFragment: 'meter' };
+  const FOUR = { meter: METERS['4/4'], meterFragment: 'bar' };
   const AT = { sync: 0.5, harm: 0.5, bite: 0.5, mood: 0.5 };
   const filing = (hits: GrooveFiling['hits'], varies?: string, by?: string): GrooveFiling => ({
     hits,
@@ -654,7 +658,7 @@ describe('a groove variation kept by reference (#553)', () => {
           varies: seed.id,
           by,
           [BENCH]: '4/4',
-          [BENCH_FRAGMENT]: 'meter',
+          [BENCH_FRAGMENT]: 'bar',
         });
         const stored = storedLayer(layer);
         expect(stored.filed[0]!.fragment.text, `${seed.id} ${by}`).toBe('');

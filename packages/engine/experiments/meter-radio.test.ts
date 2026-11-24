@@ -41,21 +41,24 @@ describe('the composer asks the repository for its meter while the radio walks (
   // (416 times before cells v0.24.0, whose plain and swung 4/4 sit at its eight new styles' points too; 414 at cells
   // v0.24.0, and 461 with 2/4 and 2/2 among the band's meters, #652, the walk playing 2/4 for 80 of its 7,200 minutes
   // and 2/2 for 6, near their points: 26,689 sections before, 27,068 now; 463 since cells v0.25.1, whose swung
-  // sixteenths are a second choice 0.1 off Acid's point, yggi/cells#540)
-  it('changes the meter only where a section starts, 463 times in 120 hours, and back at the next section once (E34)', () => {
+  // sixteenths are a second choice 0.1 off Acid's point, yggi/cells#540; 453 since cells v0.30.0, whose Ambient 4/4 is
+  // the plain bar's, its lean of 31/60 dropped, so the walk crosses no border between the two: 27,061 sections, 27,068
+  // before)
+  it('changes the meter only where a section starts, 453 times in 120 hours, and back at the next section once (E34)', () => {
     expect(RUNS).toHaveLength(40);
-    expect(changes).toHaveLength(463);
+    expect(changes).toHaveLength(453);
     for (const c of changes) expect(c.bar % SECTION_BARS, `${c.from} to ${c.to}`).toBe(0);
     expect(RUNS.flatMap(wentBack)).toEqual([
-      { bar: 656, section: 82, from: 'meter', to: 'meter(grouping=meter("10/8"))' },
+      { bar: 656, section: 82, from: 'bar', to: 'odd_meter(meter="10/8")' },
     ]);
-    expect(sections).toBe(27068);
+    expect(sections).toBe(27061);
   });
 
   // (381 and 18 before cells v0.24.0; 361 and 25 at cells v0.24.0, before 2/4 and 2/2 were among the band's meters, #652;
-  // 379 and 26 before cells v0.25.1, whose swung sixteenths are a second choice near Acid's point, yggi/cells#540)
-  it('goes back 387 times with no margin for the meter playing, and 27 times with half of it (E34)', () => {
-    expect(backs).toEqual([387, 27]);
+  // 379 and 26 before cells v0.25.1, whose swung sixteenths are a second choice near Acid's point, yggi/cells#540; 387
+  // and 27 before cells v0.30.0, whose Ambient 4/4 is the plain bar's)
+  it('goes back 380 times with no margin for the meter playing, and 26 times with half of it (E34)', () => {
+    expect(backs).toEqual([380, 26]);
   });
 
   // (since cells v0.24.0, whose plain 4/4 sits at Trip-hop's and Salsa's points too, far toward the axes' corners: 70
@@ -86,31 +89,33 @@ describe('the band learns the meters it keeps while the radio walks (E34, #398)'
   });
 
   // (1.92 points (0.79), 92.72 % to 94.64 % over 26,776 sections, before cells v0.24.0; 1.53 points (0.54), 93.65 % to
-  // 95.18 % over 26,658 sections, before 2/4 and 2/2 were among the band's meters, #652)
+  // 95.18 % over 26,658 sections, before 2/4 and 2/2 were among the band's meters, #652; 93.72 % before cells v0.30.0)
   it('adds 1.5 points to the share of sections among a run’s 3 most used meters, within 5 with twice its error (cells decision 048)', () => {
     // The same walks, each run paired with its own unlearned: a meter learned may last other than the one it replaced, so the hours hold other counts of sections.
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(RUNS.map((r) => [r.preset, r.seed]));
     expect(LEARNED.reduce((n, r) => n + r.sections, 0)).toBe(27143);
     const { before, after, added, error } = lockIn(RUNS, LEARNED);
     if (process.env.E34_REPORT) console.log({ before, after, added, error });
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9372', '0.9526']);
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.9371', '0.9526']);
     expect(added.toFixed(2)).toBe('1.55');
     expect(error.toFixed(2)).toBe('0.55');
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   // (248 before cells v0.24.0, where the walk unlearned missed 70 sections; 261 before 2/4 and 2/2 were among the band's
-  // meters, #652; 296 before cells v0.25.1's swung sixteenths near Acid's point, yggi/cells#540)
-  it('changes the meter 298 times in 120 hours, never back at the next section, and misses never: learning reaches farther', () => {
-    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(298);
+  // meters, #652; 296 before cells v0.25.1's swung sixteenths near Acid's point, yggi/cells#540; 298 before cells
+  // v0.30.0, whose Ambient 4/4 is the plain bar's)
+  it('changes the meter 293 times in 120 hours, never back at the next section, and misses never: learning reaches farther', () => {
+    expect(LEARNED.reduce((n, r) => n + r.changes.length, 0)).toBe(293);
     expect(LEARNED.flatMap(wentBack)).toEqual([]);
     expect(LEARNED.reduce((n, r) => n + r.missed, 0)).toBe(0);
   });
 
-  // (945 bytes and 9 points before cells v0.24.0)
-  it(`keeps a layer of at most 1,074 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
+  // (945 bytes and 9 points before cells v0.24.0; 1,074 before cells v0.30.0, whose meters' ids are shorter, `funk_meter`
+  // where it was `meter(swing=16n:.6)`, decision 103)
+  it(`keeps a layer of at most 979 bytes after 3 hours, far under its cap of ${LAYER_CAP.toLocaleString('en')}`, () => {
     const bytes = learnedBytes(LEARNED);
-    expect(Math.max(...bytes)).toBe(1074);
+    expect(Math.max(...bytes)).toBe(979);
     expect(Math.max(...LEARNED.map((r) => r.layer!.points.length))).toBe(10);
   });
 });

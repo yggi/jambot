@@ -294,6 +294,9 @@ const SECTION_NAMES: Record<SectionType, string> = {
   verse: 'Verse',
   chorus: 'Chorus',
   outro: 'Outro',
+  solo: 'Solo',
+  coro: 'Coro',
+  mambo: 'Mambo',
 };
 
 /** The axes that name a style: those a preset sets, but energy. */

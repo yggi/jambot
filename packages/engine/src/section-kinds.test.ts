@@ -31,7 +31,7 @@ describe('the section kinds, from cells’ section fragments (#655)', () => {
     expect(sectionKind('drop').ramp).toBeNull();
   });
 
-  it('read who plays: everyone, but the lead in an intro and a breakdown, and the stab in a breakdown', () => {
+  it('read who plays: everyone, but the lead in an intro, a breakdown and a mambo, the stab in a breakdown, and the pad in a solo and a mambo', () => {
     expect(Object.fromEntries(SECTION_TYPES.map((t) => [t, sectionKind(t).plays]))).toEqual({
       intro: ['drums', 'bass', 'pad', 'stab'],
       groove: [...BAND_ORDER],
@@ -43,6 +43,10 @@ describe('the section kinds, from cells’ section fragments (#655)', () => {
       verse: ['drums', 'bass', 'pad', 'lead'],
       chorus: [...BAND_ORDER],
       outro: ['drums', 'bass', 'pad', 'stab'],
+      // (cells v0.30.0's: a jazz chorus of solos, the pad out, and salsa's montuno and horns' sections)
+      solo: ['drums', 'bass', 'stab', 'lead'],
+      coro: [...BAND_ORDER],
+      mambo: ['drums', 'bass', 'stab'],
     });
     expect([
       kindOffset('verse', 3),
@@ -54,7 +58,7 @@ describe('the section kinds, from cells’ section fragments (#655)', () => {
     for (const t of SECTION_TYPES)
       for (const e of [0.39, 0.4, 0.9])
         expect(leadRests({ type: t }, e), `${t} ${e}`).toBe(
-          e < 0.4 || t === 'intro' || t === 'breakdown' || t === 'outro',
+          e < 0.4 || t === 'intro' || t === 'breakdown' || t === 'outro' || t === 'mambo',
         );
     // (in a song form's section the kind alone says it: a verse sings at any energy, #655)
     const song = { form: 'strophic', at: 1, of: 6 };
@@ -64,5 +68,8 @@ describe('the section kinds, from cells’ section fragments (#655)', () => {
     ]).toEqual([false, true]);
     expect(kindPlays('breakdown', 'stab')).toBe(false);
     expect(kindPlays('intro', 'stab')).toBe(true);
+    expect([kindPlays('solo', 'pad'), kindPlays('mambo', 'pad'), kindPlays('coro', 'pad')]).toEqual(
+      [false, false, true],
+    );
   });
 });

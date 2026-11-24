@@ -92,18 +92,22 @@ const range = (n: number) => [...Array(n).keys()];
  * meters; with v0.23.0's meter fragments it plays 940a389c still. The held presets play as before.
  * And since the drummer writes the rim's metric accent (#749): every event at its time, the rim's velocities moved
  * (f2e69c0f and c5fc0f14 before).
+ * And at cells v0.30.0 (13,413 and aaef7663 held, 13,239 and e0f991ae walked, before): Swing jazz's and Bossa nova's
+ * song form plays its solos as cells' kind `solo`, 0.05 hotter than the `groove` it played, and Ambient's 4/4 is
+ * straight, its lean of 31/60 dropped (yggi/cells decision 103); and the solos rest the pad, the kind leaving it out;
+ * held, only those three presets' bars move, the two in their solos alone.
  */
-const MAIN = { held: [13413, 'aaef7663'], walked: [13239, 'e0f991ae'] } as const;
+const MAIN = { held: [13271, '911719b1'], walked: [13176, '8114dd6a'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
-  it('over the 8 presets held, 2 seeds of 32 bars: 13,413 events, each to 1e-9 s', () => {
+  it('over the 8 presets held, 2 seeds of 32 bars: 13,271 events, each to 1e-9 s', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(0.3, false, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.held);
     }
   });
 
-  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,239 events', () => {
+  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,176 events', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);
@@ -116,14 +120,16 @@ describe('the band given an empty learned layer plays exactly what main plays (#
  * then under cells v0.7.0, where a clave strikes its own sound, 75, and not the rim's 37 (yggi/cells#140): every stroke at its time, 178 and 146 more where a rim shares its step, and its feel drawn on its own note (velocities within 4, lengths within 5 ms);
  * then under cells v0.29.0, where the funk, lo-fi and bossa drums take their euclid's levels from `metric_accent` (yggi/cells#890, the owner accepted it): every stroke at its time, the levels of those three drum bars' euclid lines moved (a4e5cd39 and 07a4cc45);
  * then the drummer writing the rim's metric accent (#749): every stroke at its time, the rim's velocities moved (a4e5cd39 and
- * 07a4cc45 before, under v0.29.0).
+ * 07a4cc45 before, under v0.29.0);
+ * then under cells v0.30.0, whose jazz song form plays its solos as the kind `solo` and whose Ambient 4/4 is straight
+ * (13,891 and dd722c5f, 14,042 and d36a0dc8, before), as `MAIN` above.
  */
-const MAIN_RHYTHMS = { still: [13891, 'dd722c5f'], bored: [14042, 'd36a0dc8'] } as const;
+const MAIN_RHYTHMS = { still: [13730, 'f13ba973'], bored: [13917, 'eb6a2554'] } as const;
 
 describe('a seed rhythm climbs the ladder only where the entropy bores the composer (#414)', () => {
   const rhythms = { rhythms: RHYTHM_REPOSITORY, layer: EMPTY_LAYER };
 
-  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 13,891 events, each to 1e-9 s', () => {
+  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 13,730 events, each to 1e-9 s', () => {
     const all = runs(0, false, rhythms, true).flat();
     expect([all.length, hashOf(all)]).toEqual(MAIN_RHYTHMS.still);
   });
@@ -179,7 +185,7 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
 
   it('learns nothing given no layer, from a meter asked for, or on a miss', () => {
     expect(planned(OFF, undefined, 3).map((c) => c.layer)).toEqual([null, null, null]);
-    const meter = METER_REPOSITORY.fragments.get('meter(grouping=meter("7/8"))')!.meter;
+    const meter = METER_REPOSITORY.fragments.get('odd_meter(meter="7/8")')!.meter;
     expect(planned(OFF, EMPTY_LAYER, 3, meter).map((c) => c.layer)).toEqual([
       EMPTY_LAYER,
       EMPTY_LAYER,
@@ -200,25 +206,23 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
     // Along the line from 4/4's point to 5/4's, once 4/4 was kept at its point. (4/4 held at that point alone: cells
     // places it at several, since v0.24.0 one near this line, and a use raises only the point that found it.)
     const held = meterRepository(
-      METER_FRAGMENTS.map((f) =>
-        f.id === 'meter' ? { ...f, association: [f.association[0]!] } : f,
-      ),
+      METER_FRAGMENTS.map((f) => (f.id === 'bar' ? { ...f, association: [f.association[0]!] } : f)),
     );
-    const [a, b] = [seedPoint('meter').point, seedPoint('meter(grouping=meter("5/4"))').point];
+    const [a, b] = [seedPoint('bar').point, seedPoint('odd_meter').point];
     const along = (t: number) =>
       Object.fromEntries(
         Object.keys(a).map((axis) => [axis, a[axis]! + t * (b[axis]! - a[axis]!)]),
       );
     const learned = planned({ ...SYNTH_POP, ...a }, EMPTY_LAYER, 3).at(-1)!.layer!;
-    expect(learned.points.map((p) => [p.id, p.weight])).toEqual([['meter', 1.2]]);
+    expect(learned.points.map((p) => [p.id, p.weight])).toEqual([['bar', 1.2]]);
     let flips = 0;
     for (const t of range(201).map((i) => i / 200)) {
       const found = held.query(along(t));
-      const [nearest, own] = [found[0]!.distance, found.find((f) => f.id === 'meter')!.distance];
+      const [nearest, own] = [found[0]!.distance, found.find((f) => f.id === 'bar')!.distance];
       const first = held.query(along(t), learned)[0]!.id;
       if (first !== found[0]!.id) flips++;
       // 4/4 is first wherever it lies within 1.2 times the nearest's distance, and nowhere else.
-      if (own < 1.2 * nearest - 1e-9) expect(first, `at ${t}`).toBe('meter');
+      if (own < 1.2 * nearest - 1e-9) expect(first, `at ${t}`).toBe('bar');
       else if (own > 1.2 * nearest + 1e-9) expect(first, `at ${t}`).toBe(found[0]!.id);
     }
     expect(flips).toBeGreaterThan(0);
@@ -226,7 +230,7 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
 
   it('holds the meter playing, with a layer, where another is nearer by less than METER_HOLD', () => {
     // Section 0 at 4/4's point keeps 4/4 and learns it; section 1 steps toward 5/4, to where another meter is nearest by less than the margin.
-    const [a, b] = [seedPoint('meter').point, seedPoint('meter(grouping=meter("5/4"))').point];
+    const [a, b] = [seedPoint('bar').point, seedPoint('odd_meter').point];
     const along = (t: number): Style => ({
       ...SYNTH_POP,
       ...Object.fromEntries(
@@ -238,16 +242,16 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
       .map((i) => i / 1000)
       .find((t) => {
         const found = METER_REPOSITORY.query(stylePoint(along(t)), learned);
-        const own = found.find((f) => f.id === 'meter')!.distance;
+        const own = found.find((f) => f.id === 'bar')!.distance;
         return (
-          found[0]!.id !== 'meter' &&
+          found[0]!.id !== 'bar' &&
           own - found[0]!.distance < METER_HOLD / 2 &&
           own <= MISS_DISTANCE
         );
       })!;
     expect(border).toBeDefined();
     const nearest = METER_REPOSITORY.query(stylePoint(along(border)), learned)[0]!.id;
-    expect(nearest).not.toBe('meter');
+    expect(nearest).not.toBe('bar');
     let carried: PlanCarried = planner.initial;
     const plans = [along(0), along(border)].map((style, index) => {
       const next = planner.advance(
@@ -266,11 +270,11 @@ describe('the composer learns each meter it keeps, a use at the section’s poin
       carried = next.carried;
       return next.output;
     });
-    expect(plans.map((p) => p.meterFragment)).toEqual(['meter', 'meter']);
+    expect(plans.map((p) => p.meterFragment)).toEqual(['bar', 'bar']);
     // Asked afresh, with nothing playing, the composer would take the nearest.
     expect(composedMeter(METER_REPOSITORY, along(border), null, learned)!.id).toBe(nearest);
     // The held meter is a use too, at the border's point.
-    expect(carried.layer!.points.map((p) => [p.id, p.weight])).toEqual([['meter', 1.2]]);
+    expect(carried.layer!.points.map((p) => [p.id, p.weight])).toEqual([['bar', 1.2]]);
   });
 
   it('plays the same from the same seed, style and layer: the plans carry the layer, so a forecast learns as the band will', () => {
@@ -356,8 +360,8 @@ describe('a layer the host keeps, read and written (#398)', () => {
     expect(repositoryLayerProblems({ filed: [], points: 'x', together: [] })).toEqual([
       'the layer: points is not a list',
     ]);
-    expect(repositoryLayerProblems({ ...EMPTY_LAYER, filed: [filed('meter')] })).toEqual([
-      "the layer files meter, a seed fragment's id",
+    expect(repositoryLayerProblems({ ...EMPTY_LAYER, filed: [filed('bar')] })).toEqual([
+      "the layer files bar, a seed fragment's id",
     ]);
   });
 

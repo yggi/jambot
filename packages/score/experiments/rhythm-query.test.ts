@@ -83,29 +83,31 @@ function seedReadback(
 /**
  * The presets whose bar 23 is still their drum fragment: each ends a groove at its preset's energy. Since #655's song
  * forms Synth-pop's bar 23 ends a chorus and Techno's a build, and Ambient's groove plays two roles where its fragment
- * plays four (`drums-in-cells.test.ts`); all 8 before.
+ * plays four (`drums-in-cells.test.ts`); all 8 before. Since cells v0.30.0 Bossa nova's and Swing jazz's bar 23 ends the
+ * first of their solos, the kind `solo`, 0.05 hotter than the `groove` it was (5 presets before).
  */
-const SEED_HELD = ['Deep house', 'Lo-fi hip hop', 'Funk', 'Bossa nova', 'Swing jazz'];
+const SEED_HELD = ['Deep house', 'Lo-fi hip hop', 'Funk'];
 
 /** The presets whose seed drums take their euclid's levels from `metric_accent` since cells v0.29.0 (yggi/cells#890). */
 const ACCENTED = ['Lo-fi hip hop', 'Funk', 'Bossa nova'];
 
 describe('a fragment read back into the band’s drums, E31’s reverse (E36)', () => {
-  it('reads every drum bar as the band’s bar it was taken from under a straight 4/4 at its bpm, where the band still plays it: note, step, length, velocity and role, 5 presets of 8, 86 of 86, but the euclid’s velocities of the 3 whose seed is accented', () => {
+  it('reads every drum bar as the band’s bar it was taken from under a straight 4/4 at its bpm, where the band still plays it: note, step, length, velocity and role, 3 presets of 8, 56 of 56, but the euclid’s velocities of the 2 whose seed is accented', () => {
     const read = seedReadback();
     // (all 8 presets, 144 of 144, before #655's song forms; since cells v0.29.0 the three accented ones but their euclid's
-    // velocities, 70 of 86 exactly)
+    // velocities, 70 of 86 exactly; since cells v0.30.0's hotter solos Bossa nova's and Swing jazz's bar 23 is no longer
+    // their seed, 44 of 56 exactly)
     expect(read.filter((r) => r.exactButAccent).map((r) => r.preset)).toEqual(SEED_HELD);
     expect(read.filter((r) => r.exact).map((r) => r.preset)).toEqual(
       SEED_HELD.filter((p) => !ACCENTED.includes(p)),
     );
     const held = read.filter((r) => SEED_HELD.includes(r.preset));
-    expect(held.reduce((n, r) => n + r.accented, 0)).toBe(86);
-    expect(held.reduce((n, r) => n + r.matched, 0)).toBe(70);
-    expect(held.reduce((n, r) => n + r.hits, 0)).toBe(86);
+    expect(held.reduce((n, r) => n + r.accented, 0)).toBe(56);
+    expect(held.reduce((n, r) => n + r.matched, 0)).toBe(44);
+    expect(held.reduce((n, r) => n + r.hits, 0)).toBe(56);
   });
 
-  it('reads all 86 under the meter each preset’s sections choose: the rim’s Euclid on `1m` swings under a 16n lean as the band swings it, the parts of a step swung (cells#306)', () => {
+  it('reads all 56 under the meter each preset’s sections choose: the rim’s Euclid on `1m` swings under a 16n lean as the band swings it, the parts of a step swung (cells#306)', () => {
     const first = new Map(
       PROTOTYPE_PRESETS.map((p) => [p.name, ASKED.find((s) => s.preset === p.name)!]),
     );
@@ -113,7 +115,8 @@ describe('a fragment read back into the band’s drums, E31’s reverse (E36)', 
       const bar = first.get(preset)!.bars[0]!;
       return { text: workbenchOf(bar), meter: bar.meter, swing: bar.swing };
     }).filter((r) => SEED_HELD.includes(r.preset));
-    expect(read.reduce((n, r) => n + r.accented, 0)).toBe(86); // (144 of 144 before #655's song forms)
+    // (144 of 144 before #655's song forms; 86 of 86 at 5 presets before cells v0.30.0's solos)
+    expect(read.reduce((n, r) => n + r.accented, 0)).toBe(56);
     expect(read.filter((r) => !r.exactButAccent)).toEqual([]);
   });
 
@@ -158,14 +161,15 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
         ]),
       ),
     ).toEqual({
-      'Synth-pop': 'meter',
-      Techno: 'meter',
-      'Deep house': 'meter(swing=16n:.6)',
-      Ambient: 'meter(swing=16n:31/60)',
-      'Lo-fi hip hop': 'meter(swing=16n:.65)',
-      Funk: 'meter(swing=16n:.6)',
-      'Bossa nova': 'meter',
-      'Swing jazz': 'meter(swing=8n:2/3)',
+      // (`meter` and its variants by swing before cells v0.30.0, decision 103; Ambient's own lean of 31/60, now `bar`)
+      'Synth-pop': 'bar',
+      Techno: 'bar',
+      'Deep house': 'funk_meter',
+      Ambient: 'bar',
+      'Lo-fi hip hop': 'lofi_meter',
+      Funk: 'funk_meter',
+      'Bossa nova': 'bar',
+      'Swing jazz': 'swing_meter',
     });
   });
 
@@ -186,20 +190,20 @@ describe('the composer’s rhythm over the corpus (E36): 8 presets × 5 seeds ×
         ],
       ]),
     );
+    // (thirteen meters before cells v0.30.0, Ambient's lean of 4/4 among them, each a variant of `meter`, decision 103)
     expect(verdicts).toEqual({
-      meter: ['found'],
-      'meter(swing=8n:2/3)': ['found'],
-      'meter(swing=16n:.65)': ['found'],
-      'meter(swing=16n:.6)': ['found'],
-      'meter(swing=16n:31/60)': ['found'],
-      'meter(grouping=meter("3/4"))': ['found', 'distance'],
-      'meter(grouping=meter("6/8"))': ['found', 'distance'],
-      'meter(grouping=meter("12/8"))': ['found', 'distance'],
-      'meter(grouping=meter("2/2", 2))': ['found'],
-      'meter(grouping=meter("2/4"))': ['found', 'distance'],
-      'meter(grouping=meter("5/4"))': ['found', 'distance'],
-      'meter(grouping=meter("7/8"))': ['found', 'distance'],
-      'meter(grouping=meter("10/8"))': ['found', 'distance'],
+      bar: ['found'],
+      swing_meter: ['found'],
+      lofi_meter: ['found'],
+      funk_meter: ['found'],
+      'bar(meter="3/4")': ['found', 'distance'],
+      'bar(meter="6/8")': ['found', 'distance'],
+      'bar(meter="12/8")': ['found', 'distance'],
+      'bar(meter="4/4 in 2")': ['found'],
+      'bar(meter="2/4")': ['found', 'distance'],
+      odd_meter: ['found', 'distance'],
+      'odd_meter(meter="7/8")': ['found', 'distance'],
+      'odd_meter(meter="10/8")': ['found', 'distance'],
     });
   });
 
@@ -311,22 +315,22 @@ describe('the fragment beside the drummer (E36)', () => {
       {
         preset: 'Bossa nova',
         fragment: 16,
-        drummer: 12.81,
+        drummer: 13.37,
         overlap: 0.23,
-        self: 0.41,
+        self: 0.42,
         filled: 20,
         equal: 0,
-        // (14.26, 0.22, 0.41, 26 before #655's song forms)
+        // (14.26, 0.22, 0.41, 26 before #655's song forms; 12.81 and 0.41 before cells v0.30.0's hotter solos)
       },
       {
         preset: 'Swing jazz',
         fragment: 14,
-        drummer: 13.03,
+        drummer: 13.06,
         overlap: 0.45,
         self: 0.5,
         filled: 15,
         equal: 0,
-        // (11.98, 0.41, 0.47, 23 before #655's song forms)
+        // (11.98, 0.41, 0.47, 23 before #655's song forms; 13.03 before cells v0.30.0's hotter solos)
       },
     ]);
   });
@@ -373,7 +377,7 @@ describe('the fragment beside the drummer (E36)', () => {
       // (Lo-fi hip hop's and Funk's rims swing as the drummer's do since the parts of a step swing, cells#306)
       ['Lo-fi hip hop', 0.62, 2.32, 0.59], // (0.68, 2.63, 0.5)
       ['Funk', 0.49, 6.53, 0.77], // (0.53, 6.09, 0.75; 6.57 before cells v0.29.0's accent, yggi/cells#890)
-      ['Bossa nova', 0.57, 3.92, 0.6], // (0.6, 4.05, 0.54)
+      ['Bossa nova', 0.58, 3.95, 0.61], // (0.6, 4.05, 0.54; 0.57, 3.92, 0.6 before cells v0.30.0's solos)
       ['Swing jazz', 0.72, 2.07, 0.65], // (0.77, 1.78, 0.6)
     ]);
     expect(

@@ -245,7 +245,7 @@ describe('a host that speaks version 2 of the session contract (#553)', () => {
       expect(conduct.start! - at, `bar ${conduct.bar}`).toBeGreaterThan(beat - 0.05);
       expect(stated, `bar ${conduct.bar}`).toBe(true);
       // A score states its meter, tempo and key, and ends in its band.
-      expect(score!.text).toMatch(/^&bar from meter.* \d+(\.\d+)?bpm$/m);
+      expect(score!.text).toMatch(/^&bar (swing=\S+ )?from bar.* \d+(\.\d+)?bpm$/m);
       expect(score!.text).toMatch(/^&key /m);
       expect(score!.text).toMatch(/^\* from band/m);
       expect(score!.lock).toEqual(scoreLock(score!.text).lock);

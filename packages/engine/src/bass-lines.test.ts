@@ -210,7 +210,7 @@ describe("cells' bass lines read into the notes the band plays (#423)", () => {
       shift: 0,
     }));
     const point = { sync: 0.9, harm: 0.9, artic: 0.9, energy: 0.1 };
-    const bench = { meter: METERS['4/4'], meterFragment: 'meter' };
+    const bench = { meter: METERS['4/4'], meterFragment: 'bar' };
     const filing = {
       notes,
       bench,
