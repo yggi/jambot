@@ -82,6 +82,9 @@ describe("a score's lock (session version 2, #553)", () => {
   it('takes a seed whose hash is another version than the pin’s for no seed', () => {
     const diatonic = resolveSeed('diatonic')!;
     expect(isSeed({ id: 'diatonic', hash: fragmentHash(diatonic) })).toBe(true);
+    // (a lock a host at cells v0.30.0 wrote, its hash `e2:`, the diatonic seed's there, checks as it was recorded,
+    // yggi/cells decision 106)
+    expect(isSeed({ id: 'diatonic', hash: 'e2:308a28028d1fba38' })).toBe(true);
     expect(isSeed({ id: 'diatonic', hash: 'e2:0000000000000000' })).toBe(false);
     expect(isSeed({ id: 'muse_riff_1', hash: RIFF_HASH })).toBe(false);
   });
@@ -92,6 +95,7 @@ describe("a score's lock (session version 2, #553)", () => {
 
   it('names the seed library’s band as the default, which no lock names', () => {
     expect(DEFAULT_BAND).toEqual({ id: 'band', hash: fragmentHash(resolveSeed('band')!) });
-    expect(DEFAULT_BAND.hash).toMatch(/^e2:[0-9a-f]{16}$/);
+    // (`e3:` since cells v0.31.0, the hash of its cells' identities: yggi/cells decision 106)
+    expect(DEFAULT_BAND.hash).toMatch(/^e3:[0-9a-f]{16}$/);
   });
 });

@@ -15,7 +15,17 @@ const NEW = PRESETS.slice(PROTOTYPE_PRESETS.length);
 
 /** What each new preset finds at its point: the meter and its swing, the mode, the drum bar and the bass line. */
 const FOUND: Readonly<
-  Record<string, { meter: string; swing: string; mode: string; rhythm: string; bass: string }>
+  Record<
+    string,
+    {
+      meter: string;
+      swing: string;
+      mode: string;
+      rhythm: string;
+      bass: string;
+      meterDistance?: number;
+    }
+  >
 > = {
   'Electro swing': {
     meter: 'swing_meter',
@@ -129,10 +139,20 @@ const FOUND: Readonly<
     bass: 'dub_bass',
     swing: '16n 0.500',
   },
+  // (cells' Pop, the 24th style, at v0.31.0, yggi/cells#947, decision 108, #764: its parts at its point, but its meter, the
+  // plain 4/4 `bar`, at 0.041, since cells left `bar`'s points alone where Pop's would spread the meters' lock-in)
+  Pop: {
+    meter: 'bar',
+    meterDistance: 0.041,
+    mode: 'ionian',
+    rhythm: 'synth_pop_drums',
+    bass: 'root_bass',
+    swing: '16n 0.500',
+  },
 };
 
 describe('the presets (#517)', () => {
-  it('are the prototype’s eight, then Electro swing, Spooky, Kinderlied, the four cut from cells’ examples at v0.23.0 and the eight of v0.24.0, each named once: cells’ library of styles (#596)', () => {
+  it('are the prototype’s eight, then Electro swing, Spooky, Kinderlied, the four cut from cells’ examples at v0.23.0, the eight of v0.24.0 and Pop of v0.31.0, each named once: cells’ library of styles (#596, #764)', () => {
     expect(PRESETS.slice(0, PROTOTYPE_PRESETS.length)).toEqual(PROTOTYPE_PRESETS);
     expect(NEW.map((p) => p.name)).toEqual([
       'Electro swing',
@@ -150,6 +170,7 @@ describe('the presets (#517)', () => {
       'Waltz',
       'March',
       'Trip-hop',
+      'Pop',
     ]);
     // (each its point, its bite Jambot's artic, and its tempo as cells' library writes them, to the last bit)
     for (const p of PRESETS) {
@@ -161,10 +182,13 @@ describe('the presets (#517)', () => {
   });
 
   it.each(NEW.map((p) => [p.name, p] as const))(
-    '%s finds its meter, swing and mode at its point, at distance 0',
+    '%s finds its meter, swing and mode at its point, at distance 0 (Pop its meter at 0.041)',
     (name, preset) => {
       const meter = presetMeter(preset)!;
-      expect([meter.fragment.id, +meter.distance.toFixed(3)]).toEqual([FOUND[name]!.meter, 0]);
+      expect([meter.fragment.id, +meter.distance.toFixed(3)]).toEqual([
+        FOUND[name]!.meter,
+        FOUND[name]!.meterDistance ?? 0,
+      ]);
       const swing = presetSwing(preset)!;
       expect(`${swing.level} ${swing.share.toFixed(3)}`).toBe(FOUND[name]!.swing);
       expect(presetMode(preset)).toBe(FOUND[name]!.mode);

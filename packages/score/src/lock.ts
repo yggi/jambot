@@ -9,6 +9,7 @@
  * A seed is never sent: a client reads it from its own pin.
  */
 
+import { recordedHashIs } from '@jambot/engine';
 import { fragmentHash, textLockfile } from '@yggi/cells';
 import type { Resolve } from '@yggi/cells';
 import { resolveBand, resolveSeed } from '@yggi/cells/library';
@@ -36,10 +37,13 @@ const BAND = 'band';
 /** A lock's entry names a fragment, or a part of one (`id/part`): the fragment's id. */
 const fragmentOf = (id: string): string => id.split('/')[0]!;
 
-/** Whether a fragment by its id and hash is the seed library's at this cells pin. */
+/**
+ * Whether a fragment by its id and hash is the seed library's at this cells pin (`recordedHashIs`: a lock's hash
+ * recorded before cells v0.31.0 checks as it was recorded).
+ */
 export function isSeed({ id, hash }: LockedFragment): boolean {
   const seed = resolveSeed(fragmentOf(id));
-  return seed !== null && fragmentHash(seed) === hash;
+  return seed !== null && recordedHashIs(hash, seed);
 }
 
 /**

@@ -11,7 +11,7 @@ The plan that brings the two together is the [eternal jam brief](../briefs/etern
 - It is a browser app (Svelte 5, TypeScript, Tone.js, npm, not pnpm) whose code editor and graph are two views of one text.
 - A piece is a set of cells, one per line: `&name`, attributes, and a braid of steps in Strudel's mini-notation.
   A cell reads through a table (`over=&key`), has its own clock (`step=16n`), and mixes with `+` and `*`.
-- The language itself, with its engine, examples and docs, is [yggi/cells](https://github.com/yggi/cells), which Cell studio and Jambot both depend on at a tag, Jambot at `v0.30.0`; it is pure TypeScript, held so by a typecheck with no host types.
+- The language itself, with its engine, examples and docs, is [yggi/cells](https://github.com/yggi/cells), which Cell studio and Jambot both depend on at a tag, Jambot at `v0.31.0`; it is pure TypeScript, held so by a typecheck with no host types.
 - Jambot imports cells by its entry points alone (`@yggi/cells`, `/edit`, `/inspect`, `/library`, `/midi`, `/repository`, `/time`; #709), never a module path under `engine/`, `theory/` or `repository/`: lint refuses one (`CELLS_INTERNALS`, `eslint.config.js`), and cells' ledger (`tools/api.ledger.json`) records what Jambot reaches at each pin.
   Its `engine/host.ts` takes code and answers with timed events a window at a time, in a worker or in node; a script that imports the package runs under vitest, not node (yggi/cells#11).
 - Cell studio and cells are MIT, as Jambot is (D4 on #309).

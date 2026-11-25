@@ -45,7 +45,6 @@ import { setTiming, type Variation, drawn, variations } from '@yggi/cells/edit';
 import {
   answered,
   cachedFit,
-  fragmentHash,
   unionOf,
   declarations,
   hasFrom,
@@ -61,7 +60,15 @@ import { instrumentsFor, withInstruments } from './instruments.ts';
 import { METER_FRAGMENTS, RHYTHM_FRAGMENTS } from './library.ts';
 import { DRUM_ORDER, type DrumRole, sameMeter } from './events.ts';
 import { type Ask, askOptions } from './facet.ts';
-import { BENCH, BENCH_FRAGMENT, HASH, type LearnedLayer, cappedLayer, stillHeld } from './layer.ts';
+import {
+  BENCH,
+  BENCH_FRAGMENT,
+  HASH,
+  type LearnedLayer,
+  cappedLayer,
+  recordedHashIs,
+  stillHeld,
+} from './layer.ts';
 import type { StylePoint } from './meter-query.ts';
 import { METER_REPOSITORY } from './repository.ts';
 import { GROOVE_FEWEST, grooveText, roleOfSound } from './muse-groove.ts';
@@ -330,8 +337,9 @@ export interface RebuiltLayer {
 /**
  * A layer as it was stored (`storedLayer`), its groove variations given their texts back (#553): each rebuilt from its
  * source, a seed rhythm by its lines (`heldRhythms`) or a groove filed before it, and kept where the text rebuilt has
- * the hash stored (cells' `fragmentHash`). One that doesn't (its source gone, or cells' variation of that name moved
- * at another pin) is dropped and named, never played otherwise than it was filed.
+ * the hash stored (`recordedHashIs`: a hash kept before cells v0.31.0 checks as it was recorded). One that doesn't
+ * (its source gone, or cells' variation of that name moved at another pin) is dropped and named, never played
+ * otherwise than it was filed.
  */
 export function rebuiltLayer(stored: LearnedLayer): RebuiltLayer {
   const texts = new Map(heldRhythms().map((f) => [f.id, f.text]));
@@ -353,7 +361,7 @@ export function rebuiltLayer(stored: LearnedLayer): RebuiltLayer {
             String(file.meta[BENCH]),
             typeof fragment === 'string' ? fragment : undefined,
           );
-    if (text === null || fragmentHash(text) !== hash) {
+    if (text === null || !recordedHashIs(hash, text)) {
       dropped.push(file.fragment.id);
       return [];
     }

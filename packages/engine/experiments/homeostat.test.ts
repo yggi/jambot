@@ -146,8 +146,9 @@ describe('what the lean can reach: the band’s entropy from 0 to 1, and restles
       // the station's rotation, #547 rung 5, whose songs keep their themes; 0.823, 0.776, 0.715 and 0.629 before cells
       // v0.29.0, whose breathing drums the drummer holds and whose three accented grooves it reads with their levels,
       // yggi/cells#799 and #890; 0.827, 0.78, 0.719 and 0.632 before cells v0.30.0, whose jazz song form plays its solos
-      // hotter and without the pad and whose Ambient is straight)
-    ).toEqual([0.826, 0.778, 0.718, 0.63]);
+      // hotter and without the pad and whose Ambient is straight; 0.778 at the second before cells v0.31.0, whose Pop's
+      // parts and progressions a style leaned or mixed near its point finds, yggi/cells#947, #764)
+    ).toEqual([0.826, 0.779, 0.718, 0.63]);
     for (const preset of new Set(held.open.map((r) => r.preset))) {
       const of = (runs: RegulatedRun[]) =>
         against(
@@ -180,8 +181,9 @@ describe('the controller closed (E45, #237)', () => {
       0.184, 0.631, 0.709,
     ]);
     // (0.211 and 0.688 walked over 128 bars before #655; 0.212 and 0.688 before the station's rotation, #547 rung 5;
-    // 0.216 and 0.672 before cells v0.29.0; 0.2 and 0.669 before cells v0.30.0)
-    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.2, 0.678]);
+    // 0.216 and 0.672 before cells v0.29.0; 0.2 and 0.669 before cells v0.30.0; 0.2 and 0.678 before cells v0.31.0,
+    // whose Pop's parts and progressions the walk finds, within the ±0.03 too)
+    expect([walked.open, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([0.209, 0.675]);
   });
 
   // (80 % ruled on #536; loosened to 79 % at cells v0.25.0, the owner on #660, 2026-11-12: six of the eight presets play
@@ -231,13 +233,13 @@ describe('the controller on the page’s schedule (#495: read at a section’s l
     // (0.229, 0.635 and 0.698 held, 0.219, 0.641 and 0.711 walked, before cells v0.25.0; 0.604 and 0.646 held, and
     // 0.602 and 0.664 walked, before the walk rule retired on top of cells v0.25.1, #650; 0.594 held, and 0.609 and
     // 0.68 walked, before the ostinato on top of cells v0.25.1, #651)
-    // (0.198, 0.604 and 0.635 over 96 bars of the chain's sections before #655; 0.181, 0.628 and 0.634 before the station's rotation, #547 rung 5; 0.188, 0.628 and 0.625 before cells v0.29.0; 0.616 closed before the station's mixes, #547 step 2; 0.166, 0.625 and 0.634 before cells v0.30.0)
+    // (0.198, 0.604 and 0.635 over 96 bars of the chain's sections before #655; 0.181, 0.628 and 0.634 before the station's rotation, #547 rung 5; 0.188, 0.628 and 0.625 before cells v0.29.0; 0.616 closed before the station's mixes, #547 step 2; 0.166, 0.625 and 0.634 before cells v0.30.0; 0.616 on the page before cells v0.31.0)
     expect([held.open, held.page, held.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.184, 0.616, 0.631,
+      0.184, 0.619, 0.631,
     ]);
-    // (0.211, 0.617 and 0.688 walked over 128 bars before #655; 0.212, 0.669 and 0.688 before the station's rotation, #547 rung 5; 0.216, 0.672 and 0.672 before cells v0.29.0; 0.2, 0.672 and 0.669 before cells v0.30.0)
+    // (0.211, 0.617 and 0.688 walked over 128 bars before #655; 0.212, 0.669 and 0.688 before the station's rotation, #547 rung 5; 0.216, 0.672 and 0.672 before cells v0.29.0; 0.2, 0.672 and 0.669 before cells v0.30.0; 0.2, 0.669 and 0.678 before cells v0.31.0)
     expect([walked.open, walked.page, walked.closed].map((r) => fixed(insideOf(r)))).toEqual([
-      0.2, 0.669, 0.678,
+      0.209, 0.672, 0.675,
     ]);
   });
 

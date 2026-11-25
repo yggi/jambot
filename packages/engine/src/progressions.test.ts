@@ -72,6 +72,12 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
       'turnaround',
       'ii_v_i',
       'minor_swing',
+      // (and cells v0.31.0's four, yggi/cells#947, #764, each of which walks: Pop's I IV V I and I V vi IV, Pachelbel's
+      // canon and the bebop ii–V–I)
+      'authentic_cadence',
+      'four_chord_pop',
+      'pachelbel_canon',
+      'bebop_ii_v_i',
     ]);
     for (const f of VAMP_SEEDS) {
       const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
@@ -116,6 +122,12 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
       'turnaround',
       'ii_v_i',
       'minor_swing',
+      // (and cells v0.31.0's four, yggi/cells#947, #764, each of which walks: Pop's I IV V I and I V vi IV, Pachelbel's
+      // canon and the bebop ii–V–I)
+      'authentic_cadence',
+      'four_chord_pop',
+      'pachelbel_canon',
+      'bebop_ii_v_i',
     ]);
     // (and what no seed plays it states as `progressionText` does)
     const own = [0, 5, 6, 4, 0, 5, 6, 4].map((degree, b) => ({ step: b * 16, degree }));
@@ -270,7 +282,10 @@ describe('the composer’s ask (#425)', () => {
       'Blues shuffle': ['minor_swing', 'ninth_loop', 'ninth_vamp'],
       Chiptune: ['korobeiniki_changes'],
       Salsa: ['montuno'],
-      Waltz: ['turnaround', 'ninth_vamp'],
+      // (and since cells v0.31.0 Pop's two among Waltz's, the band's offer there grown, yggi/cells#947, #764)
+      Waltz: ['turnaround', 'authentic_cadence', 'four_chord_pop', 'ninth_vamp'],
+      // (cells v0.31.0's Pop, its first harmony, I IV V I)
+      Pop: ['authentic_cadence'],
     };
     for (const p of PRESETS.filter((p) => p.style.harm >= VAMP_HARM))
       expect([...new Set(offered(p.name))], p.name).toEqual(PLACED[p.name]);

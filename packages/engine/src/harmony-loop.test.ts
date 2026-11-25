@@ -88,9 +88,13 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     'Sea shanty': ['vamp_to_the_seventh'],
     Chiptune: ['korobeiniki_changes'],
     Salsa: ['montuno'],
-    Waltz: ['ninth_vamp'],
+    // (since cells v0.31.0, whose Pop's two progressions join Waltz's offer, yggi/cells#947, #764: seed 0's songs take
+    // Pop's I IV V I, seed 1's the ninth vamp, as both did before)
+    Waltz: ['ninth_vamp', 'authentic_cadence'],
     March: ['vamp_to_the_fifth'],
     'Trip-hop': ['vamp_to_the_sixth'],
+    // (cells v0.31.0's Pop: its first harmony, I IV V I)
+    Pop: ['authentic_cadence'],
   };
 
   it("plays main's themes, degree for degree in every slot, over the presets × 2 seeds × 64 bars, where cells placed no harmony; elsewhere the one it placed, Spooky the dark cadence", () => {
