@@ -684,8 +684,9 @@ describe('what the composer took, written as its `from` line (#531, yggi/cells#7
           else expect(text, at).toMatch(/^&clave role=clave /m);
         }
     // (18 of 24 at cells v0.25.1, where a section whose rim wins a step of the clave writes it out, shown below; in
-    // #655's songs every one of these sections plays its clave whole, 16 of 16, of 184 stated)
-    expect([stated, claves, taken]).toEqual([184, 16, 16]);
+    // #655's songs every one of these sections plays its clave whole, 16 of 16, of 192 stated, 184 before cells v0.31.0's
+    // Pop)
+    expect([stated, claves, taken]).toEqual([192, 16, 16]);
   });
 
   it('is shown firing: a clave missing a hit the fragment holds is written out, not taken', () => {
@@ -739,7 +740,7 @@ describe('a part the composer took, written as its `from` line with the band’s
     expect(plan.result.diagnostics).toEqual([]);
     const takes = sectionOutline(plan).parts.filter((p) => p.id !== null && p.within === null);
     // (cells' outline gives a `*` take's heads the band's own lines write as none; `sectionOutline` names them as the
-    // take overridden, from its signature, which cells leaves empty for a template's `*`)
+    // take overridden, from its signature, which cells left empty for a template's `*` before v0.31.0)
     expect(takes.map((p) => [p.id, p.heads, p.overrode])).toEqual([
       ['bar', ['&bar'], []],
       ['diatonic', ['&key'], []],
@@ -753,11 +754,9 @@ describe('a part the composer took, written as its `from` line with the band’s
       ['riff', [], ['&riff']],
       ['band', ['&band', '&keysV', '&sound', '&midi'], []],
     ]);
-    expect(
-      outlineOf(plan.result)
-        .parts.filter((p) => p.id !== null && p.within === null)
-        .every((p) => p.overrode.length === 0),
-    ).toBe(true);
+    // (and since cells v0.31.0 cells' outline names them too, yggi/cells#957: `sectionOutline`'s own reading gives
+    // nothing more here)
+    expect(outlineOf(plan.result)).toEqual(sectionOutline(plan));
     // #531's bound of 1,500 bytes waits on the drums and the bass played whole (#656) (2,585 and 2,579 before cells
     // v0.30.0, whose meter line is `&bar swing=16n:.6 from bar 104bpm`, 3 bytes fewer)
     expect([
@@ -797,25 +796,28 @@ describe('a part the composer took, written as its `from` line with the band’s
           }
       return out;
     };
-    // (seed 1: 92 sections; the harmony from the tables in the other 14, so none kept; 29 over and 18 from the tables
-    // before cells v0.30.0, where Salsa's song form was `vamp`: its `son_montuno`'s coro keeps the montuno where the
-    // vamp's bridge played the tables, and 63 over at seeds 1 and 2; and 45 whole, 30 over and 17 from the tables at
-    // seed 1, 85 whole at seeds 1 and 2, before every member drew among the fragments on offer, #540: a B that played
-    // the tables where nothing but A's lay as near, Spooky's, Dark ambient's and Trip-hop's, draws another on offer, and
-    // Trip-hop's A, the ninth loop at seed 1, is taken whole where its sixth's vamp was taken over)
+    // (seed 1: 96 sections, 92 before cells v0.31.0's Pop; the harmony from the tables in the other 13, 18 before every
+    // member drew among the fragments on offer (below) and 17 before Pop's B; 29 over and 18 from the tables before cells v0.30.0, where Salsa's song form was `vamp`: its `son_montuno`'s
+    // coro keeps the montuno where the vamp's bridge played the tables, and 63 over at seeds 1 and 2; and 48 whole, 30
+    // over and 18 from the tables at seed 1, 84 whole and 72 over at seeds 1 and 2, before every member drew among the
+    // fragments on offer, #540: a B that played the tables where nothing but A's lay as near, Spooky's, Dark ambient's
+    // and Trip-hop's, draws another on offer, and Trip-hop's A, the ninth loop at seed 1, is taken whole where its
+    // sixth's vamp was taken over)
     expect(count([1])).toEqual({
-      'harmony whole': 49,
-      'harmony over': 29,
-      'bass over': 92,
-      'lead over': 92,
-      'drums over': 92,
+      'harmony whole': 53,
+      'harmony over': 30,
+      'bass over': 96,
+      'lead over': 96,
+      'drums over': 96,
     });
+    // (85, 65 and 184 before cells v0.31.0, whose Pop adds 8 sections and whose Waltz takes Pop's progressions at seed
+    // 2, yggi/cells#947, #764; 45, 30 and 92 at seed 1, before Pop's 4)
     expect(count([1, 2])).toEqual({
       'harmony whole': 91,
-      'harmony over': 65,
-      'bass over': 184,
-      'lead over': 184,
-      'drums over': 184,
+      'harmony over': 75,
+      'bass over': 192,
+      'lead over': 192,
+      'drums over': 192,
     });
   });
 

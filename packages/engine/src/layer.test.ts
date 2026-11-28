@@ -96,12 +96,14 @@ const range = (n: number) => [...Array(n).keys()];
  * song form plays its solos as cells' kind `solo`, 0.05 hotter than the `groove` it played, and Ambient's 4/4 is
  * straight, its lean of 31/60 dropped (yggi/cells decision 103); and the solos rest the pad, the kind leaving it out;
  * held, only those three presets' bars move, the two in their solos alone.
+ * And at cells v0.31.0 (13,176 and 8114dd6a walked, before): cells places Pop's parts and four seed progressions at
+ * Pop's point and beside Baroque's and Swing jazz's (yggi/cells#947, #764), which the walk finds where it found others;
+ * held, nothing moves.
  * And since the drummer fills with cells' fills and the lead walks the scale cells offers at the style (#643, #644;
- * 13,271 and 911719b1 held, 13,176 and 8114dd6a walked, before): held, only the drums of a section's last bar where
- * it fills move, at Ambient, Bossa nova, Lo-fi hip hop, Swing jazz and Techno; walked, those and Synth-pop's, and
- * Swing jazz's lead at seed 1 from its second section, its rhythm as before on another scale.
+ * 13,271 and 911719b1 held, 13,321 and 253de0f6 walked, before): held, only the drums of a section's last bar where
+ * it fills move, at Ambient, Bossa nova, Lo-fi hip hop, Swing jazz and Techno; walked, the walk's events move too.
  */
-const MAIN = { held: [13285, '6a0cbdd8'], walked: [13199, '9d25fca0'] } as const;
+const MAIN = { held: [13285, '6a0cbdd8'], walked: [13344, 'afb0c5dc'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
   it('over the 8 presets held, 2 seeds of 32 bars: 13,285 events, each to 1e-9 s', () => {
@@ -111,7 +113,7 @@ describe('the band given an empty learned layer plays exactly what main plays (#
     }
   });
 
-  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,199 events', () => {
+  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,344 events', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);

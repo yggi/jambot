@@ -88,9 +88,13 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
     'Sea shanty': ['vamp_to_the_seventh'],
     Chiptune: ['korobeiniki_changes'],
     Salsa: ['montuno'],
-    Waltz: ['ninth_vamp'],
+    // (since cells v0.31.0, whose Pop's two progressions join Waltz's offer, yggi/cells#947, #764: seed 0's songs take
+    // Pop's I IV V I, seed 1's the ninth vamp, as both did before)
+    Waltz: ['ninth_vamp', 'authentic_cadence'],
     March: ['vamp_to_the_fifth'],
     'Trip-hop': ['vamp_to_the_sixth'],
+    // (cells v0.31.0's Pop: its first harmony, I IV V I)
+    Pop: ['authentic_cadence'],
   };
 
   /** The progressions on offer for a run's A, at its style and bench, asked with nothing chosen: those a hundred draws take. */
@@ -167,11 +171,13 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
             return kind === 'build' || plans.themeFragments[kind] !== null;
           }),
         );
-    // (A and B both from the seeds: the three that vamp, and Blues shuffle, Spooky, Dark ambient and Trip-hop, whose B
-    // draws another on offer beside A's, #540; and the three whose song form is strophic, verse after verse, which play
+    // (A and B both from the seeds: the three that vamp, and Blues shuffle, Spooky, Dark ambient and Trip-hop, and since
+    // cells v0.31.0 Synth-pop and Pop, Pop's four chords on offer beside their A, whose B draws another on offer beside
+    // A's, #540; and the three whose song form is strophic, verse after verse, which play
     // A alone: #655; and Salsa, whose song form since cells v0.30.0, `son_montuno`, holds no section that plays B: its
     // verses, coros and mambo play A)
     expect(PRESETS.filter((p) => fromSeed(p.name)).map((p) => p.name)).toEqual([
+      'Synth-pop',
       'Techno',
       'Ambient',
       'Funk',
@@ -183,6 +189,7 @@ describe('the harmony in the loop, held at entropy 0 (#425)', () => {
       'Salsa',
       'Waltz',
       'Trip-hop',
+      'Pop',
     ]);
     // (above the vamps, A is one on offer, and B the tables', for contrast, where nothing else is on offer; else another
     // on offer)

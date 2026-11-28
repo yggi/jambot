@@ -107,7 +107,8 @@ const SONGS = createRepository(
 const FOUND = new Map<string, string | null>();
 /**
  * The song form cells finds first at a style, by id, within the composer's reach (`MISS_DISTANCE`); null on a miss,
- * where the chain plays. Each of cells' 23 styles finds one at its own point (yggi/cells#815).
+ * where the chain plays. Each of cells' 24 styles finds one at its own point (yggi/cells#815; Pop's `verse_chorus`
+ * since cells v0.31.0).
  */
 export function songFormAt(style: QueriedStyle): string | null {
   const point = stylePoint(style);

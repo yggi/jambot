@@ -95,12 +95,15 @@ describe('the share of bars recognised over 8 bars, over the 8 presets at entrop
     // (0.398, 0.162 and 0.023 held, 0.385, 0.167, 0.518 and 0.041 walked, before #655's song forms)
     // (0.421, 0.168, 0.523 and 0.008 held, and 0.404, 0.164, 0.502 and 0.016 walked, before cells v0.29.0, whose breathing
     // drums the drummer holds and whose three accented grooves it reads with their levels, yggi/cells#799 and #890)
-    // (0.449, 0.176 and 0.586 held before the found parts, #540, #643, #644, #646)
-    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.433, 0.174, 0.531, 0]);
+    // (0.176 and 0.586 held before the found parts, #540, #643, #644, #646)
+    expect(fixed(against(held[0.3]!, 'all'))).toEqual([128, 0.449, 0.156, 0.531, 0]);
     // (0.376, 0.17, 0.496 and 0.047 walked before the walk rule retired on top of cells v0.25.1, #650: the bass is
     // recognised more)
-    // (0.432 before the station's mixes, #547 step 2; 0.431, 0.166, 0.551 and 0.006 before the found parts, #540, #643, #644, #646)
-    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.453, 0.161, 0.547, 0.004]);
+    // (0.432 before the station's mixes, #547 step 2)
+    // (0.431, 0.166, 0.551 and 0.006 before cells v0.31.0, whose Pop's parts and seed progressions the walk finds and the
+    // recogniser knows, yggi/cells#947, #764)
+    // (0.443, 0.175 and 0.553 walked before the found parts, #540, #643, #644, #646)
+    expect(fixed(against(walked[0.3]!, 'all'))).toEqual([512, 0.468, 0.173, 0.551, 0.008]);
     for (const runs of [held[0.3]!, walked[0.3]!]) {
       const all = against(runs, 'all');
       expect(all.mean).toBeGreaterThan(BAND.low);
@@ -143,14 +146,14 @@ describe('the share over entropy and tolerance (E44, #237)', () => {
 
   // (0.309, 0.346, 0.448 and 0.6 before cells v0.25.0, 63 % inside at 4 notes; 0.398, 0.439, 0.528 and 0.652, 48 %
   // inside, before #655's song forms; 0.421, 0.453, 0.544 and 0.693, 44 % inside, before cells v0.29.0; 0.702 and 0.153
-  // at 4 notes before cells v0.30.0, whose jazz solos play hotter and without the pad; 0.449, 0.495, 0.567 and 0.704,
-  // and at 4 notes 0.155, 42 % inside and 0.047 pinned, before the found parts, #540, #643, #644, #646)
+  // at 4 notes before cells v0.30.0, whose jazz solos play hotter and without the pad)
   it('rises with the tolerance, past the band’s middle at 4 notes, 46 % of sections inside it and the rest above, over all members (held at 0.3)', () => {
     const means = [held[0.3]!, ...TOLERANCES.map((t) => tolerant[t]!)].map((r) =>
       Number(against(r, 'all').mean.toFixed(3)),
     );
-    expect(means).toEqual([0.433, 0.472, 0.547, 0.692]);
-    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.692, 0.162, 0.461, 0.063]);
+    // (0.495, 0.567 and 0.704, and at 4 notes 0.155, 42 % inside and 0.047 pinned, before the found parts, #540, #643, #644, #646)
+    expect(means).toEqual([0.449, 0.487, 0.563, 0.707]);
+    expect(fixed(against(tolerant[4]!, 'all'))).toEqual([128, 0.707, 0.147, 0.461, 0.063]);
   });
 });
 

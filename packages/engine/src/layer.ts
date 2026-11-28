@@ -19,6 +19,8 @@
 
 import { fragmentHash, writeFragment } from '@yggi/cells/repository';
 import type { FragmentFile, LearnedLayer, Repository } from '@yggi/cells/repository';
+// eslint-disable-next-line no-restricted-imports -- cells v0.31.0 puts `hashIs` on no entry point (yggi/cells#965)
+import { hashIs } from '@yggi/cells/engine/use';
 import { RHYTHM_FRAGMENTS } from './library.ts';
 
 export { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository';
@@ -65,6 +67,13 @@ export const BENCH = 'bench';
 export const BENCH_FRAGMENT = 'benchFragment';
 /** The meta key a stored groove variation keeps its text's hash in (cells' `fragmentHash`), to check its rebuild by. */
 export const HASH = 'hash';
+
+/**
+ * Whether a hash recorded at any cells pin, a stored groove's (`HASH`) or a lock's, is a text's (cells' `hashIs`): an
+ * `e1:` or `e2:` hash, recorded before cells v0.31.0, checks as it was recorded; one written since is `e3:`
+ * (`fragmentHash`, yggi/cells decision 106).
+ */
+export const recordedHashIs = (recorded: string, text: string): boolean => hashIs(recorded, text);
 
 /** Each text's hash, kept: a layer is weighed each time it is used, its few dozen grooves each time. */
 const HASHES = new Map<string, string>();

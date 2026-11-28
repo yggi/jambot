@@ -664,12 +664,26 @@ describe('a groove variation kept by reference (#553)', () => {
         });
         const stored = storedLayer(layer);
         expect(stored.filed[0]!.fragment.text, `${seed.id} ${by}`).toBe('');
-        expect(stored.filed[0]!.meta[HASH]).toMatch(/^e2:[0-9a-f]{16}$/);
+        // (`e3:` since cells v0.31.0, yggi/cells decision 106)
+        expect(stored.filed[0]!.meta[HASH]).toMatch(/^e3:[0-9a-f]{16}$/);
         expect(rebuiltLayer(stored), `${seed.id} ${by}`).toEqual({ layer, dropped: [] });
         count++;
       }
     }
     expect(count).toBeGreaterThan(100);
+  });
+
+  it('rebuilds a variation kept before cells v0.31.0 by the hash recorded then, `e2:`: Techno’s `rotate &hat`', () => {
+    // (every one of the 566 variations of the seed rhythms in 4/4 kept at cells v0.30.0 loads at v0.31.0 with no
+    // warning, where `fragmentHash`'s `e3:` alone would drop all 566: yggi/cells decision 106)
+    const layer = variedFiled('techno_drums').get('rotate &hat')!;
+    const stored = storedLayer(layer);
+    const kept = (hash: string) => ({
+      ...stored,
+      filed: [{ ...stored.filed[0]!, meta: { ...stored.filed[0]!.meta, [HASH]: hash } }],
+    });
+    expect(rebuiltLayer(kept('e2:16cdb18f71a6d374'))).toEqual({ layer, dropped: [] });
+    expect(rebuiltLayer(kept('e2:16cdb18f71a6d375')).dropped).toHaveLength(1);
   });
 
   it('weighs a layer as it is kept: a variation by reference, its source held, some 440 bytes lighter than written out', () => {

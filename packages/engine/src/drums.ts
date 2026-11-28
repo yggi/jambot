@@ -167,7 +167,7 @@ export function backbeatSteps(meter: Meter): number[] {
 }
 
 /**
- * How the meter contract's grades weigh a step, as cells' `metric_accent` weighs a 4/4 bar's (`metricWeights(16)`,
+ * How the meter contract's grades weigh a step, as cells' `metric_accent` weighs a 4/4 bar's (`metricWeights('4/4')`,
  * yggi/cells#799): the downbeat 1, the half bar 0.8, another pulse 0.6, another eighth 0.4, and a sixteenth 0.2.
  */
 const GRADE_WEIGHT: Readonly<Record<AccentGrade, number>> = {

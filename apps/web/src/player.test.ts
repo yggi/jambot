@@ -2146,12 +2146,14 @@ describe('the player learns, as a host keeps what its band learned (#398)', () =
           world.tickers[0]!.tick();
         }
       };
-      // a chord on each half bar over the first section: i iv v i in the key heard, as a hand voices them on a pad
+      // a chord on each half bar over the first section: i III iv VI in the key heard, as a hand voices them on a pad
+      // (no seed's; i iv V i, played here before cells v0.31.0, is heard as Pop's authentic cadence, a seed, and filed
+      // as none: yggi/cells#947, #764)
       const voicings = [
         [57, 60, 64],
+        [60, 64, 67],
         [62, 65, 69],
-        [64, 68, 71],
-        [57, 60, 64],
+        [65, 69, 72],
       ];
       for (let bar = 0; bar < 8; bar++)
         for (const half of [0, 8]) {

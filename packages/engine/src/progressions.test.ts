@@ -72,6 +72,12 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
       'turnaround',
       'ii_v_i',
       'minor_swing',
+      // (and cells v0.31.0's four, yggi/cells#947, #764, each of which walks: Pop's I IV V I and I V vi IV, Pachelbel's
+      // canon and the bebop ii–V–I)
+      'authentic_cadence',
+      'four_chord_pop',
+      'pachelbel_canon',
+      'bebop_ii_v_i',
     ]);
     for (const f of VAMP_SEEDS) {
       const vamp = vampOf(readProgression(f.text, METERS['4/4'])!);
@@ -116,6 +122,12 @@ describe("cells' harmonies read into a theme's slots (#425)", () => {
       'turnaround',
       'ii_v_i',
       'minor_swing',
+      // (and cells v0.31.0's four, yggi/cells#947, #764, each of which walks: Pop's I IV V I and I V vi IV, Pachelbel's
+      // canon and the bebop ii–V–I)
+      'authentic_cadence',
+      'four_chord_pop',
+      'pachelbel_canon',
+      'bebop_ii_v_i',
     ]);
     // (and what no seed plays it states as `progressionText` does)
     const own = [0, 5, 6, 4, 0, 5, 6, 4].map((degree, b) => ({ step: b * 16, degree }));
@@ -259,7 +271,8 @@ describe('the composer’s ask (#425)', () => {
     // reaches a tenth past the nearest, OFFER_FLOOR, #540, where Spooky's haunted progression lies beside its cadence,
     // and the ii–V–I beside Blues shuffle's three)
     const PLACED: Readonly<Record<string, readonly string[]>> = {
-      'Synth-pop': ['axis_progression'],
+      // (and since cells v0.31.0 Pop's four chords on offer here, as Pop's two at Blues shuffle, #540)
+      'Synth-pop': ['axis_progression', 'four_chord_pop'],
       'Deep house': ['ninth_vamp'],
       'Lo-fi hip hop': ['ninth_loop'],
       'Bossa nova': ['ii_v_i'],
@@ -269,10 +282,20 @@ describe('the composer’s ask (#425)', () => {
       'Happy hardcore': ['axis_progression'],
       Elektro: ['axis_progression'],
       Baroque: ['fifths_sequence'],
-      'Blues shuffle': ['minor_swing', 'ninth_loop', 'ninth_vamp', 'ii_v_i'],
+      'Blues shuffle': [
+        'minor_swing',
+        'ninth_loop',
+        'ninth_vamp',
+        'authentic_cadence',
+        'four_chord_pop',
+        'ii_v_i',
+      ],
       Chiptune: ['korobeiniki_changes'],
       Salsa: ['montuno'],
-      Waltz: ['turnaround', 'ninth_vamp'],
+      // (and since cells v0.31.0 Pop's two among Waltz's, the band's offer there grown, yggi/cells#947, #764)
+      Waltz: ['turnaround', 'authentic_cadence', 'four_chord_pop', 'ninth_vamp'],
+      // (cells v0.31.0's Pop, its first harmony, I IV V I, and its four chords a tenth from it on offer, #540)
+      Pop: ['authentic_cadence', 'four_chord_pop'],
     };
     expect(
       Object.fromEntries(
