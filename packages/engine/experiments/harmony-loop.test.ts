@@ -90,11 +90,11 @@ describe('the harmony on the radio’s walk, a player playing progressions one s
     // (8,459 and 2,455 before cells v0.24.0; 2,442 before v0.25.0; 8,408 and 2,559 before 2/4 and 2/2 were among the
     // band's meters on top of v0.25.0, #652; 2,596 before #655's song forms; 2,553 before the station's rotation, #547 rung 5, whose songs keep their themes; 3,549 before a worn song rested, step 3; 3,140 before cells v0.30.0; 3,147 before cells v0.31.0)
     // (3,195 before the found parts, #540, #643, #644, #646)
-    expect([sections, mostUsed]).toEqual([8533, 2764]);
+    expect([sections, mostUsed]).toEqual([8533, 3320]);
     expect(share).toBeLessThan(0.6);
   });
 
-  it('moves the share among a run’s 3 most used themes −8.4 points (2.0 error) with the player’s progressions filed: cells’ harmonies placed above VAMP_HARM outrank them', () => {
+  it('moves the share among a run’s 3 most used themes −2.4 points (2.4 error) with the player’s progressions filed: cells’ harmonies placed above VAMP_HARM outrank them, the player’s taken first where on offer', () => {
     // (until cells v0.25.0 the player's progressions, filed, were the only fits above VAMP_HARM but where the walk came
     // near Spooky's haunted progression, yggi/cells#409, and each section that played one was a use: the share rose
     // 12.93 points (2.66), 13.42 (2.69) before v0.24.0, what was heard returning, the loop doing its job, as the owner
@@ -107,7 +107,7 @@ describe('the harmony on the radio’s walk, a player playing progressions one s
     // V I, Pop's, the player plays, filed as none since and heard as the seeds)
     const { added, error } = lockIn(asThemes(PLAYED_UNLEARNED), asThemes(PLAYED));
     // (−4.97 and 1.26 before the found parts, #540, #643, #644, #646)
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-8.35', '2.05']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-2.36', '2.37']);
   });
 
   it('files the player’s progressions under the player’s name, each reading back as filed', () => {
