@@ -381,7 +381,7 @@ describe('the composer plays a progression filed, never varied, and leaves out o
     tags: [HARMONY_TAG],
   });
 
-  it('plays it as A over 16 sections at entropy 1, B and the builds from the tables, and files no variation of it', () => {
+  it('plays it as A over 16 sections at entropy 1, B a contrast to it, and files no variation of it', () => {
     const run = play(
       16 * SECTION_BARS,
       { ...SYNTH_POP.style, entropy: 1 },
@@ -391,8 +391,9 @@ describe('the composer plays a progression filed, never varied, and leaves out o
     for (const { carried, bar } of sections) {
       const { kind } = bar.plan.theme;
       if (kind === 'A') expect(carried.plans.themeFragments.A).toBe(seeded.id);
-      // (B, with nothing on offer but A's, is the tables', for contrast)
-      if (kind === 'B') expect(carried.plans.themeFragments.B).toBeNull();
+      // (B is never A's, for contrast: since cells v0.31.0 Pop's four chords lie on offer at Synth-pop and B takes them,
+      // where the tables wrote it before, with nothing on offer but A's)
+      if (kind === 'B') expect(carried.plans.themeFragments.B).toBe('four_chord_pop');
     }
     expect(sections.some((s) => s.bar.plan.theme.kind === 'B')).toBe(true);
     expect(progressions(run.at(-1)!.carried.plans.layer!).map((f) => f.fragment.id)).toEqual([

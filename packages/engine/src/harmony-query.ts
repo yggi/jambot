@@ -36,7 +36,14 @@
  */
 
 import type { ComposerMode } from './key.ts';
-import { type Bench, type FacetRepository, type Filing, marginsOf, onOffer } from './facet.ts';
+import {
+  type Bench,
+  type FacetRepository,
+  type Filing,
+  givenBy,
+  marginsOf,
+  onOffer,
+} from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
 import { type QueriedStyle, stylePoint } from './meter-query.ts';
 import {
@@ -201,7 +208,11 @@ export function composedHarmony(
     .sort((x, y) => x.place - y.place || x.rank - y.rank);
   // (a contrast with nothing on offer but A's own is a miss: the tables write it)
   if (at.kind !== 'A' && offer.length === 1 && offer[0]!.id === a) return undefined;
-  let i = Math.floor(draw * offer.length);
-  if (at.kind !== 'A' && offer[i]!.id === a) i = (i + 1) % offer.length;
-  return offer[i]!.id;
+  // (a progression a player gave the band is taken first, as every member's fragment is, `drawnOnOffer`: the draw is
+  // among those alone, but for a contrast that would take A's own)
+  const given = offer.filter((f) => givenBy(layer, f.id) && (at.kind === 'A' || f.id !== a));
+  const pool = given.length > 0 ? given : offer;
+  let i = Math.floor(draw * pool.length);
+  if (at.kind !== 'A' && pool[i]!.id === a) i = (i + 1) % pool.length;
+  return pool[i]!.id;
 }
