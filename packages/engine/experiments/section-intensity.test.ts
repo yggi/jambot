@@ -53,17 +53,18 @@ describe('what tells a section’s kind apart, over the 8 presets × 3 seeds × 
   // velocity 0.681, register 0.376 0.187 0.347, sync 0.138 0.144 0.367; velocity 0.682 and 0.693 before the drummer
   // wrote the rim's metric accent, #749; before cells v0.30.0, whose jazz solos play hotter and without the pad: density
   // 0.036 0.91, layers 0.563 0.235 0.499, velocity 0.681 0.188 0.692, register 0.38 0.184 0.353, filter 0.426, sync 0.139
-  // 0.144 0.366, bite 0.373 0.226 0.726)
+  // 0.144 0.366, bite 0.373 0.226 0.726; before the found parts, #540, #643, #644, #646: velocity 0.719 0.214 0.695, sync
+  // 0.142 0.146 0.372)
   it('moves every component with the energy, and the kind moves layers, velocity, register and bite past it: more than one scalar', () => {
     expect(
       READ.map((c) => [c.component, c.n, fixed(c.eta2), fixed(c.eta2PastEnergy), fixed(c.r)]),
     ).toEqual([
       ['density', 1536, 0.612, 0.032, 0.907],
       ['layers', 1536, 0.583, 0.277, 0.482],
-      ['velocity', 1536, 0.719, 0.214, 0.695],
+      ['velocity', 1536, 0.718, 0.214, 0.694],
       ['register', 1536, 0.386, 0.192, 0.349],
       ['filter', 912, 0.414, 0, 1],
-      ['sync', 1536, 0.142, 0.146, 0.372],
+      ['sync', 1536, 0.143, 0.147, 0.37],
       ['bite', 1536, 0.384, 0.247, 0.716],
     ]);
     // (the lead's filter is the energy's alone; the breakdown is where the kind says most: two parts in five rest, the
@@ -78,24 +79,25 @@ describe('what tells a section’s kind apart, over the 8 presets × 3 seeds × 
     ).toEqual([2.425, 53.16, 0.041]);
     expect(
       [of('layers').groove, of('velocity').groove, of('bite').groove].map((x) => fixed(x!)),
-      // (72.603 before the drummer wrote the rim's metric accent, #749)
-    ).toEqual([4.159, 74.016, 0.348]);
+      // (72.603 before the drummer wrote the rim's metric accent, #749; 74.016 before the found parts)
+    ).toEqual([4.159, 73.995, 0.348]);
   });
 
   // (0.305 before #655's song forms, most into a breakdown, 0.638, and out of one into a groove, 0.462; bridge 0.107,
   // build 0.099, drop 0.136; into a build 0.456 and a drop 0.102 before the station's rotation, #547 rung 5; 0.282, into
-  // a groove 0.227 and a chorus 0.257, before cells v0.30.0, whose jazz solos play hotter and without the pad)
-  it('steps between adjacent sections by 0.28 on sync, bite and density, most into a breakdown (0.685) and then into a build (0.461)', () => {
-    expect([ADJACENT.n, fixed(ADJACENT.mean)]).toEqual([168, 0.28]);
+  // a groove 0.227 and a chorus 0.257, before cells v0.30.0, whose jazz solos play hotter and without the pad; 0.28, into
+  // a breakdown 0.685 and an intro 0.097, before the found parts, #540, #643, #644, #646)
+  it('steps between adjacent sections by 0.28 on sync, bite and density, most into a breakdown (0.686) and then into a build (0.461)', () => {
+    expect([ADJACENT.n, fixed(ADJACENT.mean)]).toEqual([168, 0.281]);
     expect(
       Object.fromEntries(Object.entries(ADJACENT.byKind).map(([k, v]) => [k, fixed(v!)])),
     ).toEqual({
-      intro: 0.097,
+      intro: 0.098,
       groove: 0.276,
       bridge: 0.142,
       build: 0.461,
       drop: 0.093,
-      breakdown: 0.685,
+      breakdown: 0.686,
       verse: 0.293,
       chorus: 0.247,
       outro: 0.361,

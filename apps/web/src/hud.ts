@@ -53,7 +53,7 @@ import {
   keyHelix,
   leadRests,
   memoryAt,
-  melodicHelix,
+  planScale,
   styleAt,
 } from '@jambot/engine';
 import { type Meter, positions, recognise } from '@jambot/theory';
@@ -623,7 +623,7 @@ function barViewOf(bar: ForecastBar, credited: (attribution: Attribution) => Cre
     key: keyName(bar.plan.key),
     tonic: bar.plan.key.tonic,
     scale: positions(keyHelix(bar.plan.key)),
-    melodic: positions(melodicHelix(bar.plan.key, bar.plan.melodic)),
+    melodic: positions(planScale(bar.plan)),
     melodicName: bar.plan.melodic,
     chords: bar.chords.map((c) => chordView(c, bar)),
     energy: bar.barEnergy,

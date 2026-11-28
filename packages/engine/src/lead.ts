@@ -79,7 +79,8 @@ import type { BarEnv } from './bar.ts';
 import { chordAt, chordsOn } from './chords.ts';
 import { type WrittenNote, halfOf } from './events.ts';
 import type { Section } from './form.ts';
-import { keyHelix, melodicHelix } from './key.ts';
+import { keyHelix } from './key.ts';
+import { planScale } from './melodic.ts';
 import type { Machine } from './machine.ts';
 import { chance, draw, pick, quantize } from './random.ts';
 import { readOnMeter } from './regroup.ts';
@@ -250,7 +251,7 @@ export interface PhraseParams {
   readonly pulse: readonly number[];
   /**
    * The scale the contour walks: the plan's melodic scale over its key
-   * (`melodicHelix`, #209), seven degrees, or five or six.
+   * (`planScale`: the found fragment's, or the key's table's, #209, #644), seven degrees, or five or six.
    */
   readonly scale: Helix;
   /** How many degrees of the scale the contour reaches from the first note, 2 to 8, with energy and entropy. */
@@ -313,7 +314,7 @@ export function phraseParams({
       s % 2 === 0 && !starts.has(s) ? 0.3 * swingWeight(swing) : 0,
     ),
     pulse: positions(even(Math.round(3 + 5 * energy), steps, Math.round(style.sync * 3))),
-    scale: melodicHelix(plan.key, plan.melodic),
+    scale: planScale(plan),
     span: 2 + Math.round((energy + style.entropy) * 3),
     contours: [1 + (1 - style.harm) * (1 - style.entropy), 1, 1, 0.25 + 1.5 * style.harm],
     turn: 0.2 + 0.3 * style.entropy,

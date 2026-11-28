@@ -547,32 +547,38 @@ export function mostUsedRhythm(runs: readonly RhythmRun[]): {
 /**
  * E40 (#430): the sections where a drum bar that returns plays without the clave it had before. For each section of a
  * stretch of a drum bar (its fragment, the same in sections one after another) that played in a stretch before, where
- * that stretch's last section had a clave and this section has another, or none: `lost` where the clave played in
- * every section of that stretch, so the two were chosen together, and `lent` where it layered on only its last
- * sections, the drum bar it was chosen with having faded meanwhile.
+ * that stretch's last section had a clave and this section has another, or none: of a drum bar's own clave, the one
+ * first chosen with it in the run, `lost` where the clave played in every section of that stretch, so the two were
+ * chosen together, and `lent` where it layered on only its last sections; and `borrowed` where the clave was another
+ * drum bar's, which layering on it meanwhile doesn't make its own (`novelty.ts`), as where several drum bars are on
+ * offer at a style (#540) and share its clave.
  */
 export function claveLost(runs: readonly RhythmRun[]): {
   readonly lost: number;
   readonly lent: number;
+  readonly borrowed: number;
 } {
   let lost = 0;
   let lent = 0;
+  let borrowed = 0;
   for (const run of runs) {
     const had = new Map<string, { readonly clave: string; readonly whole: boolean }>();
+    const owners = new Map<string, string>();
     let start = 0;
     run.kept.forEach((id, i) => {
       if (run.kept[i - 1] !== id) start = i;
+      const clave = run.claves[i]!;
+      if (id !== '-' && clave !== '-' && !owners.has(clave)) owners.set(clave, id);
       const before = had.get(id);
-      if (id !== '-' && before && before.clave !== '-' && run.claves[i] !== before.clave)
-        if (before.whole) lost++;
+      if (id !== '-' && before && before.clave !== '-' && clave !== before.clave)
+        if (owners.get(before.clave) !== id) borrowed++;
+        else if (before.whole) lost++;
         else lent++;
-      if (run.kept[i + 1] !== id) {
-        const clave = run.claves[i]!;
+      if (run.kept[i + 1] !== id)
         had.set(id, { clave, whole: run.claves.slice(start, i + 1).every((c) => c === clave) });
-      }
     });
   }
-  return { lost, lent };
+  return { lost, lent, borrowed };
 }
 
 /**

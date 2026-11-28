@@ -40,13 +40,14 @@ The engine is pure, every level is a `Machine` whose state survives a JSON
 round trip (`lawBreaks`), and time is laid by exact maps. Three seams sit
 where a host and a client split:
 
-1. **Written against played.** The band writes notes (`WrittenNote`) over
-   one `BarEnv`, and `playBar` plays them: each through the performance,
-   the bar coloured by `soundOf`. The host sends `BarEnv + written`
-   (`WrittenBar`); the client plays it through `playBar` itself, so its
-   notes are the host's and its instruments its own. That is the score
-   seam of #63: today the bar goes as data, and once the score package
-   exists it can go as the bar's score text.
+1. **Written against played.** The band writes a section, and its score
+   states it as cells text, which cells plays and the performance colours.
+   The host sends each section's score (`SectionScore`) and each bar's
+   conduct (`BarConduct`: where it starts, its seed, entropy and offer);
+   the client plays the score with its own cells engine and performer, so
+   its notes are the host's and its instruments its own. That is the score
+   seam of #63: a bar goes as its score's text (#446, #553, version 2 of
+   the session contract).
 2. **Judging against taking.** The Muse judges each source's bar
    (`judgeBar`) and takes one motif of all it hears (`taken`). A client
    judges; the host takes.
@@ -64,29 +65,32 @@ where a host and a client split:
                                                         │ offer
                                                         ▼
                                                 band: plan, chords, parts
- transport over followSource ◀──── bar: WrittenBar + where it starts
-   on the host's clock               start (seed, start, track), track,
-   playBar ─▶ synth / MIDI out       forecast (what changed), muse, stop
+ transport over scoreSource ◀───── score: a section's cells text
+   on the host's clock                conduct: where a bar starts, its seed
+   cells ─▶ synth / MIDI out          start (seed, start, track), track,
+                                      forecast (what changed), muse, stop
  hostClock ◀──────────────────────── ping / pong: page clocks, the host's output offset
 ```
 
 ### The engine: a transport over a source of bars
 
 The transport runs over a source of bars (`BarSource`): the band
-(`bandSource`), or a client's inbox of the host's bars (`followSource`).
-Solo play is a host nobody joined, and a client is the same transport with
-another source.
+(`bandSource`), or a client's conducts and what the host's scores state of
+each bar (`scoreSource`). Solo play is a host nobody joined, and a client
+is the same transport with another source.
 
-- The band composes a bar a beat before it starts (`COMPOSE_AHEAD`). The
-  follower takes a bar as its first step is laid (`ahead: 0`), so a bar has
-  the host's beat to arrive: at least 333 ms, at 180 bpm.
-- A bar missing when its first step is laid is passed, as a stall passes
-  one: the clock doesn't wait for the network. The client counts them
-  (`lacked`), and shows the count.
-- Each bar goes with where it starts on the host's clock (`sentBars`), and
-  the follower lays its first step there. A tempo glide that reaches a
-  client after it has laid a few steps on the old tempo so can't leave it
-  behind for longer than a bar.
+- The band composes a bar a beat before it starts (`COMPOSE_AHEAD`), and
+  the host sends its conduct then. The follower takes a bar as its first
+  step is laid (`ahead: 0`), so a conduct has the host's beat to arrive: at
+  least 333 ms, at 180 bpm. A score goes four bars and a beat before its
+  section.
+- A bar whose conduct or score is missing when its first step is laid is
+  passed, as a stall passes one: the clock doesn't wait for the network.
+  The client counts them (`lacked`), shows the count, and tells its host.
+- Each bar's conduct carries where it starts on the host's clock
+  (`conductOf`), and the follower lays its first step there. A tempo glide
+  that reaches a client after it has laid a few steps on the old tempo so
+  can't leave it behind for longer than a bar.
 - The Muse hears judgements (`MuseInput.judgements`): those of the notes
   played on the host, then those clients sent (`BarJudgement`), in the
   order they arrived. One for a bar it has already heard is dropped.
@@ -236,16 +240,21 @@ address as the lobby server.
 
 ### Messages
 
-Plain data (`protocol.ts`). A join names the protocol's version, and a host
-refuses another major version, since a cached app can be older than its host;
-from 13 on every protocol is a minor of one major, which a host admits and a
+Plain data (`protocol.ts`): version 2 of the session contract
+(yggi/music-commons `contracts/session`, #553), the one version Jambot
+speaks. A join names the protocol, and a host refuses one before version
+2's first (30), since a cached app can be older than its host; every
+protocol from 30 on is a minor of version 2, which a host admits and a
 client stays with, each ignoring a kind it doesn't know (#460).
 
-- Host to client: `welcome` (the song, if playing, with the bars composed
-  and not yet played; the bars ahead; the Muse; the token to come back by),
-  `refused`, `start`, `track`, `bar`, `forecast` (the bars that changed,
-  `forecastDelta`), `muse`, `stop`, `finale`, `pong`, `closed`.
-- Client to host: `join` (version, name, and the token when it comes back), `judged` (bar, judgement), `played` (part, bar, the notes as heard; a host hears drums alone so far), `forget`, `ping`, `leave`.
+- Host to client: `welcome` (the song, if playing, with the conducts of the
+  bars composed and not yet played and the scores that state them, the
+  fragments they lock that the client lacks, and the default band; the bars
+  ahead; the Muse; the log's tail; the token to come back by), `refused`,
+  `start`, `track`, `conduct`, `score`, `forecast` (the bars that changed,
+  `forecastDelta`), `muse`, `stop`, `finale`, `pong`, `closed`, `role`,
+  `event`.
+- Client to host: `join` (protocol, name, the code where the host asks for one, and the token when it comes back), `judged` (bar, judgement), `played` (part, bar, the notes as heard; a host hears drums and the bass), `forget`, `nudge`, `ping`, `lacked` (a bar it didn't play, and why), `leave`.
 - Said by a lobby, never by a peer, and so never read off the wire: `lost`
   to a host (a client's link dropped without a `leave`), `away` and `back`
   to a client (its host's link dropped, and returned).
@@ -312,19 +321,19 @@ gates it was judged by (`admissible`), before anything is read from it. A
 message that fails either is dropped, not thrown on while the band plays.
 A client reads its host's messages by their fields too (`readHostMessage`):
 it chose that host, but a client not built from the host's code can't take a
-field's type on trust (yggi/music-commons `contracts/session`, minor 1, #457).
+field's type on trust (yggi/music-commons `contracts/session`, #457).
 
 ## Capacity
 
-Measured: a bar as sent is 2.8 KB of JSON on average (3.8 KB at most), the
-whole forecast 37 KB, and a bar's change to it about 0.5 KB. A client
-pings 4 times a second. At 120 bpm, a bar every 2 s, a client takes about
-2 KB/s (16 kbit/s) and sends about 0.2 KB/s; a preset change sends the
-whole forecast once.
+Measured: over 32 bars of Funk, seed 1, a client is sent about 105 KB of
+JSON in all, 5 scores 17 KB of it (`session-v2.test.ts`); the whole
+forecast is 37 KB, and a bar's change to it about 0.5 KB. A client pings 4
+times a second. A preset change sends the whole forecast once.
 
 **The session manager, measured** (`apps/lobby/load.ts`): the server in a
-process of its own, sessions of a host and 8 clients each, bars and
-changes every 2 s and pings at 4 Hz, 20 s a round, on a 4-core container:
+process of its own, sessions of a host and 8 clients each, a message of
+2.8 KB and a change of 0.5 KB every 2 s, more than a host sends a bar, and
+pings at 4 Hz, 20 s a round, on a 4-core container:
 
 | Clients | Sessions | Bar to client, p50 / p99 / max | Ping, p50 / p99 | Server CPU | Memory |
 | ------- | -------- | ------------------------------ | --------------- | ---------- | ------ |
@@ -360,17 +369,20 @@ Estimated, not yet measured:
 - **The engine seam changes nothing solo**: the existing tests and `pnpm
 e2e` pass unchanged, and a transport over bars the band composed, given
   back, lays the same steps at the same times (`transport.test.ts`).
-- **Host and client agree** (`session.test.ts` in `packages/session`):
-  over a simulated link with delay, jitter and loss, a client plays the
-  host's notes at the host's moments, passes a lost or late bar and never
-  plays one late, and follows a tempo change that reached it late from
-  the bar after the next.
+- **Host and client agree** (`packages/session`): over a link that
+  serialises, a client plays what the host's scores state at the host's
+  moments, and lacks or plays silent exactly the bars it should
+  (`follow-v2.test.ts`); over a simulated link with delay, jitter and loss,
+  a client of bars as written passes a lost or late bar and never plays one
+  late, and follows a tempo change that reached it late from the bar after
+  the next (`session.test.ts`).
 - **The clock** (`clock.test.ts`): within 1 ms over held-up pings, follows
   drift at no more than the slew, drops a ping that came back before it
   was sent, and is off by half the difference on a link slower one way:
   the known limit, shown.
-- **The app** (`apps/web/src/session/session.test.ts`): a host and a
-  client session wired through a lobby in memory, and the BroadcastChannel
+- **The app** (`apps/web/src/session/session.test.ts`,
+  `session-v2.test.ts`, `host-v2.test.ts`): a host and a client session
+  wired through a lobby in memory, event for event, and the BroadcastChannel
   lobby.
 - **The lobby server** (`apps/lobby/src/lobby.test.ts`): names, relaying
   each way, leaving and going, refusals, and a socket closed for missing
@@ -397,7 +409,7 @@ e2e` pass unchanged, and a transport over bars the band composed, given
 
 1. The engine seams: a transport over a bar source, the Muse over
    judgements. Built.
-2. `packages/session`: messages, the host's bars, the follower, the ear,
+2. `packages/session`: messages, the host's conducts and scores, the follower, the ear,
    the clock, the forecast's delta, and the simulated-link tests. Built.
 3. The BroadcastChannel lobby, host mode in the app (session name, who
    joined, join by name, leave, close), and the two-page e2e. Built.

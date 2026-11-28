@@ -123,6 +123,8 @@ export const STREAMS = {
   song: 35,
   /** Whether a song played again is a mix, what a new mix changes, and which kept mix plays, per section (#547 rung 5 step 2, `rotation.ts`). */
   mix: 36,
+  /** Which of the fragments on offer a member takes where none is held, per member and section (#540, `offeredFigure`). */
+  offer: 37,
 } as const;
 
 export type Stream = keyof typeof STREAMS;

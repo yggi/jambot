@@ -796,11 +796,15 @@ describe('a part the composer took, written as its `from` line with the band’s
           }
       return out;
     };
-    // (seed 1: 96 sections, 92 before cells v0.31.0's Pop; the harmony from the tables in the other 18, 17 before Pop's
-    // B; 29 over and 18 from the tables before cells v0.30.0, where Salsa's song form was `vamp`: its `son_montuno`'s
-    // coro keeps the montuno where the vamp's bridge played the tables, and 63 over at seeds 1 and 2)
+    // (seed 1: 96 sections, 92 before cells v0.31.0's Pop; the harmony from the tables in the other 13, 18 before every
+    // member drew among the fragments on offer (below) and 17 before Pop's B; 29 over and 18 from the tables before cells v0.30.0, where Salsa's song form was `vamp`: its `son_montuno`'s
+    // coro keeps the montuno where the vamp's bridge played the tables, and 63 over at seeds 1 and 2; and 48 whole, 30
+    // over and 18 from the tables at seed 1, 84 whole and 72 over at seeds 1 and 2, before every member drew among the
+    // fragments on offer, #540: a B that played the tables where nothing but A's lay as near, Spooky's, Dark ambient's
+    // and Trip-hop's, draws another on offer, and Trip-hop's A, the ninth loop at seed 1, is taken whole where its
+    // sixth's vamp was taken over)
     expect(count([1])).toEqual({
-      'harmony whole': 48,
+      'harmony whole': 53,
       'harmony over': 30,
       'bass over': 96,
       'lead over': 96,
@@ -809,8 +813,8 @@ describe('a part the composer took, written as its `from` line with the band’s
     // (85, 65 and 184 before cells v0.31.0, whose Pop adds 8 sections and whose Waltz takes Pop's progressions at seed
     // 2, yggi/cells#947, #764; 45, 30 and 92 at seed 1, before Pop's 4)
     expect(count([1, 2])).toEqual({
-      'harmony whole': 84,
-      'harmony over': 72,
+      'harmony whole': 91,
+      'harmony over': 75,
       'bass over': 192,
       'lead over': 192,
       'drums over': 192,

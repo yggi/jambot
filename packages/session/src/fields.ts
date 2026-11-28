@@ -1,9 +1,9 @@
 /**
- * The checks a session message's readers share across the contract's
- * versions (`protocol.ts` for version 1, `protocol-v2.ts` for version 2):
- * a message's kind, the small types its fields are of, the values both
- * versions carry alike (a song, a forecast, a Muse, a line of the log), and
- * the reading of a message by its kind's check. The package's own: the
+ * The checks a session message's readers share (`protocol.ts`, and
+ * `snapshot.ts` for what a host or client keeps): a message's kind, the small
+ * types its fields are of, the values a message carries (a song, a forecast,
+ * a Muse, a line of the log), and the reading of a message by its kind's
+ * check. The package's own: the
  * barrel (`index.ts`) leaves it out, as its names say what a value is, not
  * what a session does.
  */

@@ -4,12 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { COMPOSER_MODES } from './key.ts';
 import {
   type HarmonySlot,
-  OFFER,
   composedHarmony,
   fitsHarmony,
   themeOf,
   vampOf,
 } from './harmony-query.ts';
+import { OFFER } from './facet.ts';
 import { EMPTY_LAYER } from './layer.ts';
 import {
   HARMONY_REPOSITORY,
@@ -267,28 +267,44 @@ describe('the composer’s ask (#425)', () => {
     ]);
     // (above VAMP_HARM no vamp fits: each takes the progression cells placed at its point, Spooky's dark cadence,
     // yggi/cells#409, Baroque's and Chiptune's, yggi/cells#679, and since cells v0.25.0 one at every preset, yggi/cells#540,
-    // read twice where it is four bars; Blues shuffle has three equally near, and the draw takes each)
+    // read twice where it is four bars; Blues shuffle has three equally near, and the draw takes each; and the offer
+    // reaches a tenth past the nearest, OFFER_FLOOR, #540, where Spooky's haunted progression lies beside its cadence,
+    // and the ii–V–I beside Blues shuffle's three)
     const PLACED: Readonly<Record<string, readonly string[]>> = {
-      'Synth-pop': ['axis_progression'],
+      // (and since cells v0.31.0 Pop's four chords on offer here, as Pop's two at Blues shuffle, #540)
+      'Synth-pop': ['axis_progression', 'four_chord_pop'],
       'Deep house': ['ninth_vamp'],
       'Lo-fi hip hop': ['ninth_loop'],
       'Bossa nova': ['ii_v_i'],
       'Swing jazz': ['turnaround'],
       'Electro swing': ['minor_swing'],
-      Spooky: ['dark_cadence'],
+      Spooky: ['dark_cadence', 'haunted_progression'],
       'Happy hardcore': ['axis_progression'],
       Elektro: ['axis_progression'],
       Baroque: ['fifths_sequence'],
-      'Blues shuffle': ['minor_swing', 'ninth_loop', 'ninth_vamp'],
+      'Blues shuffle': [
+        'minor_swing',
+        'ninth_loop',
+        'ninth_vamp',
+        'authentic_cadence',
+        'four_chord_pop',
+        'ii_v_i',
+      ],
       Chiptune: ['korobeiniki_changes'],
       Salsa: ['montuno'],
       // (and since cells v0.31.0 Pop's two among Waltz's, the band's offer there grown, yggi/cells#947, #764)
       Waltz: ['turnaround', 'authentic_cadence', 'four_chord_pop', 'ninth_vamp'],
-      // (cells v0.31.0's Pop, its first harmony, I IV V I)
-      Pop: ['authentic_cadence'],
+      // (cells v0.31.0's Pop, its first harmony, I IV V I, and its four chords a tenth from it on offer, #540)
+      Pop: ['authentic_cadence', 'four_chord_pop'],
     };
-    for (const p of PRESETS.filter((p) => p.style.harm >= VAMP_HARM))
-      expect([...new Set(offered(p.name))], p.name).toEqual(PLACED[p.name]);
+    expect(
+      Object.fromEntries(
+        PRESETS.filter((p) => p.style.harm >= VAMP_HARM).map((p) => [
+          p.name,
+          [...new Set(offered(p.name))],
+        ]),
+      ),
+    ).toEqual(PLACED);
   });
 
   it('keeps a seed’s equals on offer however often use raises one, past cells’ cap (OFFER)', () => {

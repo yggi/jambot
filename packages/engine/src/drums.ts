@@ -52,7 +52,8 @@ import {
   halfOf,
   lateOf,
 } from './events.ts';
-import { SECTION_BARS } from './form.ts';
+import { fillHits } from './fills.ts';
+import { SECTION_BARS, type SectionType } from './form.ts';
 import { type Stream, chance, draw, heldDraw } from './random.ts';
 import { type Regroup, readOnMeter } from './regroup.ts';
 import { eighthSwing } from './swing.ts';
@@ -204,6 +205,36 @@ export function rimAccentOf(meter: Meter, step: number, energy: number): number 
   return Math.round(RIM_BASE * ((heard(step) * steps) / sum - 1) * (0.65 + 0.35 * energy));
 }
 
+/** A fill's base crescendo to the bar's end from a step, before the energy: `dynamics.ts`'s, which the feel contract states. */
+const fillCrescendo = (breakdown: boolean, steps: number, from: number, step: number): number =>
+  breakdown
+    ? 45 + (step - from) * (63 / (steps - 1 - from))
+    : 50 + (step - from) * (60 / (steps - from));
+
+/**
+ * The accent the drummer writes on a found fill's hit (#643): its crescendo runs from the fill's own first hit where
+ * that is earlier than where the base's runs from, where the drummer's own run starts (the half bar in a build or a
+ * breakdown, else `lateOf`), so a fill that starts earlier doesn't play its first hits almost silent; the difference, scaled by the energy as the base
+ * is, and a whole number, as a written accent is. Written, not the performer's: the base stays the feel contract's, as
+ * the rim's does (`rimAccentOf`).
+ */
+export function fillAccentOf(
+  type: SectionType,
+  meter: Meter,
+  from: number,
+  step: number,
+  energy: number,
+): number {
+  const steps = stepsOf(meter);
+  const breakdown = type === 'breakdown';
+  const own = breakdown || type === 'build' ? halfOf(steps) : lateOf(steps);
+  // (from the earlier of the two: a fill that starts later keeps the ramp its fragment's levels were written on)
+  const start = Math.min(from, own);
+  const lift =
+    fillCrescendo(breakdown, steps, start, step) - fillCrescendo(breakdown, steps, own, step);
+  return Math.round(lift * (0.65 + 0.35 * energy));
+}
+
 /** The drum hits a bar writes, in order of step and note. `regroup` is how a table written on 4/4's steps is read in another meter. */
 export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
   const { seed, bar, barInSection, style, barEnergy: energy, meter } = env;
@@ -233,24 +264,40 @@ export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
 
   const hits = new Map<number, WrittenNote>();
   /** A hit; where one is already on this step and note, the stronger role stays. */
-  const add = (step: number, note: number, role: DrumRole) => {
+  const add = (step: number, note: number, role: DrumRole, written = 0) => {
     const key = step * 128 + note;
     const there = hits.get(key);
+    // (the rim's accent always, and a written one where it moves the level)
+    const accent = role === 'euclid' ? rimAccentOf(meter, step, energy) : written || undefined;
     if (!there || DRUM_PRIORITY[role] < DRUM_PRIORITY[there.role!])
       hits.set(
         key,
-        role === 'euclid'
-          ? { part: 'drums', role, step, note, length: 1, accent: rimAccentOf(meter, step, energy) }
-          : { part: 'drums', role, step, note, length: 1 },
+        accent === undefined
+          ? { part: 'drums', role, step, note, length: 1 }
+          : { part: 'drums', role, step, note, length: 1, accent },
       );
   };
   const played = () => [...hits.entries()].sort(([a], [b]) => a - b).map(([, e]) => e);
+  /** The section's fill: the one the plan found (#643, `fills.ts`), its hits as they fall; else the drummer's own snare run `from` a step. */
+  const fill = (from: number) => {
+    const found =
+      env.plan.fillFragment === undefined ? null : fillHits(env.plan.fillFragment, meter);
+    if (found)
+      for (const hit of found)
+        add(
+          hit.step,
+          hit.note,
+          'fill',
+          fillAccentOf(section.type, meter, found[0]!.step, hit.step, energy),
+        );
+    else for (let s = from; s < steps; s++) add(s, DRUM_NOTES.snare, 'fill');
+  };
 
   if (section.type === 'breakdown') {
     if (energy > 0.2)
       for (const start of starts)
         add(start + 2, eighth > 0.5 ? DRUM_NOTES.ride : DRUM_NOTES.closedHat, 'hat');
-    if (last) for (let s = half; s < steps; s++) add(s, DRUM_NOTES.snare, 'fill');
+    if (last) fill(half);
     return played();
   }
 
@@ -303,9 +350,7 @@ export function drums(env: BarEnv, regroup: Regroup = 'cycle'): WrittenNote[] {
     for (const s of positions(even(k, steps, rotation))) add(s, DRUM_NOTES.rim, 'euclid');
   }
 
-  if (last && (section.type === 'build' || plays('fill', 0, 0.35 + 0.3 * sync))) {
-    const from = section.type === 'build' ? half : lateOf(steps);
-    for (let s = from; s < steps; s++) add(s, DRUM_NOTES.snare, 'fill');
-  }
+  if (last && (section.type === 'build' || plays('fill', 0, 0.35 + 0.3 * sync)))
+    fill(section.type === 'build' ? half : lateOf(steps));
   return played();
 }

@@ -7,19 +7,33 @@ import { METERS, stepsOf } from '@jambot/theory';
 import type { BarEnv } from './bar.ts';
 import { BAR_STEPS, beatStart, doughProblems, writtenProblems } from './events.ts';
 import { COMPOSER_MODES, INITIAL_KEY } from './key.ts';
-import { INITIAL_STYLE, PRESETS, glideTo, holding } from './style.ts';
+import { INITIAL_STYLE, PRESETS, type Style, glideTo, holding } from './style.ts';
+import { endingRead, sectionEnding } from './endings.ts';
+import { stylePoint } from './meter-query.ts';
 import { stepSeconds } from './tempo.ts';
 import { presetMode } from './mode-repository.ts';
+import { METER_REPOSITORY } from './repository.ts';
 
 const range = (n: number) => [...Array(n).keys()];
 const TONICS = range(12);
 
-const finaleIn = (tonic: number, mode: (typeof COMPOSER_MODES)[number], seed = 5) =>
+/**
+ * A style where cells finds no ending (#646): every axis at 1, a corner of the style space no ending lies within the miss
+ * distance of, so the band plays its own finale there.
+ */
+const MISSED: Style = { ...INITIAL_STYLE, sync: 1, harm: 1, artic: 1, mood: 1 };
+
+const finaleIn = (
+  tonic: number,
+  mode: (typeof COMPOSER_MODES)[number],
+  seed = 5,
+  style: Style = MISSED,
+) =>
   finaleBar(
     {
       seed,
       bar: 0,
-      style: INITIAL_STYLE,
+      style,
       wish: { tonic, mode, melodic: null },
       offer: null,
     },
@@ -65,14 +79,24 @@ describe('the cadence', () => {
 });
 
 describe('the final bar', () => {
-  it('is legal written and played, in every mode and on every tonic', () => {
-    for (const mode of COMPOSER_MODES)
-      for (const tonic of TONICS) {
-        const bar = finaleIn(tonic, mode);
-        for (const note of bar.written) expect(writtenProblems(note)).toEqual([]);
-        for (const note of bar.dough) expect(doughProblems(note)).toEqual([]);
-        expect(bar.dough).toHaveLength(bar.written.length);
-      }
+  it('is the band’s own where cells finds no ending', () => {
+    for (const mode of COMPOSER_MODES) {
+      expect(sectionEnding(stylePoint(MISSED), mode, METERS['4/4'], 0), mode).toBeUndefined();
+      expect(finaleIn(0, mode).plan.endingFragment, mode).toBeUndefined();
+    }
+    // (and found where it lies within reach: Jambot's own finale, as cells writes it, at the first preset's point)
+    expect(finaleIn(0, 'aeolian', 5, INITIAL_STYLE).plan.endingFragment).toBe('finale');
+  });
+
+  it('is legal written and played, in every mode and on every tonic, the band’s own and the one found', () => {
+    for (const style of [MISSED, INITIAL_STYLE])
+      for (const mode of COMPOSER_MODES)
+        for (const tonic of TONICS) {
+          const bar = finaleIn(tonic, mode, 5, style);
+          for (const note of bar.written) expect(writtenProblems(note)).toEqual([]);
+          for (const note of bar.dough) expect(doughProblems(note)).toEqual([]);
+          expect(bar.dough).toHaveLength(bar.written.length);
+        }
   });
 
   it('lands every pitched part on the tonic on the third beat, and the drums together', () => {
@@ -114,23 +138,57 @@ describe('the final bar', () => {
     expect(finaleIn(9, 'aeolian', 1).written).toEqual(finaleIn(9, 'aeolian', 2).written);
   });
 
-  it('closes every preset’s style', () => {
+  /** A preset's final bar, seed 3, on D. */
+  const closing = (preset: (typeof PRESETS)[number]) =>
+    finaleBar(
+      {
+        seed: 3,
+        bar: 0,
+        style: { ...preset.style, entropy: 0.3 },
+        wish: { tonic: 2, mode: presetMode(preset)!, melodic: null },
+        offer: null,
+      },
+      band.initial,
+    ).bar;
+
+  it('closes every preset’s style on its tonic, with the chords of the ending found there, or the band’s own', () => {
+    const found = new Set<string>();
     for (const preset of PRESETS) {
-      const { style } = preset;
-      const mode = presetMode(preset)!;
-      const bar = finaleBar(
-        {
-          seed: 3,
-          bar: 0,
-          style: { ...style, entropy: 0.3 },
-          wish: { tonic: 2, mode, melodic: null },
-          offer: null,
-        },
-        band.initial,
-      ).bar;
-      expect(bar.chords.map((c) => c.slot.step)).toEqual([0, beatStart(2)]);
+      const bar = closing(preset);
+      const ending = bar.plan.endingFragment;
+      const read = ending === undefined ? null : endingRead(ending, bar.plan.key.mode, bar.meter);
+      found.add(ending ?? '-');
+      // (a chord where the ending's notes start; the band's own, the dominant then the tonic on the third beat)
+      expect(
+        bar.chords.map((c) => c.slot.step),
+        preset.name,
+      ).toEqual(read ? [...new Set(read.cadence.map((n) => n.step))] : [0, beatStart(2)]);
+      expect(bar.chords.at(-1)!.chord.helix.heights[0]! % 12, preset.name).toBe(2);
       for (const note of bar.dough) expect(doughProblems(note)).toEqual([]);
     }
+    // (every preset lies within reach of one: the stop, the amen, the tierce, the blues', the drone and the finale)
+    expect([...found].sort()).toEqual(
+      ['blues_ending', 'drone_out', 'finale', 'picardy', 'plagal', 'stop'].sort(),
+    );
+  });
+
+  it('plays the ending found: at Acid the stop, everything on the one, the bass on the tonic and the pad its triad, and nothing rings past the bar', () => {
+    const acid = PRESETS.find((p) => p.name === 'Acid')!;
+    // (the nearest at Acid's point, as it is asked without a draw)
+    expect(sectionEnding(stylePoint(acid.style), 'aeolian', METERS['4/4'], 0)).toBe('stop');
+    const { plan, written, chords } = closing(acid);
+    expect(plan.endingFragment).toBe('stop');
+    expect(chords.map((c) => c.slot.step)).toEqual([0]);
+    expect(written.length).toBeGreaterThan(0);
+    for (const note of written) expect(note.step, note.part).toBe(0);
+    expect(written.filter((n) => n.part === 'bass').map((n) => n.note % 12)).toEqual([2]);
+    const { mode } = plan.key;
+    const third = mode === 'ionian' || mode === 'lydian' || mode === 'mixolydian' ? 4 : 3;
+    expect(pitchClasses(written.filter((n) => n.part === 'pad').map((n) => n.note))).toEqual(
+      [2, 2 + third, 9].sort((a, b) => a - b),
+    );
+    expect(written.filter((n) => n.part === 'drums').map((n) => n.note)).toContain(DRUM_NOTES.kick);
+    expect(Math.max(...written.map((n) => n.step + n.length))).toBeLessThan(BAR_STEPS);
   });
 });
 
@@ -156,6 +214,32 @@ describe('the count-in', () => {
 });
 
 describe('the ending on other meters (#260)', () => {
+  it('reads a found ending’s chords in the section’s meter, as its notes: the pad sounds each chord where it stands, inside the bar', () => {
+    // (before, read in the meter asked for, 4/4 where none was: Spooky's 5/4 chords at steps 0 and 8, its notes at 0
+    // and 10; March's 2/4 a chord at step 8, past its bar of 8)
+    for (const name of ['Spooky', 'Waltz', 'March']) {
+      const preset = PRESETS.find((p) => p.name === name)!;
+      const { bar } = finaleBar(
+        {
+          seed: 3,
+          bar: 0,
+          style: { ...preset.style, entropy: 0.3 },
+          wish: { tonic: null, mode: presetMode(preset)!, melodic: null },
+          offer: null,
+          repository: METER_REPOSITORY,
+        },
+        band.initial,
+      );
+      expect(bar.plan.meter, name).not.toEqual(METERS['4/4']);
+      const steps = stepsOf(bar.plan.meter);
+      const padAt = new Set(bar.written.filter((n) => n.part === 'pad').map((n) => n.step));
+      for (const chord of bar.chords) {
+        expect(chord.slot.step, name).toBeLessThan(steps);
+        expect(padAt.has(chord.slot.step), `${name} ${chord.slot.step}`).toBe(true);
+      }
+    }
+  });
+
   const named = Object.entries(METERS);
   const cadenceEnv = (meter: (typeof named)[number][1]) =>
     ({

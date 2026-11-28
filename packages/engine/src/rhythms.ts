@@ -181,10 +181,28 @@ export function readRhythm(template: string, meter: Meter): FragmentRead | null 
 }
 
 /**
+ * A fragment's drums under a meter, a bar of them, its signature aside (as `readFill`): the drums an ending lands with
+ * (#646), each hit on its line's role, and a sound the drummer has no role for (a crash, a stomp) an ostinato, an accent
+ * beside the groove's roles. `context` is what its other lines read beside the meter (an ending's key).
+ */
+export function readDrums(template: string, meter: Meter, context = ''): FragmentRead | null {
+  const lines = answered(template)
+    .split('\n')
+    .filter((line) => !/ from \(/.test(line));
+  return readLines([context, ...lines].join('\n'), meter, 1, undefined, 'ostinato');
+}
+
+/**
  * A fragment's hits (`readRhythm`), each line's, or one line's alone where its name is given, over the fragment's own
  * lap, or `bars` where given: cells' `hitsOf`, one compile (and the one that finds its lap).
  */
-function readLines(text: string, meter: Meter, bars?: number, only?: string): FragmentRead | null {
+function readLines(
+  text: string,
+  meter: Meter,
+  bars?: number,
+  only?: string,
+  otherwise?: DrumRole,
+): FragmentRead | null {
   const name = nameOf(meter);
   if (!name) return null;
   const read = hitsOf(withInstruments(text), straight(name), { resolve: resolveSeed });
@@ -196,7 +214,7 @@ function readLines(text: string, meter: Meter, bars?: number, only?: string): Fr
     if (only !== undefined && hit.line !== only) continue;
     if (!Number.isInteger(hit.step)) return null;
     if (hit.step >= steps) continue;
-    const role = roleOf(hit, meter);
+    const role = roleOf(hit, meter) ?? otherwise ?? null;
     if (role === null) return null;
     hits.push({
       role,

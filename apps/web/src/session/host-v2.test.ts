@@ -1,33 +1,31 @@
 /**
- * A host that speaks version 2 of the session contract (#553, rung 2): what it
- * sends, read with version 2's reader, and the contract's rules held over it
- * (yggi/music-commons `contracts/session` at fea947e). No client plays it yet
- * (rung 3): a client here is a bare link that reads what it is sent.
+ * A host, as version 2 of the session contract has it (#553): what it sends,
+ * read with a client's reader, and the contract's rules held over it
+ * (yggi/music-commons `contracts/session` at fea947e). A client here is a
+ * bare link that reads what it is sent.
  */
 
 import { PRESETS, SECTION_BARS, replayOf } from '@jambot/engine';
 import { DEFAULT_BAND, scoreLock } from '@jambot/score';
 import {
+  FIRST_PROTOCOL,
   type FragmentText,
-  type HostMessageV2,
+  type HostMessage,
   PROTOCOL,
-  PROTOCOL_V2,
   readHostMessage,
-  readHostMessageV2,
 } from '@jambot/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SectionTexts, inlineTexts } from '../section-texts.ts';
 import { device, memoryLobby } from './fixtures.ts';
 import { HostSession } from './host.svelte.ts';
-import { SESSION_SPEAKS } from './speaks.ts';
 import type { Lobby } from './lobby.ts';
 
-type Score = Extract<HostMessageV2, { kind: 'score' }>;
+type Score = Extract<HostMessage, { kind: 'score' }>;
 
 /** A message a bare client heard, when on the host's clock, and whether its bar plays a loop again. */
 interface Heard {
   readonly at: number;
-  readonly message: HostMessageV2;
+  readonly message: HostMessage;
   readonly looped: boolean;
 }
 
@@ -58,29 +56,26 @@ const filing = (): SectionTexts => {
   };
 };
 
-/** A host of version 2 open, at a preset, its band started, and the bare clients that join it. */
+/** A host open, at a preset, its band started, and the bare clients that join it. */
 async function hosting({
   preset = 'Funk',
   texts,
-  speaks = 2,
   started = true,
-}: { preset?: string; texts?: () => SectionTexts; speaks?: 1 | 2; started?: boolean } = {}) {
+}: { preset?: string; texts?: () => SectionTexts; started?: boolean } = {}) {
   const lobby = memoryLobby();
   const host = device(100, texts);
-  const session = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-    speaks,
-  });
+  const session = new HostSession(host.player, host.clocks, () => host.world.currentTime);
   await session.open(lobby, 'Jam');
   host.player.apply({ kind: 'preset', preset: PRESETS.find((p) => p.name === preset)! });
   if (started) await host.player.start();
   const links: { send: (m: never) => void; heard: Heard[]; raw: unknown[] }[] = [];
   /** A bare client joins, by its name, and its token if it comes back. */
-  const join = async (name: string, resume?: string, protocol = PROTOCOL_V2) => {
+  const join = async (name: string, resume?: string, protocol = PROTOCOL) => {
     const heard: Heard[] = [];
     const raw: unknown[] = [];
     const link = await (lobby as Lobby).join('Jam', (m) => {
       raw.push(m);
-      const message = readHostMessageV2(m);
+      const message = readHostMessage(m);
       if (!message) return;
       const bar = message.kind === 'conduct' ? message.bar : -1;
       heard.push({
@@ -109,9 +104,9 @@ async function hosting({
 }
 
 /** What a client heard, as its kinds' messages. */
-const of = <K extends HostMessageV2['kind']>(heard: readonly Heard[], kind: K) =>
+const of = <K extends HostMessage['kind']>(heard: readonly Heard[], kind: K) =>
   heard.filter((h) => h.message.kind === kind) as (Heard & {
-    message: Extract<HostMessageV2, { kind: K }>;
+    message: Extract<HostMessage, { kind: K }>;
   })[];
 
 /** The scores a client heard, its welcome's among them, each with when. */
@@ -149,76 +144,49 @@ function barsOf(heard: readonly Heard[]) {
 /** Seconds a beat lasts at a preset's tempo. */
 const beatOf = (preset: string) => 60 / PRESETS.find((p) => p.name === preset)!.style.bpm;
 
-describe('a host that speaks version 2 of the session contract (#553)', () => {
+describe('a host, as version 2 of the session contract has it (#553)', () => {
   beforeEach(() => void vi.useFakeTimers());
   afterEach(() => void vi.useRealTimers());
 
-  it('speaks version 2, the switch thrown (rung 4), and version 1 only where made to, its bars and texts as version 1 sends them', async () => {
-    expect(SESSION_SPEAKS).toBe(2);
-    const spoken = await hosting({ speaks: SESSION_SPEAKS });
-    const bo = await spoken.join('Bo');
-    await spoken.run(12);
-    expect((bo.raw[0] as { protocol: number }).protocol).toBe(PROTOCOL_V2);
-    spoken.session.close();
-    const { session, join, run } = await hosting({ speaks: 1 });
-    const ada = await join('Ada', undefined, PROTOCOL);
-    await run(12);
-    const kinds = new Set(ada.raw.map((m) => (m as { kind: string }).kind));
-    expect(kinds).toContain('bar');
-    expect(kinds).toContain('section');
-    expect(kinds).not.toContain('conduct');
-    expect(kinds).not.toContain('score');
-    for (const m of ada.raw) expect(readHostMessage(m)).not.toBeNull();
-    expect((ada.raw[0] as { protocol: number }).protocol).toBe(PROTOCOL);
-    session.close();
-  });
-
-  it('counts the bars each client tells it it lacked, by why and by the client, a listener’s too; a host of version 1 ignores them (minor 2)', async () => {
+  it('counts the bars each client tells it it lacked, by why and by the client, a listener’s too (minor 2)', async () => {
     const lacked = (bar: number, why: string) => ({ kind: 'lacked', bar, why, text: `bar ${bar}` });
-    for (const speaks of [2, 1] as const) {
-      const { session, join, run } = await hosting({ speaks, started: false });
-      const protocol = speaks === 2 ? PROTOCOL_V2 : PROTOCOL;
-      const ada = await join('Ada', undefined, protocol);
-      const bo = await join('Bo', undefined, protocol);
-      await run(0.1);
-      session.cast(session.guests[1]!.id, 'listener');
-      for (const m of [lacked(3, 'late'), lacked(4, 'late'), lacked(5, 'digest')])
-        ada.send(m as never);
-      // (a malformed one is the lobby's reader's to drop, `readClientMessage`, as the contract's vectors hold)
-      bo.send(lacked(6, 'silent') as never);
-      await run(0.1);
-      const [a, b] = session.guests.map((g) => g.id);
-      expect(session.lacked, `version ${speaks}`).toEqual(
-        speaks === 2
-          ? {
-              [a!]: { silent: 0, digest: 1, lock: 0, late: 2 },
-              [b!]: { silent: 1, digest: 0, lock: 0, late: 0 },
-            }
-          : {},
-      );
-      session.close();
-      expect(session.lacked).toEqual({});
-    }
+    const { session, join, run } = await hosting({ started: false });
+    const ada = await join('Ada');
+    const bo = await join('Bo');
+    await run(0.1);
+    session.cast(session.guests[1]!.id, 'listener');
+    for (const m of [lacked(3, 'late'), lacked(4, 'late'), lacked(5, 'digest')])
+      ada.send(m as never);
+    // (a malformed one is the lobby's reader's to drop, `readClientMessage`, as the contract's vectors hold)
+    bo.send(lacked(6, 'silent') as never);
+    await run(0.1);
+    const [a, b] = session.guests.map((g) => g.id);
+    expect(session.lacked).toEqual({
+      [a!]: { silent: 0, digest: 1, lock: 0, late: 2 },
+      [b!]: { silent: 1, digest: 0, lock: 0, late: 0 },
+    });
+    session.close();
+    expect(session.lacked).toEqual({});
   });
 
-  it('admits a join of version 2, and refuses one of version 1 for its version', async () => {
+  it('admits a join of version 2, and refuses one before it for its version', async () => {
     const { session, join, run } = await hosting();
-    const old = await join('Old', undefined, PROTOCOL);
+    const old = await join('Old', undefined, FIRST_PROTOCOL - 1);
     const ada = await join('Ada');
     await run(0.1);
-    expect(old.raw[0]).toMatchObject({ kind: 'refused' });
-    expect(ada.raw[0]).toMatchObject({ kind: 'welcome', protocol: PROTOCOL_V2 });
+    expect(old.raw[0]).toMatchObject({ kind: 'refused', reason: expect.stringMatching(/version/) });
+    expect(ada.raw[0]).toMatchObject({ kind: 'welcome', protocol: PROTOCOL });
     expect(session.guests.map((g) => g.name)).toEqual(['Ada']);
     session.close();
   });
 
-  it('sends only what version 2 reads: a conduct for each bar, a score for each section, never a bar or a text', async () => {
+  it('sends only what a client reads: a conduct for each bar, a score for each section, never a bar or a text', async () => {
     const { session, join, run } = await hosting();
     await run(3);
     const ada = await join('Ada');
     await run(60);
     for (const m of ada.raw)
-      expect(readHostMessageV2(m), JSON.stringify(m).slice(0, 80)).not.toBeNull();
+      expect(readHostMessage(m), JSON.stringify(m).slice(0, 80)).not.toBeNull();
     const kinds = new Set(ada.raw.map((m) => (m as { kind: string }).kind));
     expect(kinds).not.toContain('bar');
     expect(kinds).not.toContain('section');

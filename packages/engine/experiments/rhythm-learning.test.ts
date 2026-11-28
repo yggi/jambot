@@ -72,18 +72,19 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
   // plays its solos hotter and without the pad, Salsa's `son_montuno` and Ambient straight)
   // (215 grooves, 23 and 192, the misses 837 to 23, 11,798 a groove filed, before cells v0.31.0, whose Pop's parts the
   // walk finds, yggi/cells#947, #764)
-  it('files 212 grooves in 120 hours, 23 the drummer’s on a miss and 189 the composer’s variations (#411, #414), and the misses fall from 838 sections to 23: what was filed is found again', () => {
+  it('files 212 grooves in 120 hours, 22 the drummer’s on a miss and 190 the composer’s variations (#411, #414), and the misses fall from 831 sections to 22: what was filed is found again', () => {
     expect(LEARNED).toHaveLength(40);
     // (26,986 before the station's speed and style mixes, #547 step 2b; 27,062 before a worn song rested, step 3)
-    expect(count(LEARNED, (r) => r.sections)).toBe(27226);
+    // (27,226 sections, the misses 838 to 23, 212 grooves, 23 and 189, 11,585 a groove filed, before the found parts, #540, #643, #644, #646)
+    expect(count(LEARNED, (r) => r.sections)).toBe(27150);
     // (1,025 unlearned before the station's mixes, #547 step 2, whose plays hold their drum bar where it lies past the miss)
-    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([23, 838]);
+    expect([count(LEARNED, misses), count(UNLEARNED, misses)]).toEqual([22, 831]);
     // (210, 23 and 187, 11,096 a groove filed, 597 misses unlearned, with the key and groove mixes alone, step 2a)
     // (205, 24 and 181, 10,642 a groove filed, 523 misses unlearned, before a worn song rested, step 3)
     expect(FILINGS.length).toBe(212);
-    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([23, 189]);
+    expect([bySource(DRUMMER), bySource(COMPOSER)]).toEqual([22, 190]);
     expect(LEARNED.filter((r) => r.learning!.filings.length).length).toBe(40);
-    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11585);
+    expect(count(LEARNED, (r) => r.learning!.playedFiled)).toBe(11541);
   });
 
   it('reads every groove filed back from cells as it was played or varied, and finds each at its point, at distance 0, from a repository that never saw it', () => {
@@ -116,7 +117,7 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     }
   });
 
-  it('moves the share of sections among a run’s 3 most used rhythms by −20.3 points, within 5 with twice its error (cells decision 048)', () => {
+  it('moves the share of sections among a run’s 3 most used rhythms by −28.1 points, within 5 with twice its error (cells decision 048)', () => {
     expect(LEARNED.map((r) => [r.preset, r.seed])).toEqual(
       UNLEARNED.map((r) => [r.preset, r.seed]),
     );
@@ -130,13 +131,14 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     // (0.8783 to 0.6863, −19.20 (1.77), before a worn song rested, step 3)
     // (0.8564 to 0.6433, −21.31 (2.00), before cells v0.30.0)
     // (0.8547 to 0.6477, −20.70 (1.98), before cells v0.31.0)
-    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8540', '0.6515']);
-    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-20.25', '1.89']);
+    // (0.8540 to 0.6515, −20.25 (1.89), before the found parts, #540, #643, #644, #646)
+    expect([before.toFixed(4), after.toFixed(4)]).toEqual(['0.8915', '0.6109']);
+    expect([added.toFixed(2), error.toFixed(2)]).toEqual(['-28.06', '1.61']);
     expect(added + 2 * error).toBeLessThanOrEqual(5);
   });
 
   // (15,938 bytes and 15 grooves before cells v0.24.0; 12 grooves before v0.25.0)
-  it(`keeps a layer of at most 9,470 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
+  it(`keeps a layer of at most 9,279 bytes after 3 hours, under its cap of ${LAYER_CAP.toLocaleString('en')}: nothing dropped (each variation naming its operator, by, #442)`, () => {
     const bytes = LEARNED.map((r) => layerBytes(r.learning!.layer));
     // (15,114 before the layer kept the composer's groove variations by reference, #553: their texts are most of them;
     // 11,015 before the ostinato on top of cells v0.25.1, #651; 11,048 before cells v0.26.0's twelve-eight drums, #706;
@@ -144,8 +146,10 @@ describe('the Muse files the drummer’s grooves while the radio walks (E38, #40
     // (9,969 and 10 grooves with the key and groove mixes alone, step 2a)
     // (9,490 and 9 before a worn song rested, step 3; 10,040 before cells v0.30.0, whose meters' ids are shorter; 9,527
     // and 10 before cells v0.31.0)
-    expect(Math.max(...bytes)).toBe(9470);
-    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(9);
+    // (9,470 before the found parts, #540, #643, #644, #646)
+    expect(Math.max(...bytes)).toBe(9279);
+    // (9 grooves before the found parts, #540, #643, #644, #646)
+    expect(Math.max(...LEARNED.map((r) => r.learning!.layer.filed.length))).toBe(11);
     // every groove its run filed is still there
     for (const run of LEARNED)
       expect(run.learning!.layer.filed.map((f) => f.fragment.id)).toEqual(
@@ -202,7 +206,7 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
   });
 
   // (19 before cells v0.24.0, whose new drum bars leave the drummer fewer misses; 12 before v0.25.0)
-  it('has the drummer invent again where the composer rejected every groove a meter holds: 7 grooves beyond the first of their meter', () => {
+  it('has the drummer invent again where the composer rejected every groove a meter holds: 6 grooves beyond the first of their meter', () => {
     const again = LEARNED.flatMap((run) => {
       const firsts = new Set<string>();
       return run.learning!.filings.filter((f) => {
@@ -215,6 +219,7 @@ describe('the composer tires of a groove while the radio walks (E39, #411, #414)
     });
     // (6 before the station's speed and style mixes, #547 step 2b)
     // (8 before a worn song rested, step 3)
-    expect(again).toHaveLength(7);
+    // (7 before the found parts, #540, #643, #644, #646)
+    expect(again).toHaveLength(6);
   });
 });

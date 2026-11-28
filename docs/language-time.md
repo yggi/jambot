@@ -382,10 +382,10 @@ alteration only a position on the grid. Lands in: U6, where pitch and time
 share one shape, a plain integer on each cycle (#126, #263); tension 7; #125.
 
 **T13. Over a link that keeps order, a bar reaches a client in time exactly when
-the link holds it less than a beat.** Witness: a bar is composed a beat before
-it starts (`COMPOSE_AHEAD`) and sent then, and a client takes it as it lays the
-bar's first step (`followSource`), both within a lookahead, which cancels; what
-misses is passed, never played late (T1). Over TCP, as a WebSocket's, a lost
+the link holds its conduct less than a beat.** Witness: a bar is composed a beat
+before it starts (`COMPOSE_AHEAD`) and its conduct sent then, and a client takes
+it as it lays the bar's first step (`scoreSource`), both within a lookahead,
+which cancels; what misses is passed, never played late (T1). Over TCP, as a WebSocket's, a lost
 message holds up every one behind it until it is sent again, after the
 platform's recovery: some tens of milliseconds where a tail-loss probe fires,
 200 ms at Linux's least retransmission timeout, 1 s at RFC 6298's. So a bar is
@@ -419,9 +419,9 @@ own pulses, and `transport-meters.test.ts` (`packages/engine`), a song in
 4/4, 7/8 and 4/4 by section: the steps laid are the clock's positions, each note
 plays where the clock puts it, every played moment reads back to where it is
 written, a pulse start is never moved by swing, a stall that passes the change
-keeps the clock, and a preview across it is what plays; `meter-follow.test.ts`
-(`packages/session`): a client following the host through the wire lays every
-step where the host did. Open: the web's readers of the bar's length (#262).
+keeps the clock, and a preview across it is what plays; `follow-v2.test.ts`
+(`packages/session`): a client following the host's conducts and scores through
+the wire lays every step where the host did. Open: the web's readers of the bar's length (#262).
 Source: #122, #261. Status: measured (the clock, the transport, a client's
 clock). Decided: #63, ahead of the evidence (option A, B4); (B) and (C) stay
 unmeasured.

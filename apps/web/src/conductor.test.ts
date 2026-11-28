@@ -216,12 +216,14 @@ describe('wishAfter', () => {
   it('pulls a melodic scale back into a narrower reach when the harmony falls, and leaves the style’s default alone (#209)', () => {
     const wish = { tonic: null, mode: 'aeolian', melodic: 'blues' } as const;
     const lower = (value: number) => ({ kind: 'axis', axis: 'harm', value }) as const;
-    const at = (harm: number) => wishAfter(wish, lower(harm), { ...INITIAL_STYLE, harm });
+    // (at Techno's other axes, where cells offers the plain scale alone at every harmony, #644)
+    const techno = { ...INITIAL_STYLE, ...PRESETS.find((p) => p.name === 'Techno')!.style };
+    const at = (harm: number) => wishAfter(wish, lower(harm), { ...techno, harm });
     expect(at(1)).toBe(wish);
     expect(at(0.5)).toEqual({ ...wish, melodic: 'pentatonic' });
     expect(at(0)).toEqual({ ...wish, melodic: 'plain' });
     const none = { ...wish, melodic: null };
-    expect(wishAfter(none, lower(0), { ...INITIAL_STYLE, harm: 0 })).toBe(none);
+    expect(wishAfter(none, lower(0), { ...techno, harm: 0 })).toBe(none);
   });
 
   it('shows the melodic scales the style reaches where the track is going, for every preset (#209)', () => {

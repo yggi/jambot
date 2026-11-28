@@ -106,7 +106,7 @@ import {
   SECTION_BARS,
   chordNumeral,
   keyHelix,
-  melodicHelix,
+  planScale,
   readRhythm,
   readProgression,
   SLOT_BAR,
@@ -642,7 +642,7 @@ export function barred(
 const numberText = (x: number) => String(Number(x.toPrecision(12))).replace(/^0\./, '.');
 
 /** Which of a section's host fields its bars must share: all of them, or all but the tempo. */
-type HostField = 'meter' | 'bpm' | 'swing' | 'key' | 'melodic';
+type HostField = 'meter' | 'bpm' | 'swing' | 'key' | 'melodic' | 'melodicFragment';
 
 /**
  * What a section's bars share, stated once at its top: it throws at the
@@ -659,6 +659,8 @@ export function hostOf(
   swing: string;
   key: string;
   melodic: MelodicScale;
+  /** The melodic fragment the lead's scale was found as, where it was (#644); '' where the key's table writes it. */
+  melodicFragment: string;
 } {
   const each = bars.map(hostFieldsOf);
   const fields = hostFields(tempo);
@@ -678,13 +680,14 @@ const hostFieldsOf = (bar: BandBar) => ({
   swing: swingText(bar.meter, bar.swing),
   key: keyText(bar.plan.key),
   melodic: bar.plan.melodic,
+  melodicFragment: bar.plan.melodicFragment ?? '',
 });
 
 /** The fields a text's bars must share: all of them, or all but the tempo. */
 const hostFields = (tempo: 'held' | 'first'): readonly HostField[] =>
   tempo === 'held'
-    ? ['meter', 'bpm', 'swing', 'key', 'melodic']
-    : ['meter', 'swing', 'key', 'melodic'];
+    ? ['meter', 'bpm', 'swing', 'key', 'melodic', 'melodicFragment']
+    : ['meter', 'swing', 'key', 'melodic', 'melodicFragment'];
 
 /**
  * A section's bars as runs that one text each can state (`hostOf`): split at
@@ -711,10 +714,10 @@ export function sectionRuns(
   return runs;
 }
 
-/** The melodic scale as degrees of the key, each with its accidental (the key's own scale is every degree). */
-export function melodicTones(key: Key, scale: MelodicScale): Tone[] {
+/** A melodic scale's notes as degrees of the key, each with its accidental (the key's own scale is every degree). */
+export function melodicTones(key: Key, scale: Helix): Tone[] {
   const tonic = keyHelix(key).heights[0]!;
-  return melodicHelix(key, scale).heights.map((h) => {
+  return scale.heights.map((h) => {
     const at = alteredDegree(diatonicMode(key.mode), h - tonic)!;
     return { degree: at.degree, accidental: at.accidental };
   });
@@ -1352,7 +1355,10 @@ export function sectionAsCells(
   state('stab', 'comp', 'comp', inForce, table);
   const melodic = host.melodic;
   const scaleOwn = melodic === 'plain' || lead === 'key';
-  const scale = melodicTones(key, melodic);
+  const scale = melodicTones(
+    key,
+    planScale({ key, melodic, melodicFragment: host.melodicFragment || undefined }),
+  );
   const leadTake = takenOf('lead');
   if (leadTake) lines.push({ part: 'lead', text: takenLine(leadTake) });
   if (!scaleOwn && notes.some((n) => n.line === 'lead'))

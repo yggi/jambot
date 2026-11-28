@@ -9,11 +9,12 @@ import {
   presetSwing,
 } from '@jambot/engine';
 import { playSection } from '@jambot/score';
-import type { SectionText } from '@jambot/session';
+import { hostScoreOf, scoreFor } from '@jambot/session';
 import { describe, expect, it } from 'vitest';
 import {
   type Answer,
   type Ask,
+  type GivenScore,
   type SectionStated,
   type TextWorker,
   WorkerTexts,
@@ -21,7 +22,7 @@ import {
   digest,
   foreseenOf,
   inlineTexts,
-  playText,
+  playScore,
   stateSection,
   warmSection,
 } from './section-texts.ts';
@@ -48,16 +49,16 @@ function section(name: string, from = 0): BandBar[] {
   }).slice(from);
 }
 
-/** A section's text as a host tells it (`Shadow`'s `#tell`), from what the bars state: what goes on the wire, as JSON. */
-const toldOf = (bars: readonly BandBar[], stated: SectionStated): SectionText => ({
-  bar: bars[0]!.bar,
-  step: bars[0]!.bar * 16,
-  text: stated.source,
-  unstated: stated.unstated,
-  frame: stated.frame,
-  foreseen: stated.foreseen,
-  cut: stated.cut,
-});
+/**
+ * A section's score as a host tells it (`Shadow`'s `#tell`), from what the bars state, and as a client is given it, with
+ * every fragment it files, as one that lacks them all is sent them (`scoreFor`).
+ */
+const givenOf = (bars: readonly BandBar[], stated: SectionStated): GivenScore => {
+  const { source: text, unstated, lock, filed, foreseen, cut } = stated;
+  const bar = bars[0]!.bar;
+  const score = hostScoreOf(bar, bar * 16, { text, unstated, lock, filed, foreseen, cut }, bars);
+  return { score: scoreFor(score, filed), fragments: filed };
+};
 
 /** What a job states, its timing aside. */
 const timeless = (stated: SectionStated) => ({ ...stated, cost: null });
@@ -140,20 +141,20 @@ describe('a section’s text, as a job (#406)', () => {
   });
 });
 
-describe('a section’s text on the wire, host to client (#446)', () => {
+describe('a section’s score on the wire, host to client (#446, #553)', () => {
   it.each(PRESETS.map((p) => p.name))(
-    'plays %s’s second section from the text and its frame alone, through JSON, as cells plays it from each of the bars',
+    'plays %s’s second section from its score alone, through JSON, as the host plays it, and as cells plays it from each of the bars',
     (name) => {
       const bars = section(name, SECTION_BARS);
       const host = stateSection(bars);
-      const given: SectionText = JSON.parse(JSON.stringify(toldOf(bars, host)));
-      const client = playText(given);
+      const given: GivenScore = JSON.parse(JSON.stringify(givenOf(bars, host)));
+      const client = playScore(given);
       expect(client.error).toBeNull();
       expect(client.played!.diagnostics).toEqual([]);
-      // (the lock and what is read off the score are what a host states of its own text for session version 2, #553, #711: a text given carries none)
-      expect(timeless(client)).toEqual({ ...timeless(host), lock: [], filed: [], read: undefined });
+      // (what the score files is the host's to send: a score given files none of its own)
+      expect(timeless(client)).toEqual({ ...timeless(host), filed: [] });
       expect(host.lock.length).toBeGreaterThan(0);
-      // One frame stands for every bar of a text: each bar's own reads the same.
+      // One frame, read off the score, stands for every bar of it: each bar's own reads the same.
       expect(client.played).toEqual(playSection(host.source, bars));
     },
   );
@@ -165,27 +166,28 @@ describe('a section’s text on the wire, host to client (#446)', () => {
   // since v0.25.0 each pitched line says its part, `part=bass`, yggi/cells#708: Chiptune the longest, 3,588, Ambient
   // playing 6.44 times its text and Electro swing 28.8; since #531 the section is a score, its performers and cards the
   // band's and its levels the shortest decimals: Chiptune 3,126, Ambient the shortest, 1,644, playing 6.93 times its
-  // text, and Electro swing 35.4)
-  it('sends the text, 1.6 to 3.1 KB a section as JSON, under 3.2 KB, where what cells plays from it is 6.9 to 30 times that', () => {
+  // text, and Electro swing 35.4; measured as the score's message since #553, its section, energies and lock beside the
+  // text and no frame: Elektro the longest, 3,353, Waltz the shortest, 1,942, Ambient playing 7.74 times it and Funk 29.1)
+  it('sends the score, 1.9 to 3.3 KB a section as JSON, under 3.4 KB, where what cells plays from it is 7.7 to 29 times that', () => {
     const sizes = PRESETS.map((p) => {
       const bars = section(p.name, SECTION_BARS);
       const stated = stateSection(bars);
       return {
-        text: JSON.stringify({ kind: 'section', ...toldOf(bars, stated) }).length,
-        events: JSON.stringify({ kind: 'section', played: stated.played }).length,
+        text: JSON.stringify({ kind: 'score', ...givenOf(bars, stated).score }).length,
+        events: JSON.stringify({ kind: 'score', played: stated.played }).length,
       };
     });
     for (const { text, events } of sizes) {
-      expect(text).toBeLessThan(3.2 * 1024);
-      expect(events / text).toBeGreaterThan(6.9);
+      expect(text).toBeLessThan(3.4 * 1024);
+      expect(events / text).toBeGreaterThan(7.7);
     }
-    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.6 * 1024);
+    expect(Math.min(...sizes.map((s) => s.text))).toBeGreaterThan(1.85 * 1024);
     // (35 before #645, whose section writes its intensity: a line or two more of text; 34.6 before #655's song forms,
-    // whose first sections play other kinds)
-    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(30);
+    // whose first sections play other kinds; 30 of the text alone, before #553's score)
+    expect(Math.max(...sizes.map((s) => s.events / s.text))).toBeGreaterThan(29);
   });
 
-  it('says where no text states the bars, and a client given that plays nothing, for the same reason', () => {
+  it('says where no text states the bars, and a client given that score plays nothing, for the same reason', () => {
     const bars = section('Funk');
     const moved = bars.map((b, i) =>
       i < 4
@@ -193,7 +195,7 @@ describe('a section’s text on the wire, host to client (#446)', () => {
         : { ...b, plan: { ...b.plan, key: { ...b.plan.key, tonic: (b.plan.key.tonic + 1) % 12 } } },
     );
     const host = stateSection(moved);
-    const client = playText(JSON.parse(JSON.stringify(toldOf(moved, host))));
+    const client = playScore(JSON.parse(JSON.stringify(givenOf(moved, host))));
     expect(client.played).toBeNull();
     expect(client.unstated).toBe(host.unstated);
     expect(client.foreseen).toEqual(host.foreseen);
@@ -263,22 +265,22 @@ describe('WorkerTexts', () => {
     expect([made.length, answered]).toEqual([2, 1]);
   });
 
-  it('plays a text a host gave in its worker, and on this thread where none starts', async () => {
+  it('plays a score a host gave in its worker, and on this thread where none starts', async () => {
     const worker = fakeWorker();
     const texts = new WorkerTexts(() => worker);
     texts.begin();
     const bars = section('Funk');
-    const given = toldOf(bars, stateSection(bars));
+    const given = givenOf(bars, stateSection(bars));
     const answers: SectionStated[] = [];
-    texts.play(given, (s) => answers.push(s));
+    texts.score(given, (s) => answers.push(s));
     expect(answers).toEqual([]);
     await Promise.resolve();
-    expect(worker.received.at(-1)).toEqual({ id: 2, given });
-    expect(answers.map(timeless)).toEqual([timeless(playText(given))]);
+    expect(worker.received.at(-1)).toEqual({ id: 2, score: given });
+    expect(answers.map(timeless)).toEqual([timeless(playScore(given))]);
     const none = new WorkerTexts(() => {
       throw new Error('no workers here');
     });
-    none.play(given, (s) => answers.push(s));
+    none.score(given, (s) => answers.push(s));
     expect(answers).toHaveLength(2);
   });
 

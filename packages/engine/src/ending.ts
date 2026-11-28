@@ -12,9 +12,10 @@
  * it from a host plays exactly the ending the host does.
  *
  * The count-in is one bar of the song's own beats before its first step, at
- * the tempo the song opens at: a click on each beat, the downbeat's marked.
- * It is a reading of the song's clock like the metronome (`metronome.ts`),
- * laid before the song rather than through it.
+ * the tempo the song opens at: the first bar of the count the style counts
+ * on (`counts.ts`, #646), the drummer's, its clicks on the beats as strong as
+ * the meter's grouping makes them (`countInNotes`); its beats (`countIn`)
+ * are what the page counts down by.
  *
  * The bar is its meter's (#260): the landing is the bar's half, the chords'
  * second slot read on the meter (`slotStepOn`), the ring follows the bar's
@@ -39,6 +40,8 @@ import { DRUM_NOTES } from './drums.ts';
 import { SONG_METER, type WrittenNote, beatStart } from './events.ts';
 import { type Key, keyHelix } from './key.ts';
 import { LEAD_RANGE, type LeadCarried } from './lead.ts';
+import { DEFAULT_COUNT, countHits } from './counts.ts';
+import { type EndingRead, endingRead } from './endings.ts';
 import { type StyleTrack, valueAt } from './style.ts';
 import { stepSeconds } from './tempo.ts';
 
@@ -48,8 +51,28 @@ export const RING_STEPS = 8;
 /** The step of a theme's bar the tonic lands on, in 4/4's steps: its third beat. A bar of another meter reads it on its own (`slotStepOn`). */
 const LANDING = beatStart(2);
 
-/** The final bar's chords: the dominant seventh of the key, then its tonic. */
-export function cadence(key: Key): BarChord[] {
+/**
+ * The final bar's chords: those of the ending found (#646, `endings.ts`), each a chord where its notes start, on the
+ * degree of the key its lowest lies on; on a miss, the dominant seventh of the key, then its tonic.
+ */
+export function cadence(key: Key, ending?: string, meter: Meter = SONG_METER): BarChord[] {
+  const read = ending === undefined ? null : endingRead(ending, key.mode, meter);
+  if (read) {
+    const scale = keyHelix(key);
+    const tonic = scale.heights[0]!;
+    const steps = [...new Set(read.cadence.map((n) => n.step))];
+    return steps.map((step) => {
+      const offsets = read.cadence.filter((n) => n.step === step).map((n) => n.offset);
+      const root = wrap(Math.min(...offsets), 12);
+      const degree = scale.heights.findIndex((h) => wrap(h - tonic, 12) === root);
+      const heights = offsets.map((o) => tonic + root + (o - Math.min(...offsets)));
+      return {
+        slot: { step, degree: Math.max(0, degree) },
+        raised: false,
+        chord: { helix: { cycle: 12, heights }, tensions: [] },
+      };
+    });
+  }
   const scale = keyHelix(key);
   const root = scale.heights[0]! + 7;
   const tonic = compose({ cycle: 7, heights: [0, 2, 4] }, scale).heights;
@@ -75,7 +98,7 @@ export interface FinaleFrom {
 }
 
 /** The note of a pitch class nearest another, within the lead's range. */
-function nearestInLead(pitchClass: number, last: number): number {
+export function nearestInLead(pitchClass: number, last: number): number {
   let best: number = LEAD_RANGE[0];
   for (let n = LEAD_RANGE[0]; n <= LEAD_RANGE[1]; n++)
     if (wrap(n, 12) === wrap(pitchClass, 12) && Math.abs(n - last) < Math.abs(best - last))
@@ -83,26 +106,21 @@ function nearestInLead(pitchClass: number, last: number): number {
   return best;
 }
 
-/** The notes of the final bar, whose chords are the cadence (`env.chords`). */
+/**
+ * The notes of the final bar, whose chords are the cadence (`env.chords`): the ending found's (#646), its rhythm and
+ * pitch classes, each part voiced from where it was (`foundFinale`); on a miss, the band's own.
+ */
 export function finale(env: BarEnv, from: FinaleFrom): WrittenNote[] {
+  const ending = env.plan.endingFragment;
+  const read = ending === undefined ? null : endingRead(ending, env.plan.key.mode, env.meter);
+  if (read) return foundFinale(env, from, read);
   const [dominant, tonic] = env.chords as [BarChord, BarChord];
   const scale = keyHelix(env.plan.key);
   const notes: WrittenNote[] = [];
   const landing = slotStepOn(env.meter, LANDING);
   const held = stepsOf(env.meter) + RING_STEPS;
-  const pulses = meterOnSteps(env.meter).heights;
 
-  // The drums lean in and land: hats, a backbeat on the pulse before the
-  // landing, a snare pickup an eighth before it, then kick, snare and ride
-  // together.
-  for (let step = 0; step < landing; step += 2) notes.push(hit(step, DRUM_NOTES.closedHat, 'hat'));
-  notes.push(hit(0, DRUM_NOTES.kick, 'kick'));
-  for (const step of pulses)
-    if (step > 0 && step < landing) notes.push(hit(step, DRUM_NOTES.snare, 'backbeat'));
-  if (!pulses.includes(landing - 2)) notes.push(hit(landing - 2, DRUM_NOTES.snare, 'backbeat'));
-  notes.push(hit(landing, DRUM_NOTES.kick, 'kick'));
-  notes.push(hit(landing, DRUM_NOTES.snare, 'backbeat'));
-  notes.push(hit(landing, DRUM_NOTES.ride, 'hat'));
+  notes.push(...finaleDrums(env.meter));
 
   const low = nearest(dominant.chord.helix.heights[0]!, from.bass);
   notes.push({ part: 'bass', step: 0, note: low, length: landing });
@@ -131,6 +149,58 @@ export function finale(env: BarEnv, from: FinaleFrom): WrittenNote[] {
     note: nearestInLead(scale.heights[0]!, second),
     length: held - landing,
   });
+  return notes.sort((a, b) => a.step - b.step || a.note - b.note);
+}
+
+/**
+ * The band's own drums on the final bar: they lean in and land, hats, a backbeat on the pulse before the landing, a
+ * snare pickup an eighth before it, then kick, snare and ride together.
+ */
+function finaleDrums(meter: Meter): WrittenNote[] {
+  const notes: WrittenNote[] = [];
+  const landing = slotStepOn(meter, LANDING);
+  const pulses = meterOnSteps(meter).heights;
+  for (let step = 0; step < landing; step += 2) notes.push(hit(step, DRUM_NOTES.closedHat, 'hat'));
+  notes.push(hit(0, DRUM_NOTES.kick, 'kick'));
+  for (const step of pulses)
+    if (step > 0 && step < landing) notes.push(hit(step, DRUM_NOTES.snare, 'backbeat'));
+  if (!pulses.includes(landing - 2)) notes.push(hit(landing - 2, DRUM_NOTES.snare, 'backbeat'));
+  notes.push(hit(landing, DRUM_NOTES.kick, 'kick'));
+  notes.push(hit(landing, DRUM_NOTES.snare, 'backbeat'));
+  notes.push(hit(landing, DRUM_NOTES.ride, 'hat'));
+  return notes;
+}
+
+/**
+ * A found ending's final bar: its drums as they fall, and each pitched part's notes on their steps for their lengths
+ * (the ring in them), the bass's each nearest the one before it from where the bass was, the lead's within its range
+ * likewise, the pad's chords each voiced nearest the one before (`voicing`), as the band's own finale voices its own.
+ */
+function foundFinale(env: BarEnv, from: FinaleFrom, read: EndingRead): WrittenNote[] {
+  const tonic = keyHelix(env.plan.key).heights[0]!;
+  // (drums an ending writes on a grid the meter lacks don't read: the band's own land with it there)
+  const notes: WrittenNote[] = read.drums
+    ? read.drums.map((h) => hit(h.step, h.note, h.role as NonNullable<WrittenNote['role']>))
+    : finaleDrums(env.meter);
+  let low = from.bass;
+  for (const n of read.bass) {
+    low = nearest(tonic + n.offset, low);
+    notes.push({ part: 'bass', step: n.step, note: low, length: n.length });
+  }
+  let previous = from.comp;
+  for (const step of [...new Set(read.pad.map((n) => n.step))]) {
+    const chord = read.pad.filter((n) => n.step === step);
+    const voiced = (previous = voicing(
+      { helix: { cycle: 12, heights: chord.map((n) => tonic + n.offset) }, tensions: [] },
+      previous,
+    ));
+    for (const note of voiced) notes.push({ part: 'pad', step, note, length: chord[0]!.length });
+  }
+  let last = from.lead.last;
+  for (const n of read.lead) {
+    last = nearestInLead(tonic + n.offset, last);
+    notes.push({ part: 'lead', step: n.step, note: last, length: n.length });
+  }
   return notes.sort((a, b) => a.step - b.step || a.note - b.note);
 }
 
@@ -172,4 +242,28 @@ export function countIn(
     beat,
     weight: beat === 0 ? 'downbeat' : 'pulse',
   }));
+}
+
+/** A note of the count-in: when it sounds, the drum it strikes, and how hard, 0 to 1. */
+export interface CountInNote {
+  readonly seconds: number;
+  readonly note: number;
+  readonly velocity: number;
+}
+
+/**
+ * The notes of the count-in for a song starting at `start` (#646): the first bar of `count`, a count of cells' facet
+ * `count` (`countAt`), its clicks on the beats of the bar before the song at the tempo it opens at, on the count's drum
+ * and at its accents, the drummer's; on a meter it can't be read in, cells' click from the meter (`DEFAULT_COUNT`).
+ */
+export function countInNotes(
+  track: StyleTrack,
+  start: number,
+  meter: Meter = SONG_METER,
+  count: string = DEFAULT_COUNT,
+): CountInNote[] {
+  const step = stepSeconds(valueAt('bpm', track.bpm, 0), meter);
+  const from = start - countInSeconds(track, meter);
+  const hits = countHits(count, meter) ?? countHits(DEFAULT_COUNT, meter) ?? [];
+  return hits.map((h) => ({ seconds: from + h.step * step, note: h.note, velocity: h.velocity }));
 }

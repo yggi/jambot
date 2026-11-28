@@ -7,14 +7,15 @@
  * hits a role a line (`FragmentHit`). The composer asks it at the style's
  * point (`stylePoint`, as the meter is asked), with the section's meter as
  * the workbench (`RhythmBench`): the repository ranks only the fragments
- * that fit that meter (cells' fit). The composer takes the nearest drum bar,
- * with the meter's two rules (`composedRhythm`):
+ * that fit that meter (cells' fit). The composer draws a drum bar among those
+ * on offer (`offeredFigure`, #540; the nearest, without a draw), with the
+ * meter's two rules (`composedRhythm`):
  *
  * - **a miss**: where no drum bar fits, or the nearest that fits lies past
  *   `RHYTHM_MISS`, it takes none, and the drummer invents as it does with no
  *   repository;
- * - **the rhythm playing holds**: another is taken only where it is nearer by
- *   more than `RHYTHM_HOLD`.
+ * - **the rhythm playing holds**: while it is on offer; without a draw,
+ *   another is taken only where it is nearer by more than `RHYTHM_HOLD`.
  *
  * A fragment that names none of a drum bar's roles (`isOwnLine`: the
  * library's claves) is never a section's rhythm by itself: it only layers on
@@ -66,9 +67,10 @@ import {
   type Found,
   type Varied,
   type Ask,
-  nearestFigure,
+  offeredFigure,
 } from './facet.ts';
 import type { LearnedLayer } from './layer.ts';
+import { type ClaveOwners, NO_CLAVE_OWNERS } from './novelty.ts';
 import { METER_HOLD, MISS_DISTANCE, type QueriedStyle, stylePoint } from './meter-query.ts';
 import type { StylePoint } from './meter-query.ts';
 
@@ -177,6 +179,8 @@ export function composedRhythm(
   rejected: readonly string[] = [],
   pull?: number,
   taking?: string,
+  pick?: number,
+  owners: ClaveOwners = NO_CLAVE_OWNERS,
 ): SectionRhythm {
   const point = stylePoint(style);
   const { hold, layer: reach } = repository.margins ?? {
@@ -187,7 +191,7 @@ export function composedRhythm(
   // composer takes, a song's, #547, its clave layered on it as on any)
   const rhythm =
     taking ??
-    nearestFigure(
+    offeredFigure(
       repository,
       point,
       bench,
@@ -197,6 +201,7 @@ export function composedRhythm(
       chosen,
       rejected,
       pull,
+      pick,
     );
   if (rhythm === undefined) return {};
   // (only a fragment within reach, or the clave playing a margin past it, can be taken: only those are read)
@@ -204,8 +209,12 @@ export function composedRhythm(
     const read = repository.read(id, bench.meter, layer);
     return read !== null && isOwnLine(read);
   };
-  const playingClave = playing?.claveFragment;
-  const [found] = repository.layered(
+  // (a drum bar plays with its own clave, the one first chosen with it, while that is in reach and not rejected,
+  // whether it comes back or plays on, whatever the composer's memory pulls toward, #430; else the clave playing is
+  // held, as the rhythm is)
+  const own = Object.keys(owners).find((clave) => owners[clave] === rhythm);
+  const playingClave = own ?? playing?.claveFragment;
+  const asked = repository.layered(
     point,
     bench,
     rhythm,
@@ -215,11 +224,12 @@ export function composedRhythm(
       exclude: rejected,
       accept: ownLine,
       playing: playingClave === undefined ? undefined : { id: playingClave, hold },
-      k: 1,
+      ...(own === undefined ? { k: 1 } : {}),
     },
     chosen,
     pull,
   );
+  const found = asked.find((f) => f.id === own) ?? asked[0];
   // (asked a margin past the reach, so the clave playing is held there; a clave newly taken lies within reach, and where
   // the nearest lies in the margin none is taken, as before cells' query held it: `slack` would take the next within
   // reach in its place, which moves 6 of E38's 157,706 claves, for the owner)

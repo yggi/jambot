@@ -22,6 +22,12 @@ const TOMS: ReadonlyMap<number, number> = new Map([
 ]);
 
 /** The clap's bursts: when each starts after the hit, and how long it decays, the last the tail. */
+/** The wood blocks by General MIDI note, each its pitch in hertz: the high on G5, the low on C5, as cells' kit tunes them. */
+const WOOD: ReadonlyMap<number, number> = new Map([
+  [76, 784],
+  [77, 523],
+]);
+
 const CLAP: readonly (readonly [number, number])[] = [
   [0, 0.012],
   [0.011, 0.012],
@@ -84,6 +90,16 @@ export function drumKit(ctx: BaseAudioContext, out: AudioNode): DrumKit {
     body.start(t);
     body.stop(t + 0.15);
   };
+  /** A wood block: a short sine on its pitch, as cells' kit voices one (`&lowwoodblock s=sine loop=C5`), the count's click (#646). */
+  const wood = (t: number, v: number, hz: number) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = hz;
+    envelope(gain, t, 0.5 * v, 0.001, 0.05);
+    osc.connect(gain).connect(out);
+    osc.start(t);
+    osc.stop(t + 0.08);
+  };
   /** Filtered noise: band-passed when a Q is given, else high-passed. */
   const metal = (t: number, v: number, frequency: number, decay: number, q?: number) => {
     const filter = ctx.createBiquadFilter();
@@ -108,6 +124,7 @@ export function drumKit(ctx: BaseAudioContext, out: AudioNode): DrumKit {
         for (const [at, decay] of CLAP) metal(t + at, 0.3 * v, 1200, decay, 1.5);
       else if (note === 37) metal(t, 0.35 * v, 2600, 0.035, 4);
       else if (note === 75) metal(t, 0.4 * v, 2100, 0.025, 14);
+      else if (WOOD.has(note)) wood(t, v, WOOD.get(note)!);
       else if (note === 51) metal(t, 0.13 * v, 5200, 0.45, 1.2);
       else if (note === 44) metal(t, 0.1 * v, 7500, 0.03);
       else metal(t, 0.22 * v, 7000, note === 46 ? 0.3 : 0.045);

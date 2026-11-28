@@ -99,18 +99,21 @@ const range = (n: number) => [...Array(n).keys()];
  * And at cells v0.31.0 (13,176 and 8114dd6a walked, before): cells places Pop's parts and four seed progressions at
  * Pop's point and beside Baroque's and Swing jazz's (yggi/cells#947, #764), which the walk finds where it found others;
  * held, nothing moves.
+ * And since the drummer fills with cells' fills and the lead walks the scale cells offers at the style (#643, #644;
+ * 13,271 and 911719b1 held, 13,321 and 253de0f6 walked, before): held, only the drums of a section's last bar where
+ * it fills move, at Ambient, Bossa nova, Lo-fi hip hop, Swing jazz and Techno; walked, the walk's events move too.
  */
-const MAIN = { held: [13271, '911719b1'], walked: [13321, '253de0f6'] } as const;
+const MAIN = { held: [13285, '6a0cbdd8'], walked: [13344, 'afb0c5dc'] } as const;
 
 describe('the band given an empty learned layer plays exactly what main plays (#398)', () => {
-  it('over the 8 presets held, 2 seeds of 32 bars: 13,271 events, each to 1e-9 s', () => {
+  it('over the 8 presets held, 2 seeds of 32 bars: 13,285 events, each to 1e-9 s', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(0.3, false, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.held);
     }
   });
 
-  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,321 events', () => {
+  it('over the 8 presets walked by the radio at entropy 1, 2 seeds of 32 bars: 13,344 events', () => {
     for (const extra of [{}, { layer: EMPTY_LAYER }]) {
       const all = runs(1, true, extra).flat();
       expect([all.length, hashOf(all)]).toEqual(MAIN.walked);
@@ -125,14 +128,16 @@ describe('the band given an empty learned layer plays exactly what main plays (#
  * then the drummer writing the rim's metric accent (#749): every stroke at its time, the rim's velocities moved (a4e5cd39 and
  * 07a4cc45 before, under v0.29.0);
  * then under cells v0.30.0, whose jazz song form plays its solos as the kind `solo` and whose Ambient 4/4 is straight
- * (13,891 and dd722c5f, 14,042 and d36a0dc8, before), as `MAIN` above.
+ * (13,891 and dd722c5f, 14,042 and d36a0dc8, before), as `MAIN` above;
+ * then with cells' fills (#643; 13,730 and f13ba973, 13,917 and eb6a2554, before): only the drums of a section's last
+ * bar where it fills move; the rhythm each preset draws among those on offer (#540) is the one it played.
  */
-const MAIN_RHYTHMS = { still: [13730, 'f13ba973'], bored: [13917, 'eb6a2554'] } as const;
+const MAIN_RHYTHMS = { still: [13746, 'e11d5505'], bored: [13938, '2d9331b9'] } as const;
 
 describe('a seed rhythm climbs the ladder only where the entropy bores the composer (#414)', () => {
   const rhythms = { rhythms: RHYTHM_REPOSITORY, layer: EMPTY_LAYER };
 
-  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 13,730 events, each to 1e-9 s', () => {
+  it('plays what main plays at entropy 0, over the 8 presets held, 2 seeds of 32 bars: 13,746 events, each to 1e-9 s', () => {
     const all = runs(0, false, rhythms, true).flat();
     expect([all.length, hashOf(all)]).toEqual(MAIN_RHYTHMS.still);
   });

@@ -9,7 +9,6 @@ import {
   RING_STEPS,
   band,
   bandEnvAt,
-  countIn,
   countInSeconds,
   foldBar,
   holding,
@@ -31,8 +30,8 @@ import {
   HARMONY_REPOSITORY,
 } from '@jambot/engine';
 import {
+  type HostScore,
   type LayerStore,
-  type SectionText,
   type SentBar,
   type Station,
   memoryLayerStore,
@@ -194,7 +193,8 @@ describe('the player', () => {
     expect(ticks.count).toBe(200);
     expect(ticks.least).toBeCloseTo(25, 6);
     expect(ticks.most).toBeCloseTo(500, 6);
-    expect(margins.count).toBe(world.played);
+    // (every note the transport laid: the song's, the count-in the drummer's before it, #646)
+    expect(margins.count).toBe(ofSong(world, player).length);
     expect(laid).toBe(world.steps.length);
     expect(missed).toBeGreaterThan(0);
     player.halt();
@@ -630,7 +630,10 @@ describe('the player', () => {
         { kind: 'motif', source: 'the computer keys' },
       ]);
       expect([player.lacked, player.silent]).toEqual([0, 0]);
-      expect(player.shadow.readout.played).toEqual({ cells: world.plays.length, band: 0 });
+      expect(player.shadow.readout.played).toEqual({
+        cells: ofSong(world, player).length,
+        band: 0,
+      });
     });
 
     it('shows the Muse on the screen: the motif on offer, the log, and the lead playing it (#79)', async () => {
@@ -928,7 +931,7 @@ function told() {
   const started: { seed: number; start: number }[] = [];
   const composed: { bar: number; chords: number[] }[] = [];
   const finales: number[] = [];
-  const sections: SectionText[] = [];
+  const scores: HostScore[] = [];
   const hosting: Hosting = {
     started: (song) => (said.push('started'), started.push(song)),
     stopped: () => void said.push('stopped'),
@@ -943,9 +946,9 @@ function told() {
     said: () => {},
     muse: () => {},
     finale: (bar) => (said.push('finale'), finales.push(bar)),
-    section: (text) => void sections.push(text),
+    section: (score) => void scores.push(score),
   };
-  return { said, started, composed, finales, sections, hosting };
+  return { said, started, composed, finales, scores, hosting };
 }
 
 describe('the count-in', () => {
@@ -970,24 +973,31 @@ describe('the count-in', () => {
     return { world, player, host, run };
   }
 
-  it('clicks the beats of a bar before the song, the downbeat first, whether the click is on or not', async () => {
-    const { world } = await begun();
-    expect(world.clicks.map((c) => c.weight)).toEqual(['downbeat', 'pulse', 'pulse', 'pulse']);
+  it('counts a bar in on the drums before the song, a click on each beat, the downbeat the strongest, whether the click is on or not (#646)', async () => {
+    const { world, player } = await begun();
+    expect(world.clicks).toEqual([]);
+    const count = countedIn(world, player);
+    expect(count).toHaveLength(4);
     const beat = COUNT_IN / 4;
-    world.clicks.forEach((c, i) => expect(c.seconds).toBeCloseTo(0.1 + i * beat, 9));
+    count.forEach((p, i) => expect(p.seconds).toBeCloseTo(0.1 + i * beat, 9));
+    expect(Math.max(...count.map((p) => p.velocity))).toBe(count[0]!.velocity);
+    expect(new Set(count.map((p) => p.note)).size).toBe(1);
   });
 
   it('starts the song a bar after the clicks start, and plays nothing of the band before', async () => {
     const { world, player, run } = await begun();
     expect(player.counting).toBe(true);
     run(START - 0.2);
-    expect(world.played).toBe(0);
+    // (the count-in alone: the drummer's bar before the song, none of the band's)
+    expect(world.plays).toEqual(countedIn(world, player));
     expect(world.steps).toEqual([]);
     expect(player.counting).toBe(true);
     run(1);
     expect(player.counting).toBe(false);
     expect(world.steps[0]!.seconds).toBeCloseTo(START, 9);
-    for (const p of world.plays) expect(p.seconds).toBeGreaterThanOrEqual(START - 1e-9);
+    // (the band's notes from the song's start on; the count-in, the drummer's, the bar before)
+    for (const p of world.plays.filter((p) => !countedIn(world, player).includes(p)))
+      expect(p.seconds).toBeGreaterThanOrEqual(START - 1e-9);
   });
 
   it('says which step of the count-in bar is heard, and nothing before it or once the song is heard', async () => {
@@ -1049,54 +1059,10 @@ describe('the count-in', () => {
     expect(player.counting).toBe(false);
     expect(player.ending).toBe(false);
     expect(host.said).toEqual(['started', 'stopped']);
-    expect(world.played).toBe(0);
+    // (the count-in was laid as it began, and silenced; none of the band's)
+    expect(ofSong(world, player)).toEqual([]);
+    expect(world.silenced).toBeGreaterThan(0);
   });
-
-  it('clicks the rest of it, and only the rest, for a client that follows a song already counting', async () => {
-    const { world, s } = surroundings();
-    const player = new Player(s, new Metronome());
-    player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
-    const song = {
-      seed: 3,
-      start: 5,
-      track: holdingSynthPop(),
-      swing: holdingSwing(STRAIGHT),
-      tempoMeter: METERS['4/4'],
-    };
-    void player.followSong(song, []);
-    world.resolve();
-    await settle();
-    const clicks = countInBeats(song.start);
-    expect(world.clicks.map((c) => c.seconds)).toEqual(clicks);
-    world.clicks.length = 0;
-    world.currentTime = 4;
-    world.tickers[0]!.tick();
-    const late = new Player(surroundings().s, new Metronome());
-    expect(late.counting).toBe(false);
-  });
-
-  it.each(['6/8', '7/8'] as const)(
-    'counts a client in the meter its host’s song opens in, %s, before the host’s first bar has reached it (#663)',
-    async (meter) => {
-      const { world, s } = surroundings();
-      const player = new Player(s, new Metronome());
-      player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
-      const song = {
-        seed: 3,
-        start: 5,
-        track: holdingSynthPop(),
-        swing: holdingSwing(STRAIGHT),
-        tempoMeter: METERS[meter],
-      };
-      void player.followSong(song, []);
-      world.resolve();
-      await settle();
-      expect(world.clicks.map((c) => c.seconds)).toEqual(
-        countIn(song.track, song.start, METERS[meter]).map((c) => c.seconds),
-      );
-      expect(world.clicks.length).toBe(meter === '6/8' ? 2 : 3);
-    },
-  );
 });
 
 describe('stopping on a cadence', () => {
@@ -1179,14 +1145,14 @@ describe('stopping on a cadence', () => {
     player.stop();
     run(20);
     expect(player.status).toBe('stopped');
-    world.clicks.length = 0;
+    world.plays.length = 0;
     void player.start();
     world.resolve();
     await settle();
     expect(player.status).toBe('playing');
     expect(player.counting).toBe(true);
     expect(player.ending).toBe(false);
-    expect(world.clicks).toHaveLength(4);
+    expect(countedIn(world, player)).toHaveLength(4);
     expect(host.said.filter((m) => m === 'started')).toHaveLength(2);
   });
 
@@ -1194,7 +1160,7 @@ describe('stopping on a cadence', () => {
     const { world, s } = surroundings();
     const player = new Player(s, new Metronome());
     player.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
-    void player.followSong(
+    void player.followScores(
       {
         seed: 1,
         start: 0.2,
@@ -1202,6 +1168,7 @@ describe('stopping on a cadence', () => {
         swing: holdingSwing(STRAIGHT),
         tempoMeter: METERS['4/4'],
       },
+      [],
       [],
     );
     world.resolve();
@@ -1216,10 +1183,15 @@ function holdingSynthPop() {
   return holding(INITIAL_STYLE);
 }
 
-/** The count-in's beats for a song that starts at `start`. */
-function countInBeats(start: number) {
-  return countIn(holdingSynthPop(), start).map((c) => c.seconds);
-}
+/** The notes a world played of the song itself, from its start on: the count-in, the drummer's, is the bar before (#646). */
+const ofSong = (world: { plays: readonly { seconds: number }[] }, player: Player) =>
+  world.plays.filter((p) => p.seconds >= player.songStart - 1e-9);
+
+/** The count-in a world played: the drummer's, on the drums, before the song's start (#646). */
+const countedIn = (
+  world: { plays: readonly { part: string; note: number; velocity: number; seconds: number }[] },
+  player: Player,
+) => world.plays.filter((p) => p.part === 'drums' && p.seconds < player.songStart - 1e-9);
 
 describe('the meter asked for (#262)', () => {
   const start = async (more: (player: Player) => void = () => {}) => {
@@ -1314,8 +1286,11 @@ describe('the meter asked for (#262)', () => {
   });
 
   it('makes the count-in a bar of the song’s opening meter', async () => {
-    const { world } = await start((p) => p.setMeter(METERS['6/8']));
-    expect(world.clicks.map((c) => c.weight)).toEqual(['downbeat', 'pulse']);
+    const { world, player } = await start((p) => p.setMeter(METERS['6/8']));
+    // (6/8's two dotted beats, the drummer's)
+    const count = countedIn(world, player);
+    expect(count).toHaveLength(2);
+    expect(count[0]!.velocity).toBeGreaterThan(count[1]!.velocity);
   });
 
   /** A host's session as a record: the bars it sent and the tracks, in order. */
@@ -1410,7 +1385,7 @@ describe('the meter asked for (#262)', () => {
 });
 
 describe('the loop (#628)', () => {
-  /** A player playing with the radio on the air, ticked by hand, with every bar it composed and every section text it took. */
+  /** A player playing with the radio on the air, ticked by hand, with every bar it composed and every section's score it took. */
   async function playing() {
     const { world, s } = surroundings();
     const player = new Player(s);
@@ -1431,7 +1406,7 @@ describe('the loop (#628)', () => {
         world.frames[0]!.follow();
       }
     };
-    return { player, bars, sections: host.sections, run };
+    return { player, bars, scores: host.scores, run };
   }
 
   const SECTION = (SECTION_BARS * 4 * 60) / INITIAL_STYLE.bpm;
@@ -1440,7 +1415,7 @@ describe('the loop (#628)', () => {
   const sound = (bar: SentBar['bar']) => ({ ...bar, bar: 0 });
 
   it('repeats the section heard once, a repeat sign: its bars again, the radio held, then on with the song', async () => {
-    const { player, bars, sections, run } = await playing();
+    const { player, bars, scores, run } = await playing();
     run(OPENING + 1.3 * SECTION);
     expect(player.hud.bar?.bar).toBeGreaterThanOrEqual(SECTION_BARS);
     player.askSection('repeat');
@@ -1458,7 +1433,7 @@ describe('the loop (#628)', () => {
     for (const i of range(SECTION_BARS)) expect(sound(at(16 + i))).toEqual(sound(at(8 + i)));
     expect(at(24).barInSection).toBe(0);
     // Cells plays the same text again.
-    const textAt = (bar: number) => sections.filter((t) => t.bar === bar).at(-1)!;
+    const textAt = (bar: number) => scores.filter((t) => t.bar === bar).at(-1)!;
     expect(textAt(16).text).not.toBe('');
     expect(textAt(16).text).toBe(textAt(8).text);
   });
@@ -1825,7 +1800,7 @@ describe('the band through cells (#399, #469)', () => {
     const { readout } = player.shadow;
     expect(readout.errors).toEqual([]);
     expect(readout.gaps).toEqual({});
-    expect(readout.played).toEqual({ cells: world.plays.length, band: 0 });
+    expect(readout.played).toEqual({ cells: ofSong(world, player).length, band: 0 });
     expect(world.plays.length).toBeGreaterThan(3 * SECTION_BARS * 4);
     expect(readout.texts.again).toBe(0);
   });
@@ -1846,13 +1821,14 @@ describe('the band through cells (#399, #469)', () => {
     expect([...bars].sort((a, b) => a - b).slice(0, 3 * SECTION_BARS)).toEqual(
       range(3 * SECTION_BARS),
     );
-    expect(player.shadow.readout.played).toEqual({ cells: world.plays.length, band: 0 });
+    expect(player.shadow.readout.played).toEqual({ cells: ofSong(world, player).length, band: 0 });
   });
 
   it('plays silent a bar no score states, counted and said with its reason, where it played the band’s own events before (#711)', async () => {
     const reason = 'a test states none';
     const { world, player } = await played(SECTIONS_3, { unstated: reason });
-    expect(world.plays).toEqual([]);
+    // (the drummer's count-in alone, the bar before the song, #646)
+    expect(ofSong(world, player)).toEqual([]);
     expect(player.shadow.readout.played).toEqual({ cells: 0, band: 0 });
     // (every bar the song reached, from its first, its transport passed)
     expect(player.silent).toBeGreaterThanOrEqual(3 * SECTION_BARS);
@@ -1917,10 +1893,6 @@ describe('the band through cells (#399, #469)', () => {
         said.push('ask');
         inline.ask(bars, answer);
       },
-      play: (given, answer) => {
-        said.push('play');
-        inline.play(given, answer);
-      },
       score: (given, answer) => {
         said.push('score');
         inline.score(given, answer);
@@ -1943,11 +1915,11 @@ describe('the band through cells (#399, #469)', () => {
     expect(said.filter((x) => x === 'ask').length).toBeGreaterThan(1);
     expect(said.at(-1)).toBe('end');
     expect(player.shadow.readout.errors).toEqual([]);
-    // A client starts its worker to play the texts its host gives, and asks for none.
+    // A client starts its worker to play the scores its host gives, and asks for none.
     const following = async (client: Player) => {
       said.length = 0;
       client.follow({ judged: () => {}, played: () => {}, forget: () => {}, skew: () => 0 });
-      void client.followSong(
+      void client.followScores(
         {
           seed: 3,
           start: world.currentTime + 2,
@@ -1955,6 +1927,7 @@ describe('the band through cells (#399, #469)', () => {
           swing: holdingSwing(STRAIGHT),
           tempoMeter: METERS['4/4'],
         },
+        [],
         [],
       );
       world.resolve();
@@ -1964,26 +1937,26 @@ describe('the band through cells (#399, #469)', () => {
     expect(await following(player)).toEqual(['begin']);
   });
 
-  it('a host plays cells’ events as a band alone does and tells its session each text it takes, which it gives a client joining mid-song (#446)', async () => {
+  it('a host plays cells’ events as a band alone does and tells its session each text it takes as a score, which it gives a client joining mid-song (#446, #553)', async () => {
     const [alone, hosting] = [await played(SECTIONS_3), await played(SECTIONS_3, { host: true })];
     const { readout } = hosting.player.shadow;
     expect(readout.played.band).toBe(0);
-    expect(readout.played.cells).toBe(hosting.world.plays.length);
+    expect(readout.played.cells).toBe(ofSong(hosting.world, hosting.player).length);
     const key = (p: { part: string; note: number; velocity: number; seconds: number }) =>
       `${p.part} ${p.note} ${p.velocity} ${p.seconds}`;
     expect(hosting.world.plays.map(key)).toEqual(alone.world.plays.map(key));
-    const sections = hosting.told.sections;
-    expect(sections).toHaveLength(readout.texts.told);
-    expect(sections.map((t) => t.bar)).toEqual([0, 8, 16, 24]);
-    expect(sections.every((t) => t.text.split('\n')[1]!.startsWith('&bar from bar'))).toBe(true);
-    // A client joining now is given the texts that state a bar not yet played.
+    const scores = hosting.told.scores;
+    expect(scores).toHaveLength(readout.texts.told);
+    expect(scores.map((t) => t.bar)).toEqual([0, 8, 16, 24]);
+    expect(scores.every((t) => t.text.split('\n')[1]!.startsWith('&bar from bar'))).toBe(true);
+    // A client joining now is given the scores that state a bar not yet played.
     const hosted = hosting.player.hosted!;
     const first = hosted.bars[0]!.bar.bar;
-    expect(hosted.texts.length).toBeGreaterThan(0);
-    expect(hosted.texts).toEqual(sections.filter((t) => t.bar + SECTION_BARS > first));
+    expect(hosted.scores.length).toBeGreaterThan(0);
+    expect(hosted.scores).toEqual(scores.filter((t) => t.bar + t.foreseen.length > first));
   });
 
-  it('gives a client joining in a section’s last bar the text of the bar it joins in, and the next section’s (#446)', async () => {
+  it('gives a client joining in a section’s last bar the score of the bar it joins in, and the next section’s (#446, #553)', async () => {
     const { world, s } = surroundings();
     const player = new Player(s);
     const session = told();
@@ -2001,8 +1974,8 @@ describe('the band through cells (#399, #469)', () => {
     }
     const hosted = player.hosted!;
     expect(hosted.bars[0]!.bar.bar).toBe(last);
-    expect(hosted.texts.map((t) => t.bar)).toEqual([0, SECTION_BARS]);
-    expect(hosted.texts[0]).toEqual(session.sections[0]);
+    expect(hosted.scores.map((t) => t.bar)).toEqual([0, SECTION_BARS]);
+    expect(hosted.scores[0]).toEqual(session.scores[0]);
   });
 });
 

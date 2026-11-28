@@ -352,15 +352,18 @@ describe('the composer tires of a groove: varies it, then rejects it, and the dr
     expect(run.at(-1)!.carried.plans.layer!.filed.map((f) => f.fragment.id)).toEqual([G]);
   });
 
-  it('brings a rejected groove back once its boredom has faded, with its variation, and varies no family twice', () => {
+  it('brings a rejected groove back once its boredom has faded, the groove or its variation, and varies no family twice', () => {
     const run = play(
       30 * SECTION_BARS,
       { meter: FIVE, layer: EMPTY_LAYER },
       { ...STYLE, entropy: 1 },
     );
     const played = rhythmsOf(run);
-    // G2's family is rejected after its 6 sections (8 to 13); G's, rejected after section 6, has faded by then
-    expect(played.slice(14, 20)).toEqual(played.slice(14, 20).map(() => V));
+    // G2's family is rejected after its 6 sections (8 to 13); G's, rejected after section 6, has faded by then, and one
+    // of it, drawn among those on offer (#540), plays the next 6, unvaried
+    const back = played[14]!;
+    expect([G, V]).toContain(back);
+    expect(played.slice(14, 20)).toEqual(played.slice(14, 20).map(() => back));
     expect(run.at(-1)!.carried.plans.layer!.filed).toHaveLength(4);
   });
 });
@@ -377,9 +380,12 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
     });
   const times = (n: number, what: string) => range(n).map(() => what);
 
-  it('at entropy 1 plays the drum bar 3 sections, its variation the next 3, then rejects both with the clave: Salsa drums, the next drum bar near, plays until it is rejected in turn, and the drum bar’s variation returns with its clave', () => {
+  it('at entropy 1 plays the drum bar 3 sections, its variation the next 3, then rejects both with the clave: Salsa drums, the next drum bar near, plays until it is rejected in turn, and the drum bar or its variation returns with its clave', () => {
     const run = play(16 * SECTION_BARS, { layer: EMPTY_LAYER }, { ...STYLE, entropy: 1 });
     const SALSA = 'salsa_drums';
+    // (the family that returns, drawn among those on offer, #540: the drum bar or its variation)
+    const back = run[12 * SECTION_BARS]!.bar.plan.rhythmFragment!;
+    expect([FUNK_DRUMS, V]).toContain(back);
     expect(sectionsOf(run)).toEqual([
       ...times(3, `${FUNK_DRUMS} + ${RUMBA}`),
       ...times(3, `${V} + ${RUMBA}`),
@@ -387,8 +393,8 @@ describe('a seed rhythm climbs the ladder as a groove filed does, the clave with
       // with the drum bar it played with: Salsa drums, held since #651, is the next drum bar within reach, and no clave
       // layers on it, which plays its own; its lap is two bars, so it isn't varied, and repeats until it is rejected
       ...times(6, `${SALSA} + -`),
-      // the drum bar's boredom faded, its variation returns with its clave
-      ...times(4, `${V} + ${RUMBA}`),
+      // the drum bar's boredom faded, its family returns with its clave
+      ...times(4, `${back} + ${RUMBA}`),
     ]);
     const filed = run.at(-1)!.carried.plans.layer!.filed;
     expect(filed.map((f) => [f.fragment.id, f.meta.source, f.meta.varies, f.meta.by])).toEqual([

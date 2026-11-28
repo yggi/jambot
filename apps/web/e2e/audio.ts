@@ -244,7 +244,7 @@ export const starts = (page: Page) =>
 /**
  * Whether a source is the metronome's click, which tells its weights apart
  * by pitch: a square at 1800 Hz, a triangle at 1200, a sine at 800. No MIDI
- * note is any of them. The count-in clicks whether the click is on or not.
+ * note is any of them. The count-in is the drummer's (#646), never the click.
  */
 export const isClick = (s: Start) =>
   (s.kind === 'square' && s.frequency === 1800) ||

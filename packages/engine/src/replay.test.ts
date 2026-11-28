@@ -201,12 +201,15 @@ describe('a loop (#628)', () => {
     expect(again.output.dough).toEqual([]);
   });
 
-  it('ends a song inside a lock on a cadence, its key the lap’s', () => {
+  it('ends a song inside a lock on a cadence, its key and the ending found the lap’s', () => {
     const loop = repeatSection(8, null);
     const { played, carried } = run(8, 21, loop);
     const { bar } = finaleBar(envAt(8, loop)(21), carried);
     expect(bar.bar).toBe(21);
-    expect(bar.chords).toEqual(cadence(played[16]!.plan.key));
+    // (the ending cells finds at the lap's style, #646, read in the lap's key)
+    const { key, endingFragment, meter } = played[16]!.plan;
+    expect(endingFragment).toBeDefined();
+    expect(bar.chords).toEqual(cadence(key, endingFragment, meter));
   });
   for (const bars of BAR_LOOPS)
     it(`loops the last ${bars} bars from the next bar, the song running on beneath it, and plays where the song is when let go (#629)`, () => {

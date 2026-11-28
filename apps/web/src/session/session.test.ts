@@ -3,13 +3,10 @@ import {
   CODE_WRONG,
   type ClientMessage,
   FIRST_PROTOCOL,
-  FIRST_PROTOCOL_V2,
   HOST_PLAYER,
   type HostMessage,
-  type HostSaid,
   type HostSnapshot,
   PROTOCOL,
-  PROTOCOL_V2,
   RECONNECT,
   RESUME_WINDOW,
   forecastDelta,
@@ -27,7 +24,7 @@ import type { HostLink, Lobby } from './lobby.ts';
 import { HostSession, SILENT } from './host.svelte.ts';
 import { compareSession, sessionBreaks } from '../played.ts';
 import { inlineEar } from '../ear.ts';
-import { inlineTexts, playText } from '../section-texts.ts';
+import { inlineTexts, playScore } from '../section-texts.ts';
 
 /** A note played, as a key: on the host's clock, a device `offset` seconds behind it. */
 const playedKey =
@@ -188,7 +185,12 @@ describe('a host and a client session', () => {
     await run([host, client], 1);
     expect(client.player.status).toBe('playing');
     expect(client.player.counting).toBe(true);
-    expect(client.world.plays).toEqual([]);
+    // (counting, it plays the drummer's count-in alone, the bar before the song, #646)
+    expect(client.world.plays.length).toBeGreaterThan(0);
+    for (const p of client.world.plays) {
+      expect(p.part).toBe('drums');
+      expect(p.seconds).toBeLessThan(client.player.songStart);
+    }
     await run([host, client], 10);
     expect(client.player.counting).toBe(false);
     expect(client.world.plays.length).toBeGreaterThan(0);
@@ -223,16 +225,22 @@ describe('a host and a client session', () => {
       await following.join(lobby, 'Jam', 'Ada');
       await host.player.start();
       await run([host, client], 1);
-      // The count-in is a bar of the meter the song opens in: the host's clicks, on the host's clock.
-      expect(host.world.clicks.length).toBe(meter === '6/8' ? 2 : 3);
-      // The client's are on its own clock, 5 s behind, and begin a beat after the host's start: the host's clicks it
-      // hadn't passed, the same weights, none off by more than 1 ms.
-      const mine = client.world.clicks;
+      // The count-in is a bar of the meter the song opens in: the drummer's, a click of the count on each of its beats,
+      // on the host's clock (#646).
+      const counted = (d: typeof host) =>
+        d.world.plays.filter((p) => p.part === 'drums' && p.seconds < d.player.songStart - 1e-9);
+      expect(host.world.clicks).toEqual([]);
+      expect(counted(host).length).toBe(meter === '6/8' ? 2 : 3);
+      // The client's are on its own clock, 5 s behind, and begin a beat after the host's start: the host's count it
+      // hadn't passed, the same drums at the same accents, none off by more than 1 ms.
+      const mine = counted(client);
       expect(mine.length).toBeGreaterThan(0);
-      const theirs = host.world.clicks.slice(-mine.length);
-      expect(mine.map((c) => c.weight)).toEqual(theirs.map((c) => c.weight));
-      mine.forEach((c, i) =>
-        expect(Math.abs(c.seconds + 5 - theirs[i]!.seconds)).toBeLessThan(0.001),
+      const theirs = counted(host).slice(-mine.length);
+      expect(mine.map((p) => [p.note, p.velocity])).toEqual(
+        theirs.map((p) => [p.note, p.velocity]),
+      );
+      mine.forEach((p, i) =>
+        expect(Math.abs(p.seconds + 5 - theirs[i]!.seconds)).toBeLessThan(0.001),
       );
       following.leave();
       hosting.close();
@@ -254,69 +262,6 @@ describe('a host and a client session', () => {
     await run([host, client], 1);
     expect(host.player.lastBar).not.toBeNull();
     expect(client.player.lastBar).toBe(host.player.lastBar);
-    following.leave();
-    hosting.close();
-  });
-
-  it('play the host’s section texts on a client through cells, event for event, the one that joins before the song and one that joins mid-song alike (#446)', async () => {
-    const lobby = memoryLobby();
-    const host = device(105);
-    const client = device(100);
-    const late = device(95);
-    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-      speaks: 1,
-    });
-    await hosting.open(lobby, 'Jam');
-    const sent: HostMessage[] = [];
-    const following = new ClientSession(client.player, client.clocks, { speaks: 1 });
-    await following.join(lobby, 'Jam', 'Ada');
-    await host.player.start();
-    await run([host, client], 20);
-    // Bo joins mid-song: the welcome gives the texts of the bars not yet played.
-    const joining = new ClientSession(late.player, late.clocks, { speaks: 1 });
-    const tapped = lobby.join;
-    lobby.join = (session, hear, lost) =>
-      tapped(session, (m) => (sent.push(m as HostMessage), hear(m)), lost);
-    await joining.join(lobby, 'Jam', 'Bo');
-    await run([host, client, late], 30);
-    const welcome = sent.find((m) => m.kind === 'welcome');
-    expect(welcome?.kind === 'welcome' && welcome.song!.texts.length).toBeGreaterThan(0);
-    expect(sent.filter((m) => m.kind === 'section').length).toBeGreaterThan(0);
-
-    const told = host.player.shadow.readout;
-    expect(told.played.band).toBe(0);
-    expect(told.texts.told).toBeGreaterThanOrEqual(4);
-    for (const [who, d] of [
-      ['Ada', client],
-      ['Bo', late],
-    ] as const) {
-      const { readout } = d.player.shadow;
-      expect(readout.from, who).toBe('given');
-      expect(readout.errors, who).toEqual([]);
-      expect(readout.gaps, who).toEqual({});
-      expect(readout.arrival.late, who).toBe(0);
-      expect(readout.played.cells, who).toBeGreaterThan(readout.played.band);
-      // Every note it played, the host played as loud and as long, its skew later on the host's clock.
-      const hostPlayed = new Set(host.world.plays.map(playedKey(0)));
-      for (const p of d.world.plays.map(playedKey(d.player.skew)))
-        expect(hostPlayed, who).toContain(p);
-      // And what each output played is the host's, event by event.
-      const compared = compareSession(
-        host.player.played.since().events,
-        d.player.played.since().events,
-      );
-      expect(compared.events, who).toBeGreaterThan(100);
-      expect(compared.mismatched, who).toEqual({ velocity: 0, length: 0, onset: 0, duration: 0 });
-      // Its clock ticks on time: it lacks none, so drops none late.
-      expect(compared.lacked, who).toEqual({
-        host: { events: 0, unexplained: 0 },
-        client: { events: 0, unexplained: 0 },
-      });
-      expect(d.player.timing.lateEvents, who).toBe(0);
-    }
-    expect(client.player.shadow.readout.texts.joined).toBe(0);
-    expect(late.player.shadow.readout.texts.joined).toBeGreaterThan(0);
-    joining.leave();
     following.leave();
     hosting.close();
   });
@@ -350,29 +295,30 @@ describe('a host and a client session', () => {
     hosting.close();
   });
 
-  it('play what cells plays of each text on a client: a text it compiles otherwise is heard there, and the session’s bound says where (#446, #462)', async () => {
+  it('play what cells plays of each score on a client: a score it compiles otherwise is heard there, and the session’s bound says where (#446, #462)', async () => {
     const lobby = memoryLobby();
     const host = device(105);
-    // The client's cells plays each text with a rest before the bass's first note, a step later.
+    // The client's cells plays each score with a rest before the bass's first note, a step later.
     const inline = inlineTexts();
     const client = device(100, () => ({
       ...inline,
-      play: (given, answer) =>
+      score: (given, answer) =>
         answer(
-          playText({
+          playScore({
             ...given,
-            text: given.text.replace(
-              /(&bassline part=bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/,
-              '$1~ $2',
-            ),
+            score: {
+              ...given.score,
+              text: given.score.text.replace(
+                /(&bassline part=bass over=\S+ step=16n(?: legato=\S+)? )(\S+)/,
+                '$1~ $2',
+              ),
+            },
           }),
         ),
     }));
-    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-      speaks: 1,
-    });
+    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'Jam');
-    const following = new ClientSession(client.player, client.clocks, { speaks: 1 });
+    const following = new ClientSession(client.player, client.clocks);
     await following.join(lobby, 'Jam', 'Ada');
     await host.player.start();
     await run([host, client], 20);
@@ -682,11 +628,11 @@ describe('a host and a client session', () => {
     const host = device(0);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam', 'Bo');
-    const heard: HostSaid[][] = [[], [], []];
+    const heard: HostMessage[][] = [[], [], []];
     const links = await Promise.all(heard.map((h) => lobby.join('jam', (m) => h.push(m))));
-    links[0]!.send({ kind: 'join', protocol: PROTOCOL_V2, name: 'Ada' });
-    links[1]!.send({ kind: 'join', protocol: PROTOCOL_V2, name: 'ADA ' });
-    links[2]!.send({ kind: 'join', protocol: PROTOCOL_V2, name: 'bo' });
+    links[0]!.send({ kind: 'join', protocol: PROTOCOL, name: 'Ada' });
+    links[1]!.send({ kind: 'join', protocol: PROTOCOL, name: 'ADA ' });
+    links[2]!.send({ kind: 'join', protocol: PROTOCOL, name: 'bo' });
     expect(heard[0]![0]).toMatchObject({ kind: 'welcome' });
     for (const h of [heard[1]!, heard[2]!])
       expect(h.find((m) => m.kind === 'refused')).toMatchObject({
@@ -696,29 +642,29 @@ describe('a host and a client session', () => {
     expect(host.player.players).toEqual({ [HOST_PLAYER]: 'Bo', [hosting.guests[0]!.id]: 'Ada' });
   });
 
-  it('admit a client of any minor of the host’s major version and refuse one of an older, version 1’s too, and end a client that no host answers (#460, #553)', async () => {
+  it('admit a client of any minor of version 2 and refuse one before it, and end a client that no host answers (#460, #553)', async () => {
     const lobby = memoryLobby();
     const host = device(0);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
-    const heard: HostSaid[] = [];
+    const heard: HostMessage[] = [];
     const link = await lobby.join('jam', (m) => heard.push(m));
-    // A page of version 1, its newest minor and its oldest, cached from before the switch, is refused for its version.
-    for (const [i, protocol] of [FIRST_PROTOCOL_V2 - 1, PROTOCOL, FIRST_PROTOCOL].entries()) {
+    // A page of a protocol before version 2's first, cached from before, is refused for its version.
+    for (const [i, protocol] of [FIRST_PROTOCOL - 1, 24, 13].entries()) {
       link.send({ kind: 'join', protocol, name: `Old${i}` });
       expect(heard[i]).toMatchObject({ kind: 'refused', reason: expect.stringMatching(/version/) });
     }
     expect(hosting.guests).toEqual([]);
     // Any minor of version 2: its first, 31 as Cell studio's follower joins at, and one after the host's.
     for (const [protocol, name] of [
-      [FIRST_PROTOCOL_V2, 'Ada'],
+      [FIRST_PROTOCOL, 'Ada'],
       [31, 'Cy'],
-      [PROTOCOL_V2 + 1, 'Bo'],
+      [PROTOCOL + 1, 'Bo'],
     ] as const) {
-      const said: HostSaid[] = [];
+      const said: HostMessage[] = [];
       const other = await lobby.join('jam', (m) => said.push(m));
       other.send({ kind: 'join', protocol, name });
-      expect(said[0]).toMatchObject({ kind: 'welcome', protocol: PROTOCOL_V2 });
+      expect(said[0]).toMatchObject({ kind: 'welcome', protocol: PROTOCOL });
     }
     expect(hosting.guests.map((g) => g.name)).toEqual(['Ada', 'Cy', 'Bo']);
 
@@ -731,44 +677,7 @@ describe('a host and a client session', () => {
     expect(lonely.player.mode).toBe('solo');
   });
 
-  it('play a client at protocol 13 beside a host at 14 whose band plays through cells: the host admits it, and it plays every note the host plays (#460)', async () => {
-    const lobby = memoryLobby();
-    const host = device(105);
-    // A page a minor older plays its band's own: it predates playing through cells, as a page whose texts state no bar plays.
-    const inline = inlineTexts();
-    const client = device(100, () => ({
-      ...inline,
-      play: (given, answer) => answer({ ...playText(given), played: null, unstated: 'older' }),
-    }));
-    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-      speaks: 1,
-    });
-    await hosting.open(lobby, 'Jam');
-    // The client's join says 13, as a page a minor older does.
-    const joinAt = lobby.join;
-    lobby.join = async (session, hear, lost) => {
-      const link = await joinAt(session, hear, lost);
-      return {
-        ...link,
-        send: (m) => link.send(m.kind === 'join' ? { ...m, protocol: FIRST_PROTOCOL } : m),
-      };
-    };
-    const following = new ClientSession(client.player, client.clocks, { speaks: 1 });
-    await following.join(lobby, 'Jam', 'Ada');
-    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
-    await host.player.start();
-    await run([host, client], 12);
-    expect(following.status).toBe('joined');
-    expect(client.player.lacked).toBe(0);
-    const hostPlayed = new Set(host.world.plays.map(playedKey(0)));
-    expect(client.world.plays.length).toBeGreaterThan(20);
-    for (const p of client.world.plays.map(playedKey(client.player.skew)))
-      expect(hostPlayed).toContain(p);
-    following.leave();
-    hosting.close();
-  });
-
-  it('end a client whose host speaks a protocol before 13, the client saying it leaves (#460)', async () => {
+  it('end a client whose host speaks a protocol before version 2’s first, the client saying it leaves (#460)', async () => {
     const lobby = memoryLobby();
     const said: ClientMessage[] = [];
     let link: HostLink | null = null;
@@ -791,6 +700,8 @@ describe('a host and a client session', () => {
             dropped: [],
             players: {},
           },
+          fragments: [],
+          band: null,
         });
     });
     const client = device(0);
@@ -798,7 +709,7 @@ describe('a host and a client session', () => {
     await following.join(lobby, 'Old', 'Ada');
     expect(said.map((m) => m.kind)).toEqual(['join', 'leave']);
     expect(following.status).toBe('idle');
-    expect(following.ended).toMatch(/version 12 .* reads 30 on/);
+    expect(following.ended).toMatch(/protocol 29 .* version 2, protocol 30 on/);
     expect(client.player.mode).toBe('solo');
   });
 
@@ -903,51 +814,6 @@ describe('a host and a client session', () => {
     hosting.close();
   });
 
-  it('play a client at protocol 14, which carries no code, as ever in an open session, and seat it to listen where the host asks for one (#461)', async () => {
-    const lobby = memoryLobby();
-    const host = device(105);
-    const client = device(100);
-    const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime, {
-      speaks: 1,
-      draw: () => '042917',
-    });
-    await hosting.open(lobby, 'Jam');
-    // The client's join says 14, and carries no code, as a page a minor older does.
-    const joinAt = lobby.join;
-    lobby.join = async (session, hear, lost) => {
-      const link = await joinAt(session, hear, lost);
-      return {
-        ...link,
-        send: (m) => {
-          if (m.kind !== 'join') return link.send(m);
-          const { code, ...older } = m;
-          void code;
-          link.send({ ...older, protocol: 14 });
-        },
-      };
-    };
-    const following = new ClientSession(client.player, client.clocks, { speaks: 1 });
-    await following.join(lobby, 'Jam', 'Ada', { code: '042917' });
-    expect(hosting.guests.map((g) => g.name)).toEqual(['Ada']);
-    await host.player.start();
-    await run([host, client], 12);
-    expect(following.status).toBe('joined');
-    expect(client.player.lacked).toBe(0);
-    const hostPlayed = new Set(host.world.plays.map(playedKey(0)));
-    expect(client.world.plays.length).toBeGreaterThan(20);
-    for (const p of client.world.plays.map(playedKey(client.player.skew)))
-      expect(hostPlayed).toContain(p);
-    following.leave();
-
-    hosting.admitByCode(true);
-    const later = device(100);
-    const older = new ClientSession(later.player, later.clocks, { speaks: 1 });
-    await older.join(lobby, 'Jam', 'Bo', { code: '042917' });
-    expect(older.status).toBe('joined');
-    expect(older.role).toBe('listener');
-    hosting.close();
-  });
-
   it('keep the host playing through what only claims to be a judgement, and say it dropped it (T1)', async () => {
     const lobby = memoryLobby();
     const host = device(0);
@@ -955,7 +821,7 @@ describe('a host and a client session', () => {
     await hosting.open(lobby, 'jam');
     await host.player.start();
     const link = await lobby.join('jam', () => {});
-    link.send({ kind: 'join', protocol: PROTOCOL_V2, name: 'Mallory' });
+    link.send({ kind: 'join', protocol: PROTOCOL, name: 'Mallory' });
     await run([host], 3);
     const bar = Math.floor(host.player.writtenPosition(host.world.currentTime)! / 16);
     // Its envelope reads as a judgement; what it says doesn't.
@@ -972,9 +838,9 @@ describe('a host and a client session', () => {
     const host = device(0);
     const hosting = new HostSession(host.player, host.clocks, () => host.world.currentTime);
     await hosting.open(lobby, 'jam');
-    const heard: HostSaid[] = [];
+    const heard: HostMessage[] = [];
     const link = await lobby.join('jam', (m) => heard.push(m));
-    link.send({ kind: 'join', protocol: PROTOCOL_V2, name: 'Quiet' });
+    link.send({ kind: 'join', protocol: PROTOCOL, name: 'Quiet' });
     expect(hosting.guests).toHaveLength(1);
     host.world.currentTime += SILENT + 1;
     await vi.advanceTimersByTimeAsync(1000);
@@ -992,11 +858,11 @@ describe('a host and a client session', () => {
 
 /** A client's words to a host, and its welcome's token. */
 async function joined(lobby: Lobby, session: string, name: string, resume?: string, code?: string) {
-  const heard: HostSaid[] = [];
+  const heard: HostMessage[] = [];
   const link = await lobby.join(session, (m) => heard.push(m));
   link.send({
     kind: 'join',
-    protocol: PROTOCOL_V2,
+    protocol: PROTOCOL,
     name,
     ...(resume === undefined ? {} : { resume }),
     ...(code === undefined ? {} : { code }),
@@ -1253,8 +1119,8 @@ describe('the lobby between tabs', () => {
     await expect(lobby.host(' tab jam', () => {})).rejects.toThrow(/already open/);
     expect(await lobby.sessions()).toEqual([{ name: 'Tab Jam', players: 1 }]);
 
-    const toAda: HostSaid[] = [];
-    const toBob: HostSaid[] = [];
+    const toAda: HostMessage[] = [];
+    const toBob: HostMessage[] = [];
     const ada = await lobby.join('tab jam', (m) => toAda.push(m));
     const bob = await lobby.join('TAB JAM', (m) => toBob.push(m));
     ada.send({ kind: 'join', protocol: PROTOCOL, name: 'Ada' });

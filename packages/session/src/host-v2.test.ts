@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import v1 from '../fixtures/contracts/session.json';
-import v2 from '../fixtures/contracts/session-v2.json';
+import hub from '../fixtures/contracts/session.json';
 import {
   type FragmentLedger,
   type HostScore,
@@ -11,12 +10,18 @@ import {
   scoreFor,
 } from './host-v2.ts';
 import { scoresInForce } from './follow-v2.ts';
-import { type FragmentText, readHostMessageV2 } from './protocol-v2.ts';
-import type { SentBar } from './protocol.ts';
+import type { SentBar } from './host.ts';
+import { type FragmentText, readHostMessage } from './protocol.ts';
 
-/** A vector's message, by its name, of the contract's version 1 or 2. */
-const vectorOf = (vectors: typeof v1 | typeof v2, name: string) =>
-  vectors.vectors.find((v) => v.name === name)!.message as Record<string, unknown>;
+/** A vector's message of the contract, by its name. */
+const vectorOf = (name: string) =>
+  hub.vectors.find((v) => v.name === name)!.message as Record<string, unknown>;
+
+/**
+ * The bar the contract's run composed, with where it starts: the one its conduct vector is made from, which the
+ * contract carries in a vector of a kind no client reads (`bar`).
+ */
+const RUN_BAR = vectorOf('bar, version 1’s, to a client of version 2').sent as SentBar;
 
 const RIFF: FragmentText = { id: 'muse_riff_1', hash: 'e2:1', text: '&muse_riff_1 0 2 4 2' };
 const MOTIF: FragmentText = { id: 'muse_motif_2', hash: 'e2:2', text: '&muse_motif_2 0 1' };
@@ -35,28 +40,26 @@ const score = (bar: number, bars: number, tag = 'a', filed: FragmentText[] = [])
   cut: [],
 });
 
-describe("a host's conduct (session version 2, #553)", () => {
-  it('is the contract’s, from the bar a host of version 1 sends', () => {
-    const sent = vectorOf(v1, 'bar').sent as SentBar;
-    const { kind, ...conduct } = vectorOf(v2, 'conduct');
+describe("a host's conduct (#553)", () => {
+  it('is the contract’s, from the bar its run composed', () => {
+    const { kind, ...conduct } = vectorOf('conduct');
     expect(kind).toBe('conduct');
-    expect(conductOf(sent, conduct.foreseen as string)).toEqual(conduct);
+    expect(conductOf(RUN_BAR, conduct.foreseen as string)).toEqual(conduct);
   });
 
   it('carries no start for a bar the head passed without laying', () => {
-    const sent = vectorOf(v1, 'bar').sent as SentBar;
-    const message = { kind: 'conduct', ...conductOf({ ...sent, start: null }, 'd0') };
-    expect(readHostMessageV2(message)).toEqual(message);
+    const message = { kind: 'conduct', ...conductOf({ ...RUN_BAR, start: null }, 'd0') };
+    expect(readHostMessage(message)).toEqual(message);
   });
 });
 
-describe("a host's score (session version 2, #553)", () => {
+describe("a host's score (#553)", () => {
   const bars = [0.4, 0.6].map((barEnergy) => ({
     plan: { section: { type: 'build' } },
     barEnergy,
   })) as never;
 
-  it('takes its type from its first bar and an energy for each, and reads as version 2', () => {
+  it('takes its type from its first bar and an energy for each, and reads as a host’s message', () => {
     const stated = {
       text: '* from band',
       unstated: null,
@@ -69,13 +72,13 @@ describe("a host's score (session version 2, #553)", () => {
     expect(hosted.section).toBe('build');
     expect(hosted.energy).toEqual([0.4, 0.6]);
     const message = { kind: 'score', ...scoreFor(hosted, [RIFF]) };
-    expect(readHostMessageV2(message)).toEqual(message);
+    expect(readHostMessage(message)).toEqual(message);
     expect(message).not.toHaveProperty('filed');
     expect(message.fragments).toEqual([RIFF]);
   });
 });
 
-describe("a host's ledger of fragments sent (session version 2, #553)", () => {
+describe("a host's ledger of fragments sent (#553)", () => {
   it('sends a client each fragment once by hash, and another client its own', () => {
     let ledger: FragmentLedger = {};
     const sent = (seat: string, filed: FragmentText[]) => {
@@ -98,7 +101,7 @@ describe("a host's ledger of fragments sent (session version 2, #553)", () => {
   });
 });
 
-describe('the scores in force, as a welcome of version 2 carries them', () => {
+describe('the scores in force, as a welcome carries them', () => {
   it('are those that are the latest to state a bar not yet played, in the order stated', () => {
     const first = score(0, 8);
     const ahead = score(8, 8);

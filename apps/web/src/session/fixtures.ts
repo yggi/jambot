@@ -3,7 +3,7 @@
  * lobby in memory. Only tests import it.
  */
 
-import { type ClientMessage, type HostSaid } from '@jambot/session';
+import { type ClientMessage, type HostMessage } from '@jambot/session';
 import type { Output } from '../audio/output.ts';
 import type { Ear } from '../ear.ts';
 import { Metronome } from '../metronome.svelte.ts';
@@ -81,7 +81,7 @@ export function memoryLobby(): Lobby & {
   const hosts = new Map<string, (message: ClientMessage, from: string) => void>();
   const clients = new Map<
     string,
-    Map<string, { hear: (message: HostSaid) => void; lost: ((why: string) => void) | undefined }>
+    Map<string, { hear: (message: HostMessage) => void; lost: ((why: string) => void) | undefined }>
   >();
   const names = new Map<string, string>();
   let made = 0;

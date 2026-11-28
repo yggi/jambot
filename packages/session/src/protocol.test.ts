@@ -5,8 +5,8 @@ import {
   METER_REPOSITORY,
   type MuseOutput,
   NUDGED,
-  PRESETS,
   RHYTHM_REPOSITORY,
+  SECTION_TYPES,
   type Style,
   type Remembered,
   type SongClock,
@@ -19,11 +19,14 @@ import {
 import { describe, expect, it } from 'vitest';
 import hub from '../fixtures/contracts/session.json';
 import { EAR, earListen } from './ear.ts';
-import { sentBars } from './host.ts';
+import { type SentBar, sentBars } from './host.ts';
+import { conductOf } from './host-v2.ts';
 import {
+  type BarConduct,
   type ClientMessage,
   FIRST_PROTOCOL,
-  type HostMessage,
+  LACKED_WHYS,
+  NO_LACKED,
   PLAYED_MOST,
   CODE_DIGITS,
   CODE_LISTENS,
@@ -34,10 +37,11 @@ import {
   PROTOCOL,
   ROLES,
   BAND_VOICES,
-  type SectionText,
+  type SectionScore,
   codeOf,
+  countLacked,
   heardFrom,
-  type SentBar,
+  lackedIn,
   playerOf,
   playerSource,
   readClientMessage,
@@ -58,7 +62,7 @@ const shapeOf = (values: readonly unknown[]) =>
   [...new Set(values.flatMap((v) => paths(v)))].sort();
 
 /**
- * The bars a host sends over 75 seconds of full energy and harmony, with a
+ * The bars a host composes over 75 seconds of full energy and harmony, with a
  * motif heard in bar 2 so that bars carry an offer and accents, and the
  * judgements of the notes heard. The repository gives that style 10/8, whose
  * bars are 20 steps, so 75 seconds hold the bars a minute of 4/4 does, enough
@@ -150,40 +154,60 @@ function playedBars(): (ClientMessage & { kind: 'played' })[] {
   }));
 }
 
-/**
- * A section's cells text as a host sends it (#446), framed by the first of
- * the bars it states: the text itself is cells' (the app builds it), so a
- * line of it stands in here, which a shape doesn't read.
- */
-function sectionsOf(bars: readonly SentBar[]): (HostMessage & { kind: 'section' })[] {
-  const at = (first: number): HostMessage & { kind: 'section' } => {
-    const { plan, swing, style } = bars[first]!.bar;
-    return {
-      kind: 'section',
-      bar: bars[first]!.bar.bar,
-      step: bars[first]!.bar.bar * 16,
-      text: '&bar meter("4/4") step=120bpm',
-      unstated: null,
-      frame: { meter: plan.meter, swing, bpm: style.bpm, key: plan.key },
-      foreseen: bars.slice(first, first + 8).map((_, i) => `1f3a${i}`),
-      cut: [3],
-    };
-  };
-  const stated = at(0);
-  const unstated = { ...at(8), text: '', unstated: "the section's key moves between its bars" };
-  return [stated, unstated];
-}
+/** A bar's conduct, a section's score, and a song and a welcome that carry them, as a host sends them. */
+const conduct: BarConduct = {
+  bar: 4,
+  start: 12.5,
+  seed: 3,
+  entropy: 0.3,
+  offer: null,
+  foreseen: 'd4',
+};
+const score: SectionScore = {
+  bar: 4,
+  step: 64,
+  section: 'groove',
+  text: '* from band',
+  unstated: null,
+  lock: [{ id: 'styles', hash: 'h1' }],
+  fragments: [],
+  energy: [0.5, 0.6],
+  foreseen: ['d4', 'd5'],
+  cut: [],
+};
+const welcome = {
+  kind: 'welcome',
+  protocol: PROTOCOL,
+  session: 'jam',
+  resume: 'token',
+  song: {
+    seed: 3,
+    start: 2,
+    track: {},
+    swing: {},
+    tempoMeter: {},
+    conducts: [conduct],
+    scores: [score],
+  },
+  forecast: { from: 4, count: 0, changed: [] },
+  muse: {
+    offer: null,
+    memory: [],
+    asOf: null,
+    lastPlayed: null,
+    log: [],
+    dropped: [],
+    players: {},
+  },
+  fragments: [{ id: 'funk_drums~2', hash: 'h2', text: '&drums: x . x .' }],
+  band: { id: 'band', hash: 'h3' },
+};
 
 describe('the session protocol', () => {
   it("reads each side's messages, and nothing else", () => {
     expect(readHostMessage({ kind: 'stop' })).toEqual({ kind: 'stop' });
     expect(readHostMessage({ kind: 'finale', bar: 9 })).toEqual({ kind: 'finale', bar: 9 });
-    // A section's text (#446), as a host sends it, and with a welcome.
-    const sections = sectionsOf(travelling().bars);
-    for (const section of sections) expect(readHostMessage(section)).toEqual(section);
-    expect(readClientMessage(sections[0])).toBeNull();
-    const text: SectionText = sections[0]!;
-    expect(text.foreseen).toHaveLength(8);
+    expect(readClientMessage({ kind: 'score', ...score })).toBeNull();
     expect(readClientMessage({ kind: 'ping', sent: 1 })).toEqual({ kind: 'ping', sent: 1 });
     for (const junk of [null, 3, 'stop', {}, { kind: 7 }, { kind: 'play' }]) {
       expect(readHostMessage(junk)).toBeNull();
@@ -199,7 +223,76 @@ describe('the session protocol', () => {
     expect(readClientMessage({ kind: 'stop' })).toBeNull();
   });
 
-  it('reads a player’s nudge of each axis it may nudge, up and down, and refuses any other (protocol 18)', () => {
+  it("reads a host's score, conduct and welcome, and a bar or a section, which no host sends, not", () => {
+    for (const message of [
+      welcome,
+      { ...welcome, song: null },
+      { kind: 'conduct', ...conduct },
+      { kind: 'conduct', ...conduct, start: null, offer: {} },
+      { kind: 'score', ...score },
+      { kind: 'score', ...score, text: '', unstated: 'the key moves' },
+    ])
+      expect(readHostMessage(message), JSON.stringify(message)).toBe(message);
+    expect(
+      readHostMessage({ ...welcome, song: { ...welcome.song, conducts: undefined } }),
+    ).toBeNull();
+    expect(readHostMessage({ kind: 'bar', sent: { bar: {}, start: 1 } })).toBeNull();
+    expect(readHostMessage({ kind: 'section', bar: 0 })).toBeNull();
+  });
+
+  it('reads a score of each section type, and refuses one that locks the band, which never travels', () => {
+    for (const section of SECTION_TYPES)
+      expect(readHostMessage({ kind: 'score', ...score, section }), section).not.toBeNull();
+    expect(readHostMessage({ kind: 'score', ...score, section: 'coda' })).toBeNull();
+    expect(
+      readHostMessage({ kind: 'score', ...score, lock: [{ id: 'band', hash: 'h3' }] }),
+    ).toBeNull();
+    expect(readHostMessage({ ...welcome, band: null })).not.toBeNull();
+  });
+
+  it('reads a conduct whose entropy is from 0 to 1, its ends among them, and none outside', () => {
+    for (const entropy of [0, 0.5, 1])
+      expect(
+        readHostMessage({ kind: 'conduct', ...conduct, entropy }),
+        String(entropy),
+      ).not.toBeNull();
+    for (const entropy of [-0.01, 1.01, Number.NaN, Infinity])
+      expect(readHostMessage({ kind: 'conduct', ...conduct, entropy }), String(entropy)).toBeNull();
+  });
+
+  it("reads a client's `lacked` of every why, and none with a why the contract doesn't name, a bar not whole or no text (minor 2)", () => {
+    for (const why of LACKED_WHYS) {
+      const lacked = { kind: 'lacked', bar: 12, why, text: `bar 12: ${why}` };
+      expect(readClientMessage(lacked), why).toBe(lacked);
+    }
+    const lacked = { kind: 'lacked', bar: 12, why: 'late', text: 'its score was still being read' };
+    for (const broken of [
+      { ...lacked, why: 'muted' },
+      { ...lacked, why: undefined },
+      { ...lacked, bar: 1.5 },
+      { ...lacked, bar: '12' },
+      { ...lacked, text: undefined },
+      { ...lacked, text: 7 },
+    ])
+      expect(readClientMessage(broken), JSON.stringify(broken)).toBeNull();
+    // A host's reader drops it: it is a client's.
+    expect(readHostMessage(lacked)).toBeNull();
+  });
+
+  it('counts the bars each client lacked by why, every why, and the total a soak reads', () => {
+    let counts = {};
+    for (const why of LACKED_WHYS) counts = countLacked(counts, 'c0', why);
+    counts = countLacked(counts, 'c0', 'late');
+    counts = countLacked(counts, 'c1', 'digest');
+    expect(counts).toEqual({
+      c0: { silent: 1, digest: 1, lock: 1, late: 2 },
+      c1: { ...NO_LACKED, digest: 1 },
+    });
+    expect(lackedIn(counts)).toEqual({ silent: 1, digest: 2, lock: 1, late: 2, bars: 6 });
+    expect(lackedIn({})).toEqual({ ...NO_LACKED, bars: 0 });
+  });
+
+  it('reads a player’s nudge of each axis it may nudge, up and down, and refuses any other', () => {
     for (const target of NUDGED)
       for (const by of [1, -1]) {
         expect(readClientMessage({ kind: 'nudge', target, by })).toEqual({
@@ -222,7 +315,7 @@ describe('the session protocol', () => {
       expect(readClientMessage({ kind: 'nudge', target, by }), `${target} ${by}`).toBeNull();
   });
 
-  it('reads a line of the session’s log, and a welcome with its tail, with their fields of their types (protocol 20)', () => {
+  it('reads a line of the session’s log, with its fields of their types', () => {
     const line = {
       kind: 'event',
       bar: 16,
@@ -243,7 +336,7 @@ describe('the session protocol', () => {
     expect(BAND_VOICES).toEqual(['conductor', 'composer', 'muse']);
   });
 
-  it('reads a host’s role message of each role, and refuses any other (protocol 17, #567)', () => {
+  it('reads a host’s role message of each role, and refuses any other (#567)', () => {
     for (const role of ROLES) {
       expect(readHostMessage({ kind: 'role', role })).toEqual({ kind: 'role', role });
       expect(readClientMessage({ kind: 'role', role })).toBeNull();
@@ -311,16 +404,22 @@ describe('the session protocol', () => {
     expect(JSON.stringify(played).length).toBeLessThan(400);
   });
 
-  it('admits a client of any minor of its major version, 13 on, and refuses one of an older, and one without a name (#460)', () => {
-    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([24, 13]);
-    for (const protocol of [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23])
-      expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toBeNull();
-    for (const protocol of [12, 1, 13.5, Number.NaN])
+  it('admits a client of any minor of version 2, 30 on, and refuses one before it, every protocol from 0 to 40, and one without a name (#460, #553)', () => {
+    expect([PROTOCOL, FIRST_PROTOCOL]).toEqual([33, 30]);
+    for (let protocol = 0; protocol <= 40; protocol++) {
+      expect(sameMajor(protocol), String(protocol)).toBe(protocol >= 30);
+      const join = { kind: 'join', protocol, name: 'Ada' } as const;
+      expect(refusal(join) === null, String(protocol)).toBe(protocol >= 30);
+    }
+    for (const protocol of [30.5, Number.NaN])
       expect(refusal({ kind: 'join', protocol, name: 'Ada' }), String(protocol)).toMatch(
-        /version 24 .* takes 13 on/,
+        /version 2 .* protocol 30 on/,
       );
+    expect(refusal({ kind: 'join', protocol: 29, name: 'Ada' })).toBe(
+      'This host speaks version 2 of the session protocol, protocol 30 on, and this app protocol 29: reload it.',
+    );
     expect(refusal({ kind: 'join', protocol: FIRST_PROTOCOL, name: '  ' })).toMatch(/name/);
-    expect(sameMajor('14')).toBe(false);
+    expect(sameMajor('31')).toBe(false);
   });
 
   it('refuses a name a player in the session already goes by, in any case', () => {
@@ -350,12 +449,12 @@ describe('the session protocol', () => {
       expect(refusal(join(code), [], '042917'), code).toBe(CODE_WRONG);
     // None is no refusal: such a join is seated to listen (`admit`), a minor before this one's too.
     for (const code of [undefined, '', '  ']) expect(refusal(join(code), [], '042917')).toBeNull();
-    expect(refusal({ kind: 'join', protocol: 14, name: 'Ada' }, [], '042917')).toBeNull();
+    expect(refusal({ kind: 'join', protocol: 31, name: 'Ada' }, [], '042917')).toBeNull();
     // The code is looked at before the name, so a wrong one learns nothing of who is in it.
     expect(refusal(join('000000', 'Bo'), ['Bo'], '042917')).toBe(CODE_WRONG);
     expect(refusal(join(undefined, ' '), [], '042917')).toMatch(/name/);
     // A version before is refused for the version, whatever it carries.
-    expect(refusal({ ...join('042917'), protocol: 12 }, [], '042917')).toMatch(/version/);
+    expect(refusal({ ...join('042917'), protocol: 29 }, [], '042917')).toMatch(/version/);
     // Each says so in words of its own, which name the code.
     expect(new Set([CODE_LISTENS, CODE_LOCKED, CODE_WRONG]).size).toBe(3);
     for (const why of [CODE_LISTENS, CODE_LOCKED, CODE_WRONG]) expect(why).toMatch(/code/);
@@ -393,61 +492,35 @@ describe('the session protocol', () => {
     expect(sourceName('the computer keys', players)).toBe('the computer keys');
   });
 
-  it(`holds the shapes that travel as version ${PROTOCOL} has them: a change bumps PROTOCOL`, () => {
-    // A bar, a judgement and the Muse's log carry the engine's own types. If this fails,
-    // their shape changed: bump PROTOCOL, a minor where the change only adds (#460),
+  it(`holds the shapes that travel as protocol ${PROTOCOL} has them: a change bumps PROTOCOL`, () => {
+    // A conduct's offer, a judgement and the Muse's log carry the engine's own types. If this
+    // fails, their shape changed: bump PROTOCOL, a minor where the change only adds (#460),
     // and record the shape here.
-    const { bars: tenEight, judgements, log, memory } = travelling();
-    // 10/8 fits no rhythm: Funk's point, in 4/4, plays its drum bar and the rumba clave (#397).
-    const funk = travelling({
-      ...PRESETS.find((p) => p.name === 'Funk')!.style,
-      entropy: 0.3,
-    }).bars;
-    expect(funk.some((b) => b.bar.plan.claveFragment)).toBe(true);
-    const bars = [...tenEight, ...funk];
+    const { bars, judgements, log, memory } = travelling();
+    expect(bars.some((b) => b.bar.offer !== null)).toBe(true);
     expect(memory.length).toBeGreaterThan(0);
     expect(log.some((l) => l.recognised.length > 0)).toBe(true);
+    const conducts = bars.map((sent, i) => ({ kind: 'conduct', ...conductOf(sent, `d${i}`) }));
     expect({
       protocol: PROTOCOL,
-      bar: shapeOf(bars),
+      conduct: shapeOf(conducts),
       judgement: shapeOf(judgements),
       log: shapeOf(log),
       memory: shapeOf(memory),
       played: shapeOf(playedBars()),
-      section: shapeOf(sectionsOf(bars)),
     }).toEqual(SHAPES);
-    // The session contract, version 1 (yggi/music-commons `contracts/session-v1`, minor 11) holds the same
-    // shapes, which it states at protocol 15: 16 adds a listed session's `away` (#496), a
-    // lobby's word, 17 a host's `role` (#567), 18 a player's `nudge`, 19 its key and meter, and
-    // 20 the log's `event`, read by field, none adding a shape here; 21 adds a judgement's
-    // `origin` and 22 the style's `mood` (cells v0.23.0), which the hub's shapes carry. 23 has a drum hit's role be
-    // `ostinato` (#651), a value and no shape; 24 a section's `song` and the song forms' kinds (#655,
-    // yggi/music-commons#76).
-    expect([hub.protocol, hub.shapes.protocol, PROTOCOL]).toEqual([24, 15, 24]);
-    expect({ ...hub.shapes, protocol: PROTOCOL }).toEqual(SHAPES);
-  });
-
-  it('never carries a performer’s fill on the wire: a bar states only what a WrittenNote holds (#107, #140)', () => {
-    // The check itself can fail: a note with a fill key is caught.
-    expect(shapeOf([{ gain: 0.5 }])).toContain('gain: number');
-    const { bars } = travelling();
-    const shape = shapeOf(bars);
-    for (const key of [
-      'velocity',
-      'gain',
-      'cutoff',
-      'attack',
-      'release',
-      'resonance',
-      'triangle',
-      'square',
-      'saw',
-    ])
-      expect(shape.some((path) => path.endsWith(`.${key}: number`))).toBe(false);
+    // The session contract (yggi/music-commons `contracts/session`) states the shapes of a
+    // judgement, the Muse's log and memory and a played bar as protocol 33 has them.
+    const { judgement, log: hubLog, memory: hubMemory, played } = hub.shapes;
+    expect({ judgement, log: hubLog, memory: hubMemory, played }).toEqual({
+      judgement: SHAPES.judgement,
+      log: SHAPES.log,
+      memory: SHAPES.memory,
+      played: SHAPES.played,
+    });
   });
 });
 
-/** The shapes of version 16 (the join and welcome that carry a resume token are read by field, above), as 75 seconds of the band, two judgements, the Muse's log, a client's bar of drums and a host's section texts show them; 10 carries the meter's swing track (#360, #369) and counts a track's bpm in the beats of the meter beside it (#367, #373); 11 has a section's plan say the meter fragment the composer took from the repository and the share it swings at (#375); 12 the rhythm fragment and the clave (#397); 13 has a client pass on each bar its players played on drums, the notes as heard (`played`, #410); 14 has a host send each section's cells text (`section`, and a welcome's `song.texts`, #446); 15 has a join carry a host's code (`code`, #461), read by field above; 16 has a lobby's list say a session's host is away (`away`, #496), no message of a peer. */
 /** A played bar that isn't one: each field missing or of another type, in turn. */
 function playedJunk(): unknown[] {
   const [played] = playedBars();
@@ -479,75 +552,23 @@ function playedJunk(): unknown[] {
 }
 
 const SHAPES = {
-  protocol: 24,
-  bar: [
-    'bar.bar: number',
-    'bar.barEnergy: number',
-    'bar.barInSection: number',
-    'bar.chords[].chord.helix.cycle: number',
-    'bar.chords[].chord.helix.heights[]: number',
-    'bar.chords[].chord.tensions[]: number',
-    'bar.chords[].raised: boolean',
-    'bar.chords[].slot.degree: number',
-    'bar.chords[].slot.dominantOf: number',
-    'bar.chords[].slot.step: number',
-    'bar.next[].chord.helix.cycle: number',
-    'bar.next[].chord.helix.heights[]: number',
-    'bar.next[].chord.tensions[]: number',
-    'bar.next[].raised: boolean',
-    'bar.next[].slot.degree: number',
-    'bar.next[].slot.dominantOf: number',
-    'bar.next[].slot.step: number',
-    'bar.offer.bar: number',
-    'bar.offer.level: number',
-    'bar.offer.motif.accents[]: number',
-    'bar.offer.motif.accidentals[]: number',
-    'bar.offer.motif.cycle: number',
-    'bar.offer.motif.degrees[]: null',
-    'bar.offer.motif.degrees[]: number',
-    'bar.offer.motif.onsets[]: number',
-    'bar.offer.source: string',
-    'bar.offer: null',
-    'bar.plan.claveFragment: string',
-    'bar.plan.key.mode: string',
-    'bar.plan.key.tonic: number',
-    'bar.plan.melodic: string',
-    'bar.plan.meter.cycle: number',
-    'bar.plan.meter.heights[]: number',
-    'bar.plan.meterFragment: string',
-    'bar.plan.rhythmFragment: string',
-    'bar.plan.section.index: number',
-    'bar.plan.section.song.at: number',
-    'bar.plan.section.song.form: string',
-    'bar.plan.section.song.of: number',
-    'bar.plan.section.type: string',
-    'bar.plan.share: number',
-    'bar.plan.swing: string',
-    'bar.plan.theme.bars[][].degree: number',
-    'bar.plan.theme.bars[][].dominantOf: number',
-    'bar.plan.theme.bars[][].step: number',
-    'bar.plan.theme.harm: number',
-    'bar.plan.theme.index: number',
-    'bar.plan.theme.kind: string',
-    'bar.plan.theme.mode: string',
-    'bar.plan.theme.vamp: null',
-    'bar.plan.theme.vamp: number',
-    'bar.seed: number',
-    'bar.style.artic: number',
-    'bar.style.bpm: number',
-    'bar.style.energy: number',
-    'bar.style.entropy: number',
-    'bar.style.harm: number',
-    'bar.style.mood: number',
-    'bar.style.sync: number',
-    'bar.swing.level: string',
-    'bar.swing.share: number',
-    'bar.written[].accent: number',
-    'bar.written[].length: number',
-    'bar.written[].note: number',
-    'bar.written[].part: string',
-    'bar.written[].role: string',
-    'bar.written[].step: number',
+  protocol: 33,
+  conduct: [
+    'bar: number',
+    'entropy: number',
+    'foreseen: string',
+    'kind: string',
+    'offer.bar: number',
+    'offer.level: number',
+    'offer.motif.accents[]: number',
+    'offer.motif.accidentals[]: number',
+    'offer.motif.cycle: number',
+    'offer.motif.degrees[]: null',
+    'offer.motif.degrees[]: number',
+    'offer.motif.onsets[]: number',
+    'offer.source: string',
+    'offer: null',
+    'seed: number',
     'start: number',
   ],
   judgement: [
@@ -619,22 +640,5 @@ const SHAPES = {
     'notes[].source: string',
     'notes[].velocity: number',
     'part: string',
-  ],
-  section: [
-    'bar: number',
-    'cut[]: number',
-    'foreseen[]: string',
-    'frame.bpm: number',
-    'frame.key.mode: string',
-    'frame.key.tonic: number',
-    'frame.meter.cycle: number',
-    'frame.meter.heights[]: number',
-    'frame.swing.level: string',
-    'frame.swing.share: number',
-    'kind: string',
-    'step: number',
-    'text: string',
-    'unstated: null',
-    'unstated: string',
   ],
 };

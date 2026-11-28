@@ -1,15 +1,15 @@
 /**
- * What a host of version 2 of the session contract writes (#553, rung 2):
- * each bar's conduct, each section's score, and the fragments a score locks
- * that a client lacks, sent to each client once by hash. Written here, and
- * spoken by the app's host, which speaks version 2 (`SESSION_SPEAKS` in the
- * app, #553 rung 4); a client plays them (`follow-v2.ts`).
+ * What a host writes for its clients, as version 2 of the session contract
+ * has it (#553): each bar's conduct, each section's score, and the fragments
+ * a score locks that a client lacks, sent to each client once by hash.
+ * Written here, and spoken by the app's host; a client plays them
+ * (`follow-v2.ts`).
  *
- * A conduct is made from the bar the host sends at version 1 (`SentBar`), as
- * the contract's rule makes it (`conductOf` in yggi/music-commons
- * `tools/vectors.mjs`): its start, seed, entropy and offer, and the digest of
- * what the bar was built from (`foreseen`), which the score that states the
- * bar foresaw for it where the client is to play it.
+ * A conduct is made from the bar the host composed, with where it starts
+ * (`SentBar`), as the contract's rule makes it (`conductOf` in
+ * yggi/music-commons `tools/vectors.mjs`): its start, seed, entropy and
+ * offer, and the digest of what the bar was built from (`foreseen`), which
+ * the score that states the bar foresaw for it where the client is to play it.
  *
  * A score is made from what the host's band states of a section (`HostScore`):
  * the fields every client is sent alike, and the fragments it locks that are
@@ -21,10 +21,10 @@
  */
 
 import type { BarEnv } from '@jambot/engine';
-import type { BarConduct, FragmentText, SectionScore } from './protocol-v2.ts';
-import type { SentBar } from './protocol.ts';
+import type { SentBar } from './host.ts';
+import type { BarConduct, FragmentText, SectionScore } from './protocol.ts';
 
-/** A bar's conduct, from the bar a host sends at version 1 and the digest of what it was built from. */
+/** A bar's conduct, from the bar a host composed, with where it starts, and the digest of what it was built from. */
 export function conductOf({ bar, start }: SentBar, foreseen: string): BarConduct {
   return {
     bar: bar.bar,
@@ -40,6 +40,11 @@ export function conductOf({ bar, start }: SentBar, foreseen: string): BarConduct
  * A section's score as the host's band stated it, before it goes to a client:
  * a score's fields but its `fragments`, with the fragments of its lock that
  * are not in the host's seed library, each with its text (`filed`).
+ * The text is what travels, not the events cells plays from it (cells
+ * decision 037: the text holds what is composed): it is legible all the way
+ * down, and the smaller, 1.9 to 3.3 KB a section as JSON over the presets'
+ * second sections at entropy 0.3, where the events would be 7.7 to 29 times
+ * that (`section-texts.test.ts` in the app measures both).
  */
 export interface HostScore extends Omit<SectionScore, 'fragments'> {
   readonly filed: readonly FragmentText[];

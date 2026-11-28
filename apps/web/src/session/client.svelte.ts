@@ -6,17 +6,17 @@
  * set the player's clock by the host's: the network's offset between the
  * page clocks (`hostClock`), plus the host's output's offset from its page
  * clock, less this output's (`skewOf`), so a note sounds here as it
- * sounds at the host, whatever each output's latency. A song waits until the clock is trusted, then plays from the bars
- * the host sent. Everything else the host says goes to the player as it
- * comes: bars, the section texts of a band that plays through cells (#446),
+ * sounds at the host, whatever each output's latency. A song waits until the clock is trusted, then plays from the
+ * conducts and scores the host sent. Everything else the host says goes to the player as it
+ * comes: each bar's conduct, each section's score (#446, #553),
  * the style, the bars ahead and the Muse. What the player's
  * ear judged goes to the host, its sources named by this player's name, and
  * so does what its players played on drums, a bar a message (#410).
  *
  * It leaves when asked, when the host closes or refuses it, when the host
  * is too far away for playing together (`CLOCK.tooFar`), when no welcome
- * comes within `WELCOME_WAIT`, and when the welcome's protocol is of an
- * older major version than its own (`sameMajor`, #460), saying `leave`.
+ * comes within `WELCOME_WAIT`, and when the welcome's protocol is below
+ * version 2's first (`sameMajor`, #460), saying `leave`.
  *
  * A link that drops is no leaving. The player keeps playing what it has,
  * and the client joins again with the token its welcome gave, so the host
@@ -27,11 +27,9 @@
  * the client joins again over the same link. What it needs to come back
  * after the app was closed is kept as it changes (`ClientKeep`).
  *
- * It joins at the version of the session contract the app speaks
- * (`SESSION_SPEAKS`, version 2, or `speaks` as it is made), and leaves a
- * host whose welcome says another version (`versionOf`), saying `leave`, as
- * the contract's rollout has Jambot's pages move together (#553): a page of
- * version 1 cached from before is left. A host of version 2 sends each bar's
+ * It joins at version 2 of the session contract (#553), and leaves a host
+ * whose welcome says a protocol before it, saying `leave`: a page of an
+ * older version cached from before is left. A host sends each bar's
  * conduct and each section's score, which go to the player
  * (`followConduct`, `followScore`), and with a score the fragments it locks
  * that this client lacks, once each by hash: they are kept, given with each
@@ -47,21 +45,13 @@ import {
   type ClientMessage,
   type FragmentText,
   type HostMessage,
-  type HostMessageV2,
-  type HostSaid,
-  FIRST_PROTOCOL_V2,
-  PROTOCOL_V2,
+  FIRST_PROTOCOL,
+  PROTOCOL,
   type SectionScore,
   readHostMessage,
-  readHostMessageV2,
-  versionOf,
   type Role,
   type SessionEvent,
   said,
-  FIRST_PROTOCOL,
-  PROTOCOL,
-  type SectionText,
-  type SentBar,
   type Song,
   applyForecast,
   type ClientResume,
@@ -83,7 +73,6 @@ import type { Player } from '../player.svelte.ts';
 import type { GivenScore } from '../section-texts.ts';
 import type { DeviceClocks } from './clocks.ts';
 import type { ClientLink, Lobby } from './lobby.ts';
-import { SESSION_SPEAKS } from './speaks.ts';
 
 /** How long, in milliseconds, a client waits for a host to welcome it. */
 export const WELCOME_WAIT = 2000;
@@ -108,8 +97,6 @@ export interface ClientOptions {
   /** The time, in seconds since the epoch, that a kept record is dated by. */
   readonly epoch?: () => number;
   readonly keep?: ClientKeep;
-  /** The version of the session contract it joins at, `SESSION_SPEAKS` unless said. */
-  readonly speaks?: 1 | 2;
 }
 
 /** A client's counters of its clock set by the host's (#27). */
@@ -150,24 +137,16 @@ export class ClientSession {
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #held: ForecastBar[] = [];
   /**
-   * A song the host plays, waiting for the clock to be trusted: its bars, the
-   * texts its welcome gave, and those that came since (#446); of a host of
-   * version 2, its conducts, the scores its welcome gave and those since (#553).
+   * A song the host plays, waiting for the clock to be trusted: its conducts,
+   * the scores its welcome gave and those that came since (#446, #553).
    */
   #pending: {
     song: Song;
-    bars: SentBar[];
-    joined: readonly SectionText[];
-    texts: SectionText[];
     conducts: BarConduct[];
     scored: readonly GivenScore[];
     scores: GivenScore[];
   } | null = null;
-  /** The version of the session contract it joins at. */
-  #speaks: 1 | 2;
-  /** The version its host speaks, as its welcome said; the one it joins at until then. */
-  #version: 1 | 2;
-  /** The fragments a host of version 2 sent, by hash (#553): kept for the session, and with the resume record. */
+  /** The fragments the host sent, by hash (#553): kept for the session, and with the resume record. */
   #fragments: readonly FragmentText[] = [];
   #lobby: Lobby | null = null;
   /** The address of the lobby, to keep with the token. */
@@ -195,11 +174,8 @@ export class ClientSession {
       wallNow = () => performance.now() / 1000,
       epoch = () => Date.now() / 1000,
       keep,
-      speaks = SESSION_SPEAKS,
     }: ClientOptions = {},
   ) {
-    this.#speaks = speaks;
-    this.#version = speaks;
     this.#player = player;
     this.#clocks = clocks;
     this.#wallNow = wallNow;
@@ -213,7 +189,7 @@ export class ClientSession {
     return { trips: this.#trips, reading: this.#reading, skew: this.#skew() };
   }
 
-  /** The fragments a host of session version 2 sent, each once by hash (#553). */
+  /** The fragments the host sent, each once by hash (#553). */
   get fragments(): readonly FragmentText[] {
     return this.#fragments;
   }
@@ -242,7 +218,6 @@ export class ClientSession {
     } = {},
   ) {
     this.leave();
-    this.#version = this.#speaks;
     this.#fragments = [];
     this.#hold(fragments);
     const attempt = ++this.#joins;
@@ -267,9 +242,9 @@ export class ClientSession {
       },
       forget: () => this.#send({ kind: 'forget' }),
       skew: () => this.#skew(),
-      // Each bar it didn't play, told to a host of version 2, which counts them (minor 2, #553).
+      // Each bar it didn't play, told to the host, which counts them (minor 2, #553).
       lacked: (said) => {
-        if (this.#version === 2) for (const s of said) this.#send({ kind: 'lacked', ...s });
+        for (const s of said) this.#send({ kind: 'lacked', ...s });
       },
     });
     try {
@@ -305,7 +280,7 @@ export class ClientSession {
   #sendJoin() {
     this.#send({
       kind: 'join',
-      protocol: this.#speaks === 2 ? PROTOCOL_V2 : PROTOCOL,
+      protocol: PROTOCOL,
       name: this.name ?? '',
       ...(this.#token === null ? {} : { resume: this.#token }),
       ...(this.#code === null ? {} : { code: this.#code }),
@@ -453,46 +428,34 @@ export class ClientSession {
   }
 
   /**
-   * A host's message, read by the version its welcome says (a welcome by its own protocol), which is the one this
-   * client speaks, else it leaves: version 2's (#553), or version 1's where made to speak it; one that doesn't read as
-   * its version's is dropped.
+   * A host's message, read by its fields: a welcome of a protocol before version 2's first is left, and one that
+   * doesn't read is dropped.
    */
-  #hear(said: HostSaid) {
-    if (said.kind === 'welcome') {
+  #hear(heard: HostMessage) {
+    // (said by the lobby, never read off the wire: the reader takes neither)
+    if (heard.kind === 'away' || heard.kind === 'back') return this.#hearKept(heard);
+    if (heard.kind === 'welcome' && !sameMajor(heard.protocol)) {
       if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
       this.#welcomeWait = null;
-      const version = versionOf(said.protocol);
-      // A host of another major version than this app speaks: say so, and go (#460, the contract's rollout).
-      if (version !== this.#speaks || !sameMajor(said.protocol)) {
-        this.#send({ kind: 'leave' });
-        return this.#end(
-          `This host speaks version ${said.protocol} of the session protocol, and this app reads ${this.#speaks === 2 ? FIRST_PROTOCOL_V2 : FIRST_PROTOCOL} on: reload the host.`,
-        );
-      }
-      this.#version = version;
+      // A host of an older version than this app speaks: say so, and go (#460, #553).
+      this.#send({ kind: 'leave' });
+      return this.#end(
+        `This host speaks protocol ${String(heard.protocol)} of the session, and this app version 2, protocol ${FIRST_PROTOCOL} on: reload the host.`,
+      );
     }
-    // (said by the lobby, never read off the wire: no reader takes them, of either version)
-    if (said.kind === 'away' || said.kind === 'back') return this.#hearKept(said);
-    if (this.#version === 2) {
-      const message = readHostMessageV2(said);
-      if (message) this.#hearV2(message);
-      return;
-    }
-    const message = readHostMessage(said);
-    if (message) this.#hearV1(message);
-  }
-
-  /** A message of a host of version 2 (#553): its welcome, conducts and scores; the rest as version 1's. */
-  #hearV2(message: HostMessageV2) {
+    const message = readHostMessage(heard);
+    if (!message) return;
     switch (message.kind) {
       case 'welcome':
+        if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
+        this.#welcomeWait = null;
         this.#welcomed(message);
         this.#hold(message.fragments);
         this.#remember();
         this.#forecast(message.forecast);
         this.#player.followMuse(message.muse);
         if (message.song)
-          this.#play(message.song, [], [], {
+          this.#play(message.song, {
             conducts: message.song.conducts,
             scores: message.song.scores.map((s) => this.#given(s)),
           });
@@ -519,7 +482,7 @@ export class ClientSession {
     }
   }
 
-  /** The fragments a host of version 2 sent kept by hash; whether any was new. */
+  /** The fragments the host sent kept by hash; whether any was new. */
   #hold(fragments: readonly FragmentText[]): boolean {
     const fresh = fragments.filter(
       (f, i) =>
@@ -536,7 +499,7 @@ export class ClientSession {
     return { score, fragments };
   }
 
-  /** What a welcome of either version says alike: the client is joined, seated as it says, its log and token. */
+  /** What a welcome says of the client: it is joined, seated as it says, its log and token. */
   #welcomed(message: { resume: string; listening?: true; events?: readonly SessionEvent[] }) {
     if (this.#retrying) clearTimeout(this.#retrying);
     this.#retrying = null;
@@ -557,39 +520,8 @@ export class ClientSession {
     this.#ping();
   }
 
-  #hearV1(message: HostMessage) {
-    switch (message.kind) {
-      case 'welcome':
-        this.#welcomed(message);
-        this.#remember();
-        this.#forecast(message.forecast);
-        this.#player.followMuse(message.muse);
-        if (message.song) this.#play(message.song, message.song.bars, message.song.texts);
-        else if (this.hostPlaying) this.#stopped();
-        return this.#pinged();
-      case 'bar':
-        if (this.#pending) this.#pending.bars.push(message.sent);
-        else this.#player.followBar(message.sent);
-        return;
-      case 'section': {
-        const { kind, ...text } = message;
-        void kind;
-        if (this.#pending) this.#pending.texts.push(text);
-        else this.#player.followSection(text);
-        return;
-      }
-      default:
-        return this.#hearKept(message);
-    }
-  }
-
-  /** A message of a kind version 1 and 2 send alike. */
-  #hearKept(
-    message: Exclude<
-      HostMessage | HostMessageV2,
-      { kind: 'welcome' | 'bar' | 'section' | 'conduct' | 'score' }
-    >,
-  ) {
+  /** A message of any other kind than a welcome, a conduct or a score. */
+  #hearKept(message: Exclude<HostMessage, { kind: 'welcome' | 'conduct' | 'score' }>) {
     switch (message.kind) {
       case 'refused':
         return this.#end(message.reason);
@@ -598,7 +530,7 @@ export class ClientSession {
       case 'pong':
         return this.#pong(message.sent, message.host, message.heard);
       case 'start':
-        return this.#play(message.song, []);
+        return this.#play(message.song);
       case 'track':
         return this.#player.followTrack(message.track, message.swing, message.tempoMeter);
       case 'forecast':
@@ -654,23 +586,13 @@ export class ClientSession {
 
   #play(
     song: Song,
-    bars: readonly SentBar[],
-    joined: readonly SectionText[] = [],
     {
       conducts = [],
       scores = [],
     }: { conducts?: readonly BarConduct[]; scores?: readonly GivenScore[] } = {},
   ) {
     this.hostPlaying = true;
-    this.#pending = {
-      song,
-      bars: [...bars],
-      joined,
-      texts: [],
-      conducts: [...conducts],
-      scored: scores,
-      scores: [],
-    };
+    this.#pending = { song, conducts: [...conducts], scored: scores, scores: [] };
     this.#startWhenReady();
   }
 
@@ -680,13 +602,8 @@ export class ClientSession {
     if (!pending || skew === null) return;
     this.#pending = null;
     this.#player.skew = skew;
-    if (this.#version === 2) {
-      void this.#player.followScores(pending.song, pending.conducts, pending.scored);
-      for (const given of pending.scores) this.#player.followScore(given);
-      return;
-    }
-    void this.#player.followSong(pending.song, pending.bars, pending.joined);
-    for (const text of pending.texts) this.#player.followSection(text);
+    void this.#player.followScores(pending.song, pending.conducts, pending.scored);
+    for (const given of pending.scores) this.#player.followScore(given);
   }
 
   /** The host's heard moment less this output's, once every clock is trusted. */

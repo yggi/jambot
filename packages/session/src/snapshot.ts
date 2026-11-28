@@ -32,8 +32,7 @@
 import { type KeyWish, type StyleTrack, type SwingTrack, SWING_LEVELS } from '@jambot/engine';
 import type { Meter } from '@jambot/theory';
 import { each } from './fields.ts';
-import { ROLES } from './protocol.ts';
-import { type FragmentText, isFragmentText } from './protocol-v2.ts';
+import { type FragmentText, ROLES, isFragmentText } from './protocol.ts';
 import type { Member } from './roster.ts';
 import { type Station, readStation } from './station.ts';
 

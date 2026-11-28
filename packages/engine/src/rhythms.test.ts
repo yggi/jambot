@@ -381,17 +381,19 @@ describe('the band with the rhythm against main: 8 presets held × 2 seeds × 32
     // (every stroke of the clave's lap: on its own sound, none falls to a rim on its step)
     expect(measured).toEqual([
       // (each preset's song form since #655: Ambient's, a groove and its breakdown, has no drop, so its drummer plays
-      // fewer hits a bar)
+      // fewer hits a bar; and since the drummer fills with cells' fills, #643, main's bars that fill hold the found
+      // fill's hits, where they held the drummer's snare run: Techno 18.53, Ambient 0.84 and 1.7, Lo-fi hip hop 8.38,
+      // Bossa nova 14.52 and Swing jazz 0.79 and 12.73 before)
       ['Synth-pop', 0.76, 1.56, 12.36, 0],
-      ['Techno', 0.83, 1.52, 18.53, 0],
+      ['Techno', 0.83, 1.52, 18.72, 0],
       ['Deep house', 0.8, 1.52, 10.81, 0],
-      ['Ambient', 0.84, 0.31, 1.7, 0],
-      ['Lo-fi hip hop', 0.67, 2.36, 8.38, 0],
+      ['Ambient', 0.85, 0.31, 1.84, 0],
+      ['Lo-fi hip hop', 0.67, 2.36, 8.36, 0],
       ['Funk', 0.65, 5.25, 24.55, 2.5],
       // (Bossa nova 0.64, 3.31 and 14.08, and Swing jazz 0.78 and 12.66, before cells v0.30.0, whose jazz solos play
       // 0.05 hotter)
-      ['Bossa nova', 0.66, 3.16, 14.52, 5],
-      ['Swing jazz', 0.79, 1.44, 12.73, 0],
+      ['Bossa nova', 0.66, 3.16, 14.5, 5],
+      ['Swing jazz', 0.78, 1.44, 12.66, 0],
     ]);
   });
 });

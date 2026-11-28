@@ -140,10 +140,11 @@ This primitive is the root of the project and the core of the language design
   next section the band plans, a bar before that section starts. Tempo and swing
   follow per step and per beat, and a started beat keeps its swing. After a
   stall, what the clock has passed is dropped, not played late. Its bars come
-  from a source (`BarSource`): the band, or a host's bars a client plays
-  (`followSource`), which it takes as it lays each bar's first step, leaving the
-  host's beat for the bar to arrive, and starts where the host said it starts. A
-  bar that hasn't arrived by then is passed, as a stall passes one. Notes
+  from a source (`BarSource`): the band, or a host's scores and conducts a
+  client plays (`scoreSource`), each bar taken as it lays the bar's first
+  step, leaving the host's beat for the bar's conduct to arrive, and started
+  where its conduct says it starts. A bar whose conduct hasn't arrived by then
+  is passed, as a stall passes one. Notes
   players play arrive as its input, where they were heard; as the band composes
   a bar, the Muse judges the bar before the one before it, so a motif heard in
   bar k plays from bar k + 2 and nothing reaches a bar sooner (F7). The Muse

@@ -85,7 +85,7 @@ Three findings shape the plan:
 
 - **A client can draw the top of the tree but not the middle.** The meter, the drums and the clave ride on the plan. The progression, the bass line and the lead line are carried in `PlanCarried` and stay on the host, as do the short-term memory and the boredom.
 - **The nesting is already written down, in cells.** Cells' `from` lines say what takes what (`&harm from vamp_to_the_seventh &key`, `&bassline from walking_bass &harm`).
-  Today the band's section text, which does reach every client (protocol 14), writes its parts out note by note, and its only `from` lines are the performers.
+  Today the band's section score, which does reach every client (`score`), writes its parts out note by note, and its only `from` lines are the performers.
 - **One comment was stale.** `fragmentsView.ts` said the Muse's motifs are "not cells fragments yet (#309)". #309 is closed; it now names #547 and #580.
 
 ## What lives in cells
